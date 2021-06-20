@@ -51,7 +51,7 @@ typedef int32_t TPE_Unit;
 #define TPE_BODY_FLAG_DISABLED     0x00 ///< won't take part in simul. at all
 #define TPE_BODY_FLAG_NONCOLLIDING 0x01 ///< simulated but won't collide
 
-typedef TPE_Unit[3] TPE_Vec3;
+typedef TPE_Unit TPE_Vec3[3];
 
 typedef struct
 {
@@ -85,6 +85,7 @@ typedef struct
 
 
 
+#define TPE_PRINTF_VEC3(v) printf("[%d %d %d]",v[0],v[1],v[2]);
 
 typedef struct
 {
@@ -98,6 +99,50 @@ typedef struct
 static inline TPE_Unit TPE_nonZero(TPE_Unit x)
 {
   return x + (x == 0);
+}
+
+void TPE_vec3Add(const TPE_Vec3 a, const TPE_Vec3 b, TPE_Vec3 result)
+{
+  result[0] = a[0] + b[0];
+  result[1] = a[1] + b[1];
+  result[2] = a[2] + b[2];
+}
+
+TPE_Unit TPE_vec3Len(TPE_Vec3 v)
+{
+  return TPE_sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+}
+
+static inline TPE_Unit TPE_vec3DotProduct(const TPE_Vec3 v1, const TPE_Vec3 v2)
+{
+  return
+    (v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]) / TPE_FRACTIONS_PER_UNIT;
+}
+
+void TPE_vec3Normalize(TPE_Vec3 v)
+{ 
+  TPE_Unit l = TPE_vec3Len(v);
+
+  if (l == 0)
+  {
+    v[0] = TPE_FRACTIONS_PER_UNIT;
+    return;
+  }
+
+  v[0] = (v[0] * TPE_FRACTIONS_PER_UNIT) / l;
+  v[1] = (v[1] * TPE_FRACTIONS_PER_UNIT) / l;
+  v[2] = (v[2] * TPE_FRACTIONS_PER_UNIT) / l;
+}
+
+void TPE_vec3Project(const TPE_Vec3 v, const TPE_Vec3 base, TPE_Vec3 result)
+{
+  TPE_Unit p = TPE_vec3DotProduct(v,base);
+
+printf("%d\n",p);
+
+  result[0] = (p * base[0]) / TPE_FRACTIONS_PER_UNIT;
+  result[1] = (p * base[1]) / TPE_FRACTIONS_PER_UNIT;
+  result[2] = (p * base[2]) / TPE_FRACTIONS_PER_UNIT;
 }
 
 TPE_Unit TPE_sqrt(TPE_Unit value)
@@ -132,21 +177,9 @@ TPE_Unit TPE_sqrt(TPE_Unit value)
   return result * sign;
 }
 
-void TPE_vec3Add(TPE_Vec3 a, TPE_Vec3 b, TPE_Vec3 result)
-{
-  result[0] = a[0] + b[0];
-  result[1] = a[1] + b[1];
-  result[2] = a[2] + b[2];
-}
-
-TPE_Unit TPE_vec3Len(TPE_Vec3 v)
-{
-  return TPE_sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-}
-
 void TPE_resolvePointCollision(
-  TPE_Vec3 collisionPoint,
-  TPE_Vec3 collisionNormal,
+  const TPE_Vec3 collisionPoint,
+  const TPE_Vec3 collisionNormal,
   TPE_Vec3 linVelocity1,
   TPE_Vec3 rotVelocity1,
   TPE_Unit m1,
@@ -160,7 +193,6 @@ void TPE_resolvePointCollision(
   TPE_vec3Add(linVelocity2,rotVelocity2,v2);
 
 // TODO
-
 }
 
 void TPE_getVelocitiesAfterCollision(
