@@ -108,6 +108,20 @@ void TPE_vec3Add(const TPE_Vec3 a, const TPE_Vec3 b, TPE_Vec3 result)
   result[2] = a[2] + b[2];
 }
 
+void TPE_vec3Substract(const TPE_Vec3 a, const TPE_Vec3 b, TPE_Vec3 result)
+{
+  result[0] = a[0] - b[0];
+  result[1] = a[1] - b[1];
+  result[2] = a[2] - b[2];
+}
+
+void TPE_vec3Multiplay(const TPE_Vec3 v, TPE_Unit f, TPE_Vec3 result)
+{
+  result[0] = (v[0] * f) / TPE_FRACTIONS_PER_UNIT;
+  result[1] = (v[1] * f) / TPE_FRACTIONS_PER_UNIT;
+  result[2] = (v[2] * f) / TPE_FRACTIONS_PER_UNIT;
+}
+
 TPE_Unit TPE_vec3Len(TPE_Vec3 v)
 {
   return TPE_sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
@@ -137,8 +151,6 @@ void TPE_vec3Normalize(TPE_Vec3 v)
 void TPE_vec3Project(const TPE_Vec3 v, const TPE_Vec3 base, TPE_Vec3 result)
 {
   TPE_Unit p = TPE_vec3DotProduct(v,base);
-
-printf("%d\n",p);
 
   result[0] = (p * base[0]) / TPE_FRACTIONS_PER_UNIT;
   result[1] = (p * base[1]) / TPE_FRACTIONS_PER_UNIT;
@@ -180,6 +192,7 @@ TPE_Unit TPE_sqrt(TPE_Unit value)
 void TPE_resolvePointCollision(
   const TPE_Vec3 collisionPoint,
   const TPE_Vec3 collisionNormal,
+  TPE_Unit elasticity,
   TPE_Vec3 linVelocity1,
   TPE_Vec3 rotVelocity1,
   TPE_Unit m1,
@@ -187,10 +200,52 @@ void TPE_resolvePointCollision(
   TPE_Vec3 rotVelocity2,
   TPE_Unit m2)
 {
-  TPE_Vec3 v1, v2;
-  
+  TPE_Vec3 v1, v2, v1New, v2New;
+
+  // add lin. and rot. velocities to get the overall vel. of both points:
+
   TPE_vec3Add(linVelocity1,rotVelocity1,v1);
   TPE_vec3Add(linVelocity2,rotVelocity2,v2);
+
+  /* project both of these velocities to the collision normal as we'll apply
+     the collision equation only in the direction of this normal: */
+
+  TPE_vec3Project(v1,collisionNormal,v1New);
+  TPE_vec3Project(v2,collisionNormal,v2New);
+
+  // get the velocities of the components
+
+  TPE_Unit
+    v1NewMag = TPE_vec3Len(v1New),
+    v2NewMag = TPE_vec3Len(v2New);
+
+  /* now also substract this component from the original velocity (so that it
+     will now be in the collision plane), we'll later add back the updated
+     velocity to it */
+
+  TPE_vec3Substract(v1,v1New,v1); 
+  TPE_vec3Substract(v2,v2New,v2); 
+
+  // apply the 1D collision equation to velocities along the normal:
+
+  TPE_getVelocitiesAfterCollision(
+    &v1NewMag,
+    &v2NewMag,
+    m1,
+    m2,
+    elasticity);
+
+  // add back the updated velocities to get the new overall velocities:
+
+  v1New[0] += (collisionNormal[0] * v1NewMag) / TPE_FRACTIONS_PER_UNIT;
+  v1New[1] += (collisionNormal[1] * v1NewMag) / TPE_FRACTIONS_PER_UNIT;
+  v1New[2] += (collisionNormal[2] * v1NewMag) / TPE_FRACTIONS_PER_UNIT;
+ 
+  v2New[0] += (collisionNormal[0] * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
+  v2New[1] += (collisionNormal[1] * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
+  v2New[2] += (collisionNormal[2] * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
+
+ 
 
 // TODO
 }
