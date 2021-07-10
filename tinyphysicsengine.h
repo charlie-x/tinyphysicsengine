@@ -111,6 +111,16 @@ TPE_Unit TPE_wrap(TPE_Unit value, TPE_Unit mod)
   return value >= 0 ? (value % mod) : (mod + (value % mod) - 1);
 }
 
+TPE_Unit TPE_clamp(TPE_Unit v, TPE_Unit v1, TPE_Unit v2)
+{
+  return v >= v1 ? (v <= v2 ? v : v2) : v1;
+}
+
+TPE_Unit TPE_nonZero(TPE_Unit x)
+{
+  return x + (x == 0);
+}
+
 #define TPE_SIN_TABLE_LENGTH 128
 
 static const TPE_Unit TPE_sinTable[TPE_SIN_TABLE_LENGTH] =
@@ -250,6 +260,46 @@ TPE_Unit TPE_cos(TPE_Unit x)
   return TPE_sin(x + TPE_FRACTIONS_PER_UNIT / 4);
 }
 
+TPE_Unit TPE_asin(TPE_Unit x)
+{
+  x = TPE_clamp(x,-S3L_FRACTIONS_PER_UNIT,S3L_FRACTIONS_PER_UNIT);
+
+  int8_t sign = 1;
+
+  if (x < 0)
+  {
+    sign = -1;
+    x *= -1;
+  }
+
+  int16_t low = 0;
+  int16_t high = S3L_SIN_TABLE_LENGTH -1;
+  int16_t middle;
+
+  while (low <= high) // binary search
+  {
+    middle = (low + high) / 2;
+
+    S3L_Unit v = S3L_sinTable[middle];
+
+    if (v > x)
+      high = middle - 1;
+    else if (v < x)
+      low = middle + 1;
+    else
+      break;
+  }
+
+  middle *= TPE_SIN_TABLE_UNIT_STEP;
+
+  return sign * middle;
+}
+
+TPE_Unit TPE_acos(TPE_Unit x)
+{
+  return TPE_FRACTIONS_PER_UNIT - TPE_asin(x);
+}
+
 void TPE_initBody(TPE_Body *body)
 {
   // TODO
@@ -289,9 +339,33 @@ void TPE_quaternionMultiply(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result)
      a.w * b.x) / TPE_FRACTIONS_PER_UNIT;
 }
 
-static inline TPE_Unit TPE_nonZero(TPE_Unit x)
+void TPE_rotationToQuaternion(TPE_Vec4 axis, TPE_Unit angle, TPE_Vec4 *quaternion)
 {
-  return x + (x == 0);
+  TPE_vec3Normalize(&axis);
+
+  angle /= 2;
+
+  TPE_Unit s = TPE_sin(angle);
+
+  quaternion->x = TPE_cos(angle);
+  quaternion->y = s * axis.x;
+  quaternion->z = s * axis.y;
+  quaternion->w = s * axis.z;
+}
+
+TPE_quaternionToRotation(TPE_Vec4 quaternion, TPE_Vec4 *axis, TPE_Unit *angle)
+{
+  *angle = 2 * TPE_acos(quaternion.x);
+
+  TPE_Unit tmp =
+    TPE_nonZero(TPE_sqrt(
+      (TPE_FRACTIONS_PER_UNIT - 
+        (quaternion.x * quaternion.x) / TPE_FRACTIONS_PER_UNIT
+      ) * TPE_FRACTIONS_PER_UNIT));
+
+  axis->x = (quaternion.x * TPE_FRACTIONS_PER_UNIT) / tmp;
+  axis->y = (quaternion.y * TPE_FRACTIONS_PER_UNIT) / tmp;
+  axis->z = (quaternion.z * TPE_FRACTIONS_PER_UNIT) / tmp;
 }
 
 void TPE_vec3Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result)
