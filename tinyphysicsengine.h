@@ -88,7 +88,7 @@ typedef struct
                                  function) */
 } TPE_Body;
 
-#define TPE_PRINTF_VEC3(v) printf("[%d %d %d]",v[0],v[1],v[2]);
+#define TPE_PRINTF_VEC4(v) printf("[%d %d %d %d]\n",v.x,v.y,v.z,v.w);
 
 typedef struct
 {
@@ -260,6 +260,33 @@ void TPE_initBody(TPE_Body *body)
   body->orientation.y = 0;
   body->orientation.z = 0;
   body->orientation.w = 0;
+}
+
+void TPE_quaternionMultiply(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result)
+{
+  result->x =
+    (a.x * b.x - 
+     a.y * b.y -
+     a.z * b.z -
+     a.w * b.w) / TPE_FRACTIONS_PER_UNIT;
+
+  result->y =
+    (a.y * b.x +
+     a.x * b.y +
+     a.z * b.w -
+     a.w * b.z) / TPE_FRACTIONS_PER_UNIT;
+
+  result->z =
+    (a.x * b.z -
+     a.y * b.w +
+     a.z * b.x +
+     a.w * b.y) / TPE_FRACTIONS_PER_UNIT;
+
+  result->w =
+    (a.x * b.w +
+     a.y * b.z -
+     a.z * b.y +
+     a.w * b.x) / TPE_FRACTIONS_PER_UNIT;
 }
 
 static inline TPE_Unit TPE_nonZero(TPE_Unit x)
@@ -479,7 +506,5 @@ void TPE_resolvePointCollision(
 
 // TODO
 }
-
-
 
 #endif // guard
