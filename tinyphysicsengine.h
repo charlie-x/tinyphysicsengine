@@ -187,6 +187,38 @@ static const TPE_Unit TPE_sinTable[TPE_SIN_TABLE_LENGTH] =
 #define TPE_SIN_TABLE_UNIT_STEP\
   (TPE_FRACTIONS_PER_UNIT / (TPE_SIN_TABLE_LENGTH * 4))
 
+TPE_Unit TPE_sqrt(TPE_Unit value)
+{
+  int8_t sign = 1;
+
+  if (value < 0)
+  {
+    sign = -1;
+    value *= -1;
+  }
+
+  uint32_t result = 0;
+  uint32_t a = value;
+  uint32_t b = 1u << 30;
+
+  while (b > a)
+    b >>= 2;
+
+  while (b != 0)
+  {
+    if (a >= result + b)
+    {
+      a -= result + b;
+      result = result +  2 * b;
+    }
+
+    b >>= 2;
+    result >>= 1;
+  }
+
+  return result * sign;
+}
+
 TPE_Unit TPE_sin(TPE_Unit x)
 {
   x = TPE_wrap(x / TPE_SIN_TABLE_UNIT_STEP,TPE_SIN_TABLE_LENGTH * 4);
@@ -218,7 +250,7 @@ TPE_Unit TPE_cos(TPE_Unit x)
   return TPE_sin(x + TPE_FRACTIONS_PER_UNIT / 4);
 }
 
-TPE_initBody(TPE_Body *body)
+void TPE_initBody(TPE_Body *body)
 {
   // TODO
 
@@ -235,49 +267,49 @@ static inline TPE_Unit TPE_nonZero(TPE_Unit x)
   return x + (x == 0);
 }
 
-void TPE_vec3Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 result)
+void TPE_vec3Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result)
 {
-  result.x = a.x + b.x;
-  result.y = a.y + b.y;
-  result.z = a.z + b.z;
+  result->x = a.x + b.x;
+  result->y = a.y + b.y;
+  result->z = a.z + b.z;
 }
 
-void TPE_vec4Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 result)
+void TPE_vec4Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result)
 {
-  result.x = a.x + b.x;
-  result.y = a.y + b.y;
-  result.z = a.z + b.z;
-  result.w = a.w + b.w;
+  result->x = a.x + b.x;
+  result->y = a.y + b.y;
+  result->z = a.z + b.z;
+  result->w = a.w + b.w;
 }
 
-void TPE_vec3Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 result)
+void TPE_vec3Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result)
 {
-  result.x = a.x - b.x;
-  result.y = a.y - b.y;
-  result.z = a.z - b.z;
+  result->x = a.x - b.x;
+  result->y = a.y - b.y;
+  result->z = a.z - b.z;
 }
 
-void TPE_vec4Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 result)
+void TPE_vec4Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result)
 {
-  result.x = a.x - b.x;
-  result.y = a.y - b.y;
-  result.z = a.z - b.z;
-  result.w = a.w - b.w;
+  result->x = a.x - b.x;
+  result->y = a.y - b.y;
+  result->z = a.z - b.z;
+  result->w = a.w - b.w;
 }
 
-void TPE_vec3Multiplay(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 result)
+void TPE_vec3Multiplay(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result)
 {
-  result.x = (v.x * f) / TPE_FRACTIONS_PER_UNIT;
-  result.y = (v.y * f) / TPE_FRACTIONS_PER_UNIT;
-  result.z = (v.z * f) / TPE_FRACTIONS_PER_UNIT;
+  result->x = (v.x * f) / TPE_FRACTIONS_PER_UNIT;
+  result->y = (v.y * f) / TPE_FRACTIONS_PER_UNIT;
+  result->z = (v.z * f) / TPE_FRACTIONS_PER_UNIT;
 }
 
-void TPE_vec4Multiplay(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 result)
+void TPE_vec4Multiplay(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result)
 {
-  result.x = (v.x * f) / TPE_FRACTIONS_PER_UNIT;
-  result.y = (v.y * f) / TPE_FRACTIONS_PER_UNIT;
-  result.z = (v.z * f) / TPE_FRACTIONS_PER_UNIT;
-  result.w = (v.w * f) / TPE_FRACTIONS_PER_UNIT;
+  result->x = (v.x * f) / TPE_FRACTIONS_PER_UNIT;
+  result->y = (v.y * f) / TPE_FRACTIONS_PER_UNIT;
+  result->z = (v.z * f) / TPE_FRACTIONS_PER_UNIT;
+  result->w = (v.w * f) / TPE_FRACTIONS_PER_UNIT;
 }
 
 TPE_Unit TPE_vec3Len(TPE_Vec4 v)
@@ -327,111 +359,13 @@ void TPE_vec4Normalize(TPE_Vec4 v)
   v.w = (v.w * TPE_FRACTIONS_PER_UNIT) / l;
 }
 
-void TPE_vec3Project(const TPE_Vec4 v, const TPE_Vec4 base, TPE_Vec4 result)
+void TPE_vec3Project(const TPE_Vec4 v, const TPE_Vec4 base, TPE_Vec4 *result)
 {
   TPE_Unit p = TPE_vec3DotProduct(v,base);
 
-  result.x = (p * base.x) / TPE_FRACTIONS_PER_UNIT;
-  result.y = (p * base.y) / TPE_FRACTIONS_PER_UNIT;
-  result.z = (p * base.z) / TPE_FRACTIONS_PER_UNIT;
-}
-
-TPE_Unit TPE_sqrt(TPE_Unit value)
-{
-  int8_t sign = 1;
-
-  if (value < 0)
-  {
-    sign = -1;
-    value *= -1;
-  }
-
-  uint32_t result = 0;
-  uint32_t a = value;
-  uint32_t b = 1u << 30;
-
-  while (b > a)
-    b >>= 2;
-
-  while (b != 0)
-  {
-    if (a >= result + b)
-    {
-      a -= result + b;
-      result = result +  2 * b;
-    }
-
-    b >>= 2;
-    result >>= 1;
-  }
-
-  return result * sign;
-}
-
-void TPE_resolvePointCollision(
-  const TPE_Vec4 collisionPoint,
-  const TPE_Vec4 collisionNormal,
-  TPE_Unit elasticity,
-  TPE_Vec4 linVelocity1,
-  TPE_Vec4 rotVelocity1,
-  TPE_Unit m1,
-  TPE_Vec4 linVelocity2,
-  TPE_Vec4 rotVelocity2,
-  TPE_Unit m2)
-{
-  TPE_Vec4 v1, v2, v1New, v2New;
-
-  TPE_initVec4(&v1);
-  TPE_initVec4(&v2);
-  TPE_initVec4(&v1New);
-  TPE_initVec4(&v2New);
-
-  // add lin. and rot. velocities to get the overall vel. of both points:
-
-  TPE_vec4Add(linVelocity1,rotVelocity1,v1);
-  TPE_vec4Add(linVelocity2,rotVelocity2,v2);
-
-  /* project both of these velocities to the collision normal as we'll apply
-     the collision equation only in the direction of this normal: */
-
-  TPE_vec3Project(v1,collisionNormal,v1New);
-  TPE_vec3Project(v2,collisionNormal,v2New);
-
-  // get the velocities of the components
-
-  TPE_Unit
-    v1NewMag = TPE_vec3Len(v1New),
-    v2NewMag = TPE_vec3Len(v2New);
-
-  /* now also substract this component from the original velocity (so that it
-     will now be in the collision plane), we'll later add back the updated
-     velocity to it */
-
-  TPE_vec4Substract(v1,v1New,v1); 
-  TPE_vec4Substract(v2,v2New,v2); 
-
-  // apply the 1D collision equation to velocities along the normal:
-
-  TPE_getVelocitiesAfterCollision(
-    &v1NewMag,
-    &v2NewMag,
-    m1,
-    m2,
-    elasticity);
-
-  // add back the updated velocities to get the new overall velocities:
-
-  v1New.x += (collisionNormal.x * v1NewMag) / TPE_FRACTIONS_PER_UNIT;
-  v1New.y += (collisionNormal.y * v1NewMag) / TPE_FRACTIONS_PER_UNIT;
-  v1New.z += (collisionNormal.z * v1NewMag) / TPE_FRACTIONS_PER_UNIT;
- 
-  v2New.x += (collisionNormal.x * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
-  v2New.y += (collisionNormal.y * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
-  v2New.z += (collisionNormal.z * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
-
- 
-
-// TODO
+  result->x = (p * base.x) / TPE_FRACTIONS_PER_UNIT;
+  result->y = (p * base.y) / TPE_FRACTIONS_PER_UNIT;
+  result->z = (p * base.z) / TPE_FRACTIONS_PER_UNIT;
 }
 
 void TPE_getVelocitiesAfterCollision(
@@ -479,6 +413,73 @@ void TPE_getVelocitiesAfterCollision(
   #undef ANTI_OVERFLOW
   #undef ANTI_OVERFLOW_SCALE
 }
+
+void TPE_resolvePointCollision(
+  const TPE_Vec4 collisionPoint,
+  const TPE_Vec4 collisionNormal,
+  TPE_Unit elasticity,
+  TPE_Vec4 linVelocity1,
+  TPE_Vec4 rotVelocity1,
+  TPE_Unit m1,
+  TPE_Vec4 linVelocity2,
+  TPE_Vec4 rotVelocity2,
+  TPE_Unit m2)
+{
+  TPE_Vec4 v1, v2, v1New, v2New;
+
+  TPE_initVec4(&v1);
+  TPE_initVec4(&v2);
+  TPE_initVec4(&v1New);
+  TPE_initVec4(&v2New);
+
+  // add lin. and rot. velocities to get the overall vel. of both points:
+
+  TPE_vec4Add(linVelocity1,rotVelocity1,&v1);
+  TPE_vec4Add(linVelocity2,rotVelocity2,&v2);
+
+  /* project both of these velocities to the collision normal as we'll apply
+     the collision equation only in the direction of this normal: */
+
+  TPE_vec3Project(v1,collisionNormal,&v1New);
+  TPE_vec3Project(v2,collisionNormal,&v2New);
+
+  // get the velocities of the components
+
+  TPE_Unit
+    v1NewMag = TPE_vec3Len(v1New),
+    v2NewMag = TPE_vec3Len(v2New);
+
+  /* now also substract this component from the original velocity (so that it
+     will now be in the collision plane), we'll later add back the updated
+     velocity to it */
+
+  TPE_vec4Substract(v1,v1New,&v1); 
+  TPE_vec4Substract(v2,v2New,&v2); 
+
+  // apply the 1D collision equation to velocities along the normal:
+
+  TPE_getVelocitiesAfterCollision(
+    &v1NewMag,
+    &v2NewMag,
+    m1,
+    m2,
+    elasticity);
+
+  // add back the updated velocities to get the new overall velocities:
+
+  v1New.x += (collisionNormal.x * v1NewMag) / TPE_FRACTIONS_PER_UNIT;
+  v1New.y += (collisionNormal.y * v1NewMag) / TPE_FRACTIONS_PER_UNIT;
+  v1New.z += (collisionNormal.z * v1NewMag) / TPE_FRACTIONS_PER_UNIT;
+ 
+  v2New.x += (collisionNormal.x * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
+  v2New.y += (collisionNormal.y * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
+  v2New.z += (collisionNormal.z * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
+
+ 
+
+// TODO
+}
+
 
 
 #endif // guard
