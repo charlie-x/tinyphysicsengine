@@ -235,12 +235,26 @@ static inline TPE_Unit TPE_nonZero(TPE_Unit x)
   return x + (x == 0);
 }
 
+void TPE_vec3Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 result)
+{
+  result.x = a.x + b.x;
+  result.y = a.y + b.y;
+  result.z = a.z + b.z;
+}
+
 void TPE_vec4Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 result)
 {
   result.x = a.x + b.x;
   result.y = a.y + b.y;
   result.z = a.z + b.z;
   result.w = a.w + b.w;
+}
+
+void TPE_vec3Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 result)
+{
+  result.x = a.x - b.x;
+  result.y = a.y - b.y;
+  result.z = a.z - b.z;
 }
 
 void TPE_vec4Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 result)
