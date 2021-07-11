@@ -27,12 +27,13 @@ S3L_Index cubeTriangles[] = { S3L_CUBE_TRIANGLES };
 int main()
 {
 
+
 TPE_Vec4 a, b, r, r2, r3, axis;
 TPE_Unit yaw, pitch, roll;
 
-TPE_setVec4(&axis,0,0,512,0);
+TPE_setVec4(&axis,0,512,0,0);
 
-TPE_rotationToQuaternion(axis,TPE_FRACTIONS_PER_UNIT / 2,&r);
+TPE_rotationToQuaternion(axis,TPE_FRACTIONS_PER_UNIT / 4,&r);
 
 TPE_PRINTF_VEC4(r)
 
