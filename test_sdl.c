@@ -26,10 +26,22 @@ S3L_Index cubeTriangles[] = { S3L_CUBE_TRIANGLES };
 
 int main()
 {
+
 TPE_Vec4 a, b, r, r2, r3, axis;
+TPE_Unit yaw, pitch, roll;
 
+TPE_setVec4(&axis,0,0,512,0);
+
+TPE_rotationToQuaternion(axis,TPE_FRACTIONS_PER_UNIT / 2,&r);
+
+TPE_PRINTF_VEC4(r)
+
+TPE_quaternionToEulerAngles(r,&yaw,&pitch,&roll);
+
+printf("%d %d %d\n",yaw,pitch,roll);
+
+/*
 TPE_setVec4(&axis,512,0,0,0);
-
 TPE_rotationToQuaternion(axis,-128,&r);
 
 TPE_setVec4(&axis,0,512,0,0);
@@ -47,7 +59,7 @@ TPE_setVec4(&axis,0,0,512,0);
 TPE_rotationToQuaternion(axis,128,&r);
 
 TPE_PRINTF_VEC4(r);
-
+*/
 
   SDL_Window *window = SDL_CreateWindow("test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, S3L_RESOLUTION_X, S3L_RESOLUTION_Y, SDL_WINDOW_SHOWN); 
   SDL_Renderer *renderer = SDL_CreateRenderer(window,-1,0);
