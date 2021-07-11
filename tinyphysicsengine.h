@@ -297,7 +297,7 @@ TPE_Unit TPE_asin(TPE_Unit x)
 
 TPE_Unit TPE_acos(TPE_Unit x)
 {
-  return TPE_FRACTIONS_PER_UNIT - TPE_asin(x);
+  return TPE_asin(-1 * x) + TPE_FRACTIONS_PER_UNIT / 4;
 }
 
 void TPE_initBody(TPE_Body *body)
@@ -345,15 +345,16 @@ void TPE_rotationToQuaternion(TPE_Vec4 axis, TPE_Unit angle, TPE_Vec4 *quaternio
 
   angle /= 2;
 
+  quaternion->x = TPE_cos(angle);
+
   TPE_Unit s = TPE_sin(angle);
 
-  quaternion->x = TPE_cos(angle);
-  quaternion->y = s * axis.x;
-  quaternion->z = s * axis.y;
-  quaternion->w = s * axis.z;
+  quaternion->y = (s * axis.x) / TPE_FRACTIONS_PER_UNIT;
+  quaternion->z = (s * axis.y) / TPE_FRACTIONS_PER_UNIT;
+  quaternion->w = (s * axis.z) / TPE_FRACTIONS_PER_UNIT;
 }
 
-TPE_quaternionToRotation(TPE_Vec4 quaternion, TPE_Vec4 *axis, TPE_Unit *angle)
+void TPE_quaternionToRotation(TPE_Vec4 quaternion, TPE_Vec4 *axis, TPE_Unit *angle)
 {
   *angle = 2 * TPE_acos(quaternion.x);
 

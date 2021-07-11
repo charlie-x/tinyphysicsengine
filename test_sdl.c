@@ -38,14 +38,14 @@ b.z = TPE_FRACTIONS_PER_UNIT / 2;
 b.w = 0;
 
 axis.x = TPE_FRACTIONS_PER_UNIT;
-axis.y = 0;
+axis.y = TPE_FRACTIONS_PER_UNIT;
 axis.z = 0;
 axis.w = 0;
 
-TPE_Unit angle = TPE_FRACTIONS_PER_UNIT;
+TPE_Unit angle = TPE_FRACTIONS_PER_UNIT / 2;
 
 TPE_rotationToQuaternion(axis,angle,&r);
-TPE_PRINTF_VEC4(axis);
+TPE_PRINTF_VEC4(r);
 
 axis.x = 0;
 axis.y = 0;
@@ -54,7 +54,6 @@ axis.w = 0;
 angle = 0;
 
 TPE_quaternionToRotation(r,&axis,&angle);
-
 
 TPE_PRINTF_VEC4(axis);
 printf("%d\n",angle);
