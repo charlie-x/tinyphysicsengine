@@ -26,37 +26,25 @@ S3L_Index cubeTriangles[] = { S3L_CUBE_TRIANGLES };
 
 int main()
 {
-TPE_Vec4 a, b, axis, r;
-a.x = TPE_FRACTIONS_PER_UNIT / 2;
-a.y = TPE_FRACTIONS_PER_UNIT;
-a.z = TPE_FRACTIONS_PER_UNIT;
-a.w = TPE_FRACTIONS_PER_UNIT;
+TPE_Vec4 a, b, r, r2, r3 axis;
 
-b.x = 0;
-b.y = TPE_FRACTIONS_PER_UNIT;
-b.z = TPE_FRACTIONS_PER_UNIT / 2;
-b.w = 0;
 
-axis.x = TPE_FRACTIONS_PER_UNIT;
-axis.y = TPE_FRACTIONS_PER_UNIT;
-axis.z = 0;
-axis.w = 0;
+TPE_setVec4(&axis,512,0,0,0);
 
-TPE_Unit angle = TPE_FRACTIONS_PER_UNIT / 2;
+TPE_rotationToQuaternion(axis,128,&r);
 
-TPE_rotationToQuaternion(axis,angle,&r);
-TPE_PRINTF_VEC4(r);
+TPE_setVec4(&axis,0,512,0,0);
+TPE_rotationToQuaternion(axis,128,&r2);
 
-axis.x = 0;
-axis.y = 0;
-axis.z = 0;
-axis.w = 0;
-angle = 0;
+TPE_quaternionMultiply(r,r2,&r3);
 
-TPE_quaternionToRotation(r,&axis,&angle);
+TPE_setVec4(&axis,512,0,0,0);
+TPE_rotationToQuaternion(axis,128,&r);
+TPE_quaternionMultiply(r3,r,&r2);
 
-TPE_PRINTF_VEC4(axis);
-printf("%d\n",angle);
+TPE_PRINTF_VEC4(r2);
+
+
 
   SDL_Window *window = SDL_CreateWindow("test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, S3L_RESOLUTION_X, S3L_RESOLUTION_Y, SDL_WINDOW_SHOWN); 
   SDL_Renderer *renderer = SDL_CreateRenderer(window,-1,0);

@@ -106,6 +106,14 @@ void TPE_initVec4(TPE_Vec4 *v)
   v->w = 0;
 }
 
+void TPE_setVec4(TPE_Vec4 *v, TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w)
+{
+  v->x = x;
+  v->y = y;
+  v->z = z;
+  v->w = w;
+}
+
 TPE_Unit TPE_wrap(TPE_Unit value, TPE_Unit mod)
 {
   return value >= 0 ? (value % mod) : (mod + (value % mod) - 1);
