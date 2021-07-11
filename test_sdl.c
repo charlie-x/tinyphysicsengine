@@ -26,24 +26,27 @@ S3L_Index cubeTriangles[] = { S3L_CUBE_TRIANGLES };
 
 int main()
 {
-TPE_Vec4 a, b, r, r2, r3 axis;
-
+TPE_Vec4 a, b, r, r2, r3, axis;
 
 TPE_setVec4(&axis,512,0,0,0);
 
-TPE_rotationToQuaternion(axis,128,&r);
+TPE_rotationToQuaternion(axis,-128,&r);
 
 TPE_setVec4(&axis,0,512,0,0);
-TPE_rotationToQuaternion(axis,128,&r2);
+TPE_rotationToQuaternion(axis,-128,&r2);
 
 TPE_quaternionMultiply(r,r2,&r3);
 
 TPE_setVec4(&axis,512,0,0,0);
-TPE_rotationToQuaternion(axis,128,&r);
+TPE_rotationToQuaternion(axis,-128,&r);
 TPE_quaternionMultiply(r3,r,&r2);
 
 TPE_PRINTF_VEC4(r2);
 
+TPE_setVec4(&axis,0,0,512,0);
+TPE_rotationToQuaternion(axis,128,&r);
+
+TPE_PRINTF_VEC4(r);
 
 
   SDL_Window *window = SDL_CreateWindow("test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, S3L_RESOLUTION_X, S3L_RESOLUTION_Y, SDL_WINDOW_SHOWN); 

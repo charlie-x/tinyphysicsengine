@@ -10,17 +10,21 @@
 
   CONVENTIONS:
 
+  - Compatibility and simple usage with small3dlib is intended, so most
+    convention and data types copy those of small3dlib (which takes a lot of
+    conventions of OpenGL).
+
   - No floating point is used, we instead use integers (effectively a fixed
     point). TPE_FRACTIONS_PER_UNIT is an equivalent to 1.0 in floating point and
     all numbers are normalized by this constant.
 
   - Units: for any measure only an abstract mathematical unit is used. This unit
-    always has TPE_FRACTIONS_PER_UNIT parts. You can see assign any
-    correcpondence with real life units to these units. E.g. 1 spatial unit
-    (which you can see as e.g. 1 meter) is equal to TPE_FRACTIONS_PER_UNIT.
-    Same with temporatl (e.g. 1 second) and mass (e.g. 1 kilogram) units, and
-    also any derived units, e.g. a unit of velocity (e.g. 1 m/s) is also equal
-    to 1 TPE_FRACTIONS_PER_UNIT. A full angle is also split into
+    always has TPE_FRACTIONS_PER_UNIT parts. You can assign any correcpondence
+    with real life units to these units. E.g. 1 spatial unit (which you can see
+    as e.g. 1 meter) is equal to TPE_FRACTIONS_PER_UNIT. Same with temporatl
+    (e.g. 1 second) and mass (e.g. 1 kilogram) units, and also any derived
+    units, e.g. a unit of velocity (e.g. 1 m/s) is also equal to 1
+    TPE_FRACTIONS_PER_UNIT. A full angle is also split into
     TPE_FRACTIONS_PER_UNIT parts (instead of 2 * PI or degrees).
 */
 
