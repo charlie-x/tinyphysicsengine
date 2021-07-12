@@ -417,50 +417,68 @@ void TPE_quaternionToEulerAngles(TPE_Vec4 quaternion, TPE_Unit *yaw,
 {
   *roll = 
      TPE_atan2(
-     (  (2 * (quaternion.w * quaternion.x + quaternion.y * quaternion.z)) 
+     (  (2 * (quaternion.w * quaternion.x - quaternion.y * quaternion.z)) 
         / TPE_FRACTIONS_PER_UNIT 
      ),
      (
        TPE_FRACTIONS_PER_UNIT - 
-       ((2 * (quaternion.x * quaternion.x + 
+       ((2 * (quaternion.x * quaternion.x - 
          quaternion.y * quaternion.y))  / TPE_FRACTIONS_PER_UNIT))
      );
 
   *pitch =
      TPE_asin(
-       (2 * (quaternion.w * quaternion.y - quaternion.z * quaternion.x)) / TPE_FRACTIONS_PER_UNIT
+       (2 * (quaternion.w * quaternion.y + quaternion.z * quaternion.x)) / TPE_FRACTIONS_PER_UNIT
     );
 
   *yaw =
      TPE_atan2(
-     (  (2 * (quaternion.w * quaternion.z + quaternion.x * quaternion.y))
+     (  (2 * (quaternion.w * quaternion.z - quaternion.x * quaternion.y))
         / TPE_FRACTIONS_PER_UNIT
      ),
      (  
        TPE_FRACTIONS_PER_UNIT - 
-        ((2 * (quaternion.y * quaternion.y + 
+        ((2 * (quaternion.y * quaternion.y - 
           quaternion.z * quaternion.z))  / TPE_FRACTIONS_PER_UNIT))
      );
 }
 
-void TPE_quaternionToRotationMatrix(TPE_Vec4 quaternion, TPE_Unit matrix[16])
+void TPE_quaternionToRotationMatrix(TPE_Vec4 quaternion, TPE_Unit matrix[4][4])
 {
-/*
   TPE_Unit 
-    n2y2 = (2 * quaternion.y * quaternion.y) / TPE_FRACTIONS_PER_UNIT,
-    n2z2 = (2 * quaternion.z * quaternion.z) / TPE_FRACTIONS_PER_UNIT;
-    n2xy
+    _2x2 = (2 * quaternion.x * quaternion.x) / TPE_FRACTIONS_PER_UNIT,
+    _2y2 = (2 * quaternion.y * quaternion.y) / TPE_FRACTIONS_PER_UNIT,
+    _2z2 = (2 * quaternion.z * quaternion.z) / TPE_FRACTIONS_PER_UNIT,
+    _2xy = (2 * quaternion.x * quaternion.y) / TPE_FRACTIONS_PER_UNIT,
+    _2xw = (2 * quaternion.x * quaternion.w) / TPE_FRACTIONS_PER_UNIT,
+    _2zw = (2 * quaternion.z * quaternion.w) / TPE_FRACTIONS_PER_UNIT,
+    _2xz = (2 * quaternion.x * quaternion.z) / TPE_FRACTIONS_PER_UNIT,
+    _2yw = (2 * quaternion.y * quaternion.w) / TPE_FRACTIONS_PER_UNIT,
+    _2yz = (2 * quaternion.y * quaternion.z) / TPE_FRACTIONS_PER_UNIT;
 
   #define ONE TPE_FRACTIONS_PER_UNIT
 
-  matrix[0] = ONE - n2y2 - n2z2;
-  matrix[1] = ONE - 
-  matrix[2] =
-  matrix[3] = 0;
+  matrix[0][0]  = ONE - _2y2 - _2z2;
+  matrix[1][0]  = _2xy - _2zw;
+  matrix[2][0]  = _2xz + _2yw;
+  matrix[3][0]  = 0;
 
+  matrix[0][1]  = _2xy + _2zw;
+  matrix[1][1]  = ONE - _2x2 - _2z2;
+  matrix[2][1]  = _2yz - _2xw;
+  matrix[3][1]  = 0;
+
+  matrix[0][2]  = _2xz - _2yw;
+  matrix[1][2]  = _2yz + _2xw;
+  matrix[2][2] = ONE - _2x2 - _2y2;
+  matrix[3][2] = 0;
+
+  matrix[0][3] = 0;
+  matrix[1][3] = 0;
+  matrix[2][3] = 0;
+  matrix[3][3] = ONE;
 
   #undef ONE
-*/
 }
 
 void TPE_vec3Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result)

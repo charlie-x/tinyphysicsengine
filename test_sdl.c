@@ -26,42 +26,6 @@ S3L_Index cubeTriangles[] = { S3L_CUBE_TRIANGLES };
 
 int main()
 {
-
-
-TPE_Vec4 a, b, r, r2, r3, axis;
-TPE_Unit yaw, pitch, roll;
-
-TPE_setVec4(&axis,0,512,0,0);
-
-TPE_rotationToQuaternion(axis,TPE_FRACTIONS_PER_UNIT / 4,&r);
-
-TPE_PRINTF_VEC4(r)
-
-TPE_quaternionToEulerAngles(r,&yaw,&pitch,&roll);
-
-printf("%d %d %d\n",yaw,pitch,roll);
-
-/*
-TPE_setVec4(&axis,512,0,0,0);
-TPE_rotationToQuaternion(axis,-128,&r);
-
-TPE_setVec4(&axis,0,512,0,0);
-TPE_rotationToQuaternion(axis,-128,&r2);
-
-TPE_quaternionMultiply(r,r2,&r3);
-
-TPE_setVec4(&axis,512,0,0,0);
-TPE_rotationToQuaternion(axis,-128,&r);
-TPE_quaternionMultiply(r3,r,&r2);
-
-TPE_PRINTF_VEC4(r2);
-
-TPE_setVec4(&axis,0,0,512,0);
-TPE_rotationToQuaternion(axis,128,&r);
-
-TPE_PRINTF_VEC4(r);
-*/
-
   SDL_Window *window = SDL_CreateWindow("test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, S3L_RESOLUTION_X, S3L_RESOLUTION_Y, SDL_WINDOW_SHOWN); 
   SDL_Renderer *renderer = SDL_CreateRenderer(window,-1,0);
   SDL_Texture *textureSDL = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBX8888, SDL_TEXTUREACCESS_STATIC, S3L_RESOLUTION_X, S3L_RESOLUTION_Y);
@@ -74,14 +38,38 @@ TPE_PRINTF_VEC4(r);
 
   S3L_initModel3D(cubeVertices,S3L_CUBE_VERTEX_COUNT,cubeTriangles,S3L_CUBE_TRIANGLE_COUNT,&cubeModel);
 
-  cubeModel.transform.translation.z = 3 * S3L_FRACTIONS_PER_UNIT;
  
   S3L_Scene scene;
 
   S3L_initScene(&cubeModel,1,&scene);
+
+  scene.camera.transform.translation.z = -3 * S3L_FRACTIONS_PER_UNIT;
+
+S3L_Mat4 m;
+cubeModel.customTransformMatrix = &m;
  
+TPE_Vec4 quat, axis;
+
+TPE_setVec4(&axis,512,0,0,0);
+
+  TPE_Unit frame = 0;
+
   while (running)
   {
+
+
+TPE_rotationToQuaternion(axis,frame,&quat);
+TPE_quaternionToRotationMatrix(quat,m);
+/*
+S3L_logMat4(m);
+
+S3L_makeRotationMatrixZXY(40,0,0,&m);
+
+S3L_logMat4(m);
+
+break;
+*/
+
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
       pixels[i] = 0;
 
@@ -105,6 +93,8 @@ TPE_PRINTF_VEC4(r);
     SDL_RenderPresent(renderer);
 
     usleep(20000);
+
+    frame++;
   }
 
   return 0;

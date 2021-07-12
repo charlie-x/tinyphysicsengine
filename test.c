@@ -39,18 +39,23 @@ int testQuatToEuler(TPE_Unit yaw, TPE_Unit pitch, TPE_Unit roll)
 
 
 
-  TPE_setVec4(&axis,0,0,F,0);
+  TPE_setVec4(&axis,F,0,0,0);
 
   TPE_rotationToQuaternion(axis,pitch,&q);
 
+TPE_PRINTF_VEC4(q);
   
 
   TPE_Unit y,p,r;
 
   TPE_quaternionToEulerAngles(q,&y,&p,&r);
 
-  printf("%d %d %d\n",y,p,r);
-  
+
+
+  //printf("%d %d %d\n",y,p,r);
+ 
+
+ 
 }
 
 int main(void)
@@ -63,8 +68,7 @@ int main(void)
   testRotToQuat(0,0,F,    F/2,  0,0,F,0);
   testRotToQuat(-F,F,F,   -F/8, 195,-195,-195,472);
 
-
-  testQuatToEuler(0,F/2,0);
+  testQuatToEuler(0,128,0);
 
   return 0;
 }
