@@ -69,6 +69,8 @@ TPE_Unit TPE_sqrt(TPE_Unit value);
 TPE_Unit TPE_sin(TPE_Unit x);
 
 TPE_Unit TPE_cos(TPE_Unit x);
+TPE_Unit TPE_asin(TPE_Unit x);
+TPE_Unit TPE_acos(TPE_Unit x);
 
 typedef struct
 {
@@ -383,6 +385,46 @@ void TPE_rotationToQuaternion(TPE_Vec4 axis, TPE_Unit angle, TPE_Vec4 *quaternio
   quaternion->z = (s * axis.z) / TPE_FRACTIONS_PER_UNIT;
 
   quaternion->w = TPE_cos(angle);
+}
+
+TPE_Unit TPE_asin(TPE_Unit x)
+{
+  x = TPE_clamp(x,-TPE_FRACTIONS_PER_UNIT,TPE_FRACTIONS_PER_UNIT);
+
+  int8_t sign = 1;
+
+  if (x < 0)
+  {
+    sign = -1;
+    x *= -1;
+  }
+
+  int16_t low = 0;
+  int16_t high = TPE_SIN_TABLE_LENGTH -1;
+  int16_t middle;
+
+  while (low <= high) // binary search
+  {
+    middle = (low + high) / 2;
+
+    TPE_Unit v = TPE_sinTable[middle];
+
+    if (v > x)
+      high = middle - 1;
+    else if (v < x)
+      low = middle + 1;
+    else
+      break;
+  }
+
+  middle *= TPE_SIN_TABLE_UNIT_STEP;
+
+  return sign * middle;
+}
+
+TPE_Unit TPE_acos(TPE_Unit x)
+{
+  return TPE_asin(-1 * x) + TPE_FRACTIONS_PER_UNIT / 4;
 }
 
 void TPE_quaternionToRotation(TPE_Vec4 quaternion, TPE_Vec4 *axis, TPE_Unit *angle)
