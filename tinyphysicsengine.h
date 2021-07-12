@@ -57,6 +57,19 @@ typedef int32_t TPE_Unit;
 #define TPE_BODY_FLAG_DISABLED     0x00 ///< won't take part in simul. at all
 #define TPE_BODY_FLAG_NONCOLLIDING 0x01 ///< simulated but won't collide
 
+TPE_Unit TPE_wrap(TPE_Unit value, TPE_Unit mod);
+TPE_Unit TPE_clamp(TPE_Unit v, TPE_Unit v1, TPE_Unit v2);
+static inline TPE_Unit TPE_nonZero(TPE_Unit x);
+
+/** Returns an integer square root of given value. */
+TPE_Unit TPE_sqrt(TPE_Unit value);
+
+/** Returns a sine of given arguments, both in TPE_Units (see the library
+  conventions). */
+TPE_Unit TPE_sin(TPE_Unit x);
+
+TPE_Unit TPE_cos(TPE_Unit x);
+
 typedef struct
 {
   TPE_Unit x;
@@ -64,6 +77,23 @@ typedef struct
   TPE_Unit z;
   TPE_Unit w;
 } TPE_Vec4;
+
+/** Initializes vec4 to a zero vector. */
+void TPE_initVec4(TPE_Vec4 *v);
+
+void TPE_setVec4(TPE_Vec4 *v, TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w);
+void TPE_vec3Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result);
+void TPE_vec4Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result);
+void TPE_vec3Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result);
+void TPE_vec4Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result);
+void TPE_vec3Multiplay(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
+void TPE_vec4Multiplay(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
+TPE_Unit TPE_vec3Len(TPE_Vec4 v);
+TPE_Unit TPE_vec4Len(TPE_Vec4 v);
+TPE_Unit TPE_vec3DotProduct(const TPE_Vec4 v1, const TPE_Vec4 v2);
+void TPE_vec3Normalize(TPE_Vec4 *v);
+void TPE_vec4Normalize(TPE_Vec4 v);
+void TPE_vec3Project(const TPE_Vec4 v, const TPE_Vec4 base, TPE_Vec4 *result);
 
 typedef struct
 {
@@ -94,6 +124,10 @@ typedef struct
                                  function) */
 } TPE_Body;
 
+/** Initializes a physical body, this should be called on all TPE_Bodys that
+  are created.*/
+void TPE_initBody(TPE_Body *body);
+
 #define TPE_PRINTF_VEC4(v) printf("[%d %d %d %d]\n",v.x,v.y,v.z,v.w);
 
 typedef struct
@@ -101,6 +135,29 @@ typedef struct
   uint16_t bodyCount;
   TPE_Body *bodies;
 } TPE_PhysicsWorld;
+
+void TPE_quaternionMultiply(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
+
+/** Converts a rotation given as an axis and angle around this axis (by right
+  hand rule) to a rotation quaternion. */
+void TPE_rotationToQuaternion(TPE_Vec4 axis, TPE_Unit angle, 
+  TPE_Vec4 *quaternion);
+
+void TPE_quaternionToRotation(TPE_Vec4 quaternion, TPE_Vec4 *axis, 
+  TPE_Unit *angle);
+
+/** Converts a rotation quaternion to a 4x4 rotation matrix. The matrix is
+  indexed as [column][row] and is in the same format as S3L_Mat4 from
+  small3dlib. */
+void TPE_quaternionToRotationMatrix(TPE_Vec4 quaternion, TPE_Unit matrix[4][4]);
+
+void TPE_getVelocitiesAfterCollision(
+  TPE_Unit *v1,
+  TPE_Unit *v2,
+  TPE_Unit m1,
+  TPE_Unit m2,
+  TPE_Unit elasticity
+);
 
 //------------------------------------------------------------------------------
 
@@ -274,46 +331,6 @@ TPE_Unit TPE_cos(TPE_Unit x)
   return TPE_sin(x + TPE_FRACTIONS_PER_UNIT / 4);
 }
 
-TPE_Unit TPE_asin(TPE_Unit x)
-{
-  x = TPE_clamp(x,-TPE_FRACTIONS_PER_UNIT,TPE_FRACTIONS_PER_UNIT);
-
-  int8_t sign = 1;
-
-  if (x < 0)
-  {
-    sign = -1;
-    x *= -1;
-  }
-
-  int16_t low = 0;
-  int16_t high = TPE_SIN_TABLE_LENGTH -1;
-  int16_t middle;
-
-  while (low <= high) // binary search
-  {
-    middle = (low + high) / 2;
-
-    TPE_Unit v = TPE_sinTable[middle];
-
-    if (v > x)
-      high = middle - 1;
-    else if (v < x)
-      low = middle + 1;
-    else
-      break;
-  }
-
-  middle *= TPE_SIN_TABLE_UNIT_STEP;
-
-  return sign * middle;
-}
-
-TPE_Unit TPE_acos(TPE_Unit x)
-{
-  return TPE_asin(-1 * x) + TPE_FRACTIONS_PER_UNIT / 4;
-}
-
 void TPE_initBody(TPE_Body *body)
 {
   // TODO
@@ -381,37 +398,6 @@ void TPE_quaternionToRotation(TPE_Vec4 quaternion, TPE_Vec4 *axis, TPE_Unit *ang
   axis->x = (quaternion.x * TPE_FRACTIONS_PER_UNIT) / tmp;
   axis->y = (quaternion.y * TPE_FRACTIONS_PER_UNIT) / tmp;
   axis->z = (quaternion.z * TPE_FRACTIONS_PER_UNIT) / tmp;
-}
-
-void TPE_quaternionToEulerAngles(TPE_Vec4 quaternion, TPE_Unit *yaw, 
-  TPE_Unit *pitch, TPE_Unit *roll)
-{
-  *roll = 
-     TPE_atan2(
-     (  (2 * (quaternion.w * quaternion.x - quaternion.y * quaternion.z)) 
-        / TPE_FRACTIONS_PER_UNIT 
-     ),
-     (
-       TPE_FRACTIONS_PER_UNIT - 
-       ((2 * (quaternion.x * quaternion.x - 
-         quaternion.y * quaternion.y))  / TPE_FRACTIONS_PER_UNIT))
-     );
-
-  *pitch =
-     TPE_asin(
-       (2 * (quaternion.w * quaternion.y + quaternion.z * quaternion.x)) / TPE_FRACTIONS_PER_UNIT
-    );
-
-  *yaw =
-     TPE_atan2(
-     (  (2 * (quaternion.w * quaternion.z - quaternion.x * quaternion.y))
-        / TPE_FRACTIONS_PER_UNIT
-     ),
-     (  
-       TPE_FRACTIONS_PER_UNIT - 
-        ((2 * (quaternion.y * quaternion.y - 
-          quaternion.z * quaternion.z))  / TPE_FRACTIONS_PER_UNIT))
-     );
 }
 
 void TPE_quaternionToRotationMatrix(TPE_Vec4 quaternion, TPE_Unit matrix[4][4])
@@ -507,7 +493,7 @@ TPE_Unit TPE_vec4Len(TPE_Vec4 v)
   return TPE_sqrt(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);
 }
 
-static inline TPE_Unit TPE_vec3DotProduct(const TPE_Vec4 v1, const TPE_Vec4 v2)
+TPE_Unit TPE_vec3DotProduct(const TPE_Vec4 v1, const TPE_Vec4 v2)
 {
   return
     (v1.x * v2.x + v1.y * v2.y + v1.z * v2.z) / TPE_FRACTIONS_PER_UNIT;
@@ -659,8 +645,6 @@ void TPE_resolvePointCollision(
   v2New.x += (collisionNormal.x * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
   v2New.y += (collisionNormal.y * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
   v2New.z += (collisionNormal.z * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
-
- 
 
 // TODO
 }
