@@ -124,6 +124,9 @@ typedef struct
                                  but for computational/performance it's better
                                  this way), DO NOT SET THIS MANUALLY (use a
                                  function) */
+  /* TODO: maybe instead axis + angle for rotation have a quaternion that
+   performs rotaition during the next tick? could save performance */
+
 } TPE_Body;
 
 /** Initializes a physical body, this should be called on all TPE_Bodys that
