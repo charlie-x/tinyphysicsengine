@@ -50,7 +50,11 @@ cubeModel.customTransformMatrix = &m;
  
 TPE_Vec4 quat, axis;
 
-TPE_setVec4(&axis,512,0,0,0);
+TPE_setVec4(&axis,512,512,-512,0);
+
+TPE_vec3Normalize(&axis);
+
+TPE_PRINTF_VEC4(axis);
 
   TPE_Unit frame = 0;
 
@@ -60,16 +64,16 @@ TPE_setVec4(&axis,512,0,0,0);
 
 TPE_rotationToQuaternion(axis,frame,&quat);
 TPE_quaternionToRotationMatrix(quat,m);
-/*
+
 S3L_logMat4(m);
 
-S3L_makeRotationMatrixZXY(40,0,0,&m);
+/*
+S3L_makeRotationMatrixZXY(128,0,0,&m);
 
 S3L_logMat4(m);
 
 break;
 */
-
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
       pixels[i] = 0;
 

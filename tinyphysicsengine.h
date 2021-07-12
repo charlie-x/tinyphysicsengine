@@ -314,35 +314,6 @@ TPE_Unit TPE_acos(TPE_Unit x)
   return TPE_asin(-1 * x) + TPE_FRACTIONS_PER_UNIT / 4;
 }
 
-TPE_Unit TPE_atan(TPE_Unit x)
-{ 
-  return TPE_asin(
-    (x * TPE_FRACTIONS_PER_UNIT) /
-    TPE_nonZero(
-      TPE_sqrt(TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT + x * x)));
-}
-
-TPE_Unit TPE_atan2(TPE_Unit x, TPE_Unit y)
-{
-  if (x == 0)
-  {
-    return (y > 0) ?
-      (TPE_FRACTIONS_PER_UNIT / 4) :
-      (TPE_FRACTIONS_PER_UNIT / -4);
-  }
-
-  TPE_Unit at = TPE_atan((y * TPE_FRACTIONS_PER_UNIT) / TPE_nonZero(x));
-
-  if (x > 0)
-    return at;
-  else
-  {
-    return at + 
-    ((y >= 0) ? (TPE_FRACTIONS_PER_UNIT / 2) : 
-     (TPE_FRACTIONS_PER_UNIT / -2));
-  }
-}
-
 void TPE_initBody(TPE_Body *body)
 {
   // TODO
@@ -542,19 +513,19 @@ static inline TPE_Unit TPE_vec3DotProduct(const TPE_Vec4 v1, const TPE_Vec4 v2)
     (v1.x * v2.x + v1.y * v2.y + v1.z * v2.z) / TPE_FRACTIONS_PER_UNIT;
 }
 
-void TPE_vec3Normalize(TPE_Vec4 v)
+void TPE_vec3Normalize(TPE_Vec4 *v)
 { 
-  TPE_Unit l = TPE_vec3Len(v);
+  TPE_Unit l = TPE_vec3Len(*v);
 
   if (l == 0)
   {
-    v.x = TPE_FRACTIONS_PER_UNIT;
+    v->x = TPE_FRACTIONS_PER_UNIT;
     return;
   }
 
-  v.x = (v.x * TPE_FRACTIONS_PER_UNIT) / l;
-  v.y = (v.y * TPE_FRACTIONS_PER_UNIT) / l;
-  v.z = (v.z * TPE_FRACTIONS_PER_UNIT) / l;
+  v->x = (v->x * TPE_FRACTIONS_PER_UNIT) / l;
+  v->y = (v->y * TPE_FRACTIONS_PER_UNIT) / l;
+  v->z = (v->z * TPE_FRACTIONS_PER_UNIT) / l;
 }
 
 void TPE_vec4Normalize(TPE_Vec4 v)
