@@ -130,6 +130,10 @@ typedef struct
   are created.*/
 void TPE_initBody(TPE_Body *body);
 
+/** Computes a 4x4 transform matrix of given body. The matrix has the same
+  format as S3L_Mat4 from small3dlib. */
+void TPE_bodyGetTransformMatrix(TPE_Body *body, TPE_Unit matrix[4][4]);
+
 #define TPE_PRINTF_VEC4(v) printf("[%d %d %d %d]\n",v.x,v.y,v.z,v.w);
 
 typedef struct
@@ -689,6 +693,14 @@ void TPE_resolvePointCollision(
   v2New.z += (collisionNormal.z * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
 
 // TODO
+}
+
+void TPE_bodyGetTransformMatrix(TPE_Body *body, TPE_Unit matrix[4][4])
+{
+  TPE_quaternionToRotationMatrix(body->orientation,matrix);
+  matrix[3][0] = body->position.x;
+  matrix[3][1] = body->position.y;
+  matrix[3][2] = body->position.z;
 }
 
 #endif // guard
