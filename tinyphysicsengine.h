@@ -97,6 +97,37 @@ void TPE_vec3Normalize(TPE_Vec4 *v);
 void TPE_vec4Normalize(TPE_Vec4 *v);
 void TPE_vec3Project(const TPE_Vec4 v, const TPE_Vec4 base, TPE_Vec4 *result);
 
+
+/** Holds a rotation state around a single axis, in a way that prevents rounding
+  errors from distorting the rotation over time. In theory rotation of a body
+  could be represented as 
+
+  [current orientation, axis of rotation,angular velocity]
+
+  However applying the rotation and normalizing the orientation quaternion each
+  simulation step leads to error cumulation and the rotation gets aligned with
+  one principal axis after some time. Because of this we rather represent the
+  rotation state as
+
+  [original orientation, axis of rotation, angular velocity, current angle]
+
+  From this we can at each simulation step compute the current orientation by
+  applying rotation by current angle to the original rotation without error
+  cumulation. */
+typedef struct
+{
+  TPE_Vec4 originalOrientation;  /**< quaternion holding the original 
+                                   orientation of the body at the time when it
+                                   has taken on this rotational state */
+  TPE_Vec4 axisVelocity;         /**< axis of rotation (x,y,z) and a 
+                                   non-negative angular velocity around this
+                                   axis (w), determined ny the right hand
+                                   rule */
+  TPE_Unit currentAngle;         /**< angle the body has already rotated along
+                                   the rotation axis (from the original 
+                                   orientation)  */
+} TPE_RotationState;
+
 typedef struct
 {
   uint8_t shape;
@@ -111,22 +142,13 @@ typedef struct
                                  which may help performance */
 
   TPE_Vec4 position;        ///< position of the body's center of mass
-  TPE_Vec4 orientation;     ///< orientation as a quaternion
 
   TPE_Vec4 velocity;        ///< linear velocity vector
-  TPE_Vec4 rotation;        /**< current rotational state: X, Y and Z are the
-                                 normalized axis of rotation (we only allow
-                                 one), W is a non-negative angular speed around
-                                 this axis (one angle unit per temporal unit) in
-                                 the direction given by right hand rule
-                                 (mathematically we could have just X, Y and Z
-                                 with the size of vector being angular speed,
-                                 but for computational/performance it's better
-                                 this way), DO NOT SET THIS MANUALLY (use a
-                                 function) */
-  /* TODO: maybe instead axis + angle for rotation have a quaternion that
-   performs rotaition during the next tick? could save performance */
 
+  TPE_RotationState rotation; /**< holds the state related to rotation, i.e.
+                                 the rotation axis, angular momentum and data
+                                 from which current orientation can be
+                                 inferred */
 } TPE_Body;
 
 /** Initializes a physical body, this should be called on all TPE_Bodys that
@@ -137,7 +159,13 @@ void TPE_initBody(TPE_Body *body);
   format as S3L_Mat4 from small3dlib. */
 void TPE_bodyGetTransformMatrix(TPE_Body *body, TPE_Unit matrix[4][4]);
 
-#define TPE_PRINTF_VEC4(v) printf("[%d %d %d %d]\n",v.x,v.y,v.z,v.w);
+void TPE_bodyGetOrientation(TPE_Body *body, TPE_Vec4 *quaternion);
+
+void TPE_bodyStep(TPE_Body *body);
+
+void TPE_bodySetRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity);
+
+#define TPE_PRINTF_VEC4(v) printf("[%d %d %d %d]\n",(v).x,(v).y,(v).z,(v).w);
 
 typedef struct
 {
@@ -351,9 +379,54 @@ void TPE_initBody(TPE_Body *body)
 {
   // TODO
 
+  TPE_initVec4(&(body->position));
+  TPE_initVec4(&(body->velocity));
+
   // init orientation to identity unit quaternion (1,0,0,0):
 
-  TPE_initQuaternion(&(body->orientation));
+  TPE_initQuaternion(&(body->rotation.originalOrientation));
+  TPE_setVec4(&(body->rotation.axisVelocity),TPE_FRACTIONS_PER_UNIT,0,0,0);
+  body->rotation.currentAngle = 0;
+}
+
+void TPE_bodyGetOrientation(TPE_Body *body, TPE_Vec4 *quaternion)
+{
+  TPE_Vec4 axisRotation;
+
+  TPE_rotationToQuaternion(
+    body->rotation.axisVelocity,
+    body->rotation.currentAngle,
+    &axisRotation);
+
+  TPE_quaternionMultiply(
+    body->rotation.originalOrientation,
+    axisRotation,
+    quaternion);
+
+  TPE_vec4Normalize(quaternion);
+}
+
+void TPE_bodyStep(TPE_Body *body)
+{
+  TPE_vec3Add(body->position,body->velocity,&(body->position));
+  body->rotation.currentAngle += body->rotation.axisVelocity.w;
+}
+
+void TPE_bodySetRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity)
+{
+  TPE_bodyGetOrientation(body,&(body->rotation.originalOrientation));
+
+  if (velocity < 0)
+  {
+    axis.x *= -1;
+    axis.y *= -1;
+    axis.z *= -1;
+    velocity *= -1;
+  }
+
+  body->rotation.axisVelocity = axis;
+  body->rotation.axisVelocity.w = velocity;
+  body->rotation.currentAngle = 0;
 }
 
 void TPE_quaternionMultiply(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result)
@@ -711,10 +784,14 @@ void TPE_resolvePointCollision(
 
 void TPE_bodyGetTransformMatrix(TPE_Body *body, TPE_Unit matrix[4][4])
 {
-  TPE_quaternionToRotationMatrix(body->orientation,matrix);
-  matrix[3][0] = body->position.x;
-  matrix[3][1] = body->position.y;
-  matrix[3][2] = body->position.z;
+  TPE_Vec4 orientation;
+
+  TPE_bodyGetOrientation(body,&orientation);
+
+  TPE_quaternionToRotationMatrix(orientation,matrix);
+  matrix[0][3] = body->position.x;
+  matrix[1][3] = body->position.y;
+  matrix[2][3] = body->position.z;
 }
 
 void TPE_initQuaternion(TPE_Vec4 *quaternion)

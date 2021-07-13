@@ -45,46 +45,51 @@ int main()
 
   scene.camera.transform.translation.z = -3 * S3L_FRACTIONS_PER_UNIT;
 
+
+TPE_Body body;
+
+TPE_initBody(&body);
+
 S3L_Mat4 m;
 cubeModel.customTransformMatrix = &m;
- 
-TPE_Vec4 quat, quat2, quat3, axis;
 
-
-  TPE_Unit frame = 0;
-
-TPE_initQuaternion(&quat);
+TPE_Vec4 axis;
 
 TPE_setVec4(&axis,512,0,0,0);
-TPE_rotationToQuaternion(axis,2,&quat2);
 
-//TPE_setVec4(&axis,0,512,0,0);
-//TPE_rotationToQuaternion(axis,128,&quat3);
-
-//TPE_quaternionMultiply(quat3,quat2,&quat);  // 2 faces... 3 then 2
-//TPE_quaternionMultiply(quat2,quat3,&quat);  // 1 face... 2 then 3
+TPE_bodySetRotation(&body,axis,5);
+ 
+  TPE_Unit frame = 0;
 
   while (running)
   {
 
-TPE_quaternionMultiply(quat,quat2,&quat);
-TPE_vec4Normalize(&quat);
+TPE_Vec4 q;
+TPE_bodyGetOrientation(&body,&q);
 
-if (frame == 40)
+if (frame == 60)
 {
+
 TPE_setVec4(&axis,0,512,0,0);
-TPE_rotationToQuaternion(axis,5,&quat2);
-//TPE_initQuaternion(&quat2);
+TPE_bodySetRotation(&body,axis,3);
+  
+}
+else if (frame == 150)
+{
+TPE_setVec4(&axis,0,0,512,0);
+TPE_bodySetRotation(&body,axis,6);
 }
 
-TPE_quaternionToRotationMatrix(quat,m);
+/*
+TPE_PRINTF_VEC4(body.rotation.originalOrientation);
+TPE_PRINTF_VEC4(body.rotation.axisVelocity);
+printf("%d\n",body.rotation.currentAngle);
+*/
 
-TPE_PRINTF_VEC4(quat);
-TPE_PRINTF_VEC4(quat2);
+TPE_bodyGetTransformMatrix(&body,m);
+TPE_bodyStep(&body);
 
 
-TPE_PRINTF_VEC4(quat);
-printf("---- %d\n",frame);
 
 
 
