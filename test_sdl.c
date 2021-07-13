@@ -48,14 +48,14 @@ int main()
 
 TPE_Body body;
 
-TPE_initBody(&body);
+TPE_bodyInit(&body);
 
 S3L_Mat4 m;
 cubeModel.customTransformMatrix = &m;
 
 TPE_Vec4 axis;
 
-TPE_setVec4(&axis,512,0,0,0);
+TPE_vec4Set(&axis,512,0,0,0);
 
 TPE_bodySetRotation(&body,axis,5);
  
@@ -70,13 +70,13 @@ TPE_bodyGetOrientation(&body,&q);
 if (frame == 60)
 {
 
-TPE_setVec4(&axis,0,512,0,0);
+TPE_vec4Set(&axis,0,512,0,0);
 TPE_bodySetRotation(&body,axis,3);
   
 }
 else if (frame == 150)
 {
-TPE_setVec4(&axis,0,0,512,0);
+TPE_vec4Set(&axis,512,512,512,0);
 TPE_bodySetRotation(&body,axis,6);
 }
 

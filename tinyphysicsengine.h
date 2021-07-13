@@ -1,7 +1,7 @@
 #ifndef TINYPHYSICSENGINE_H
 #define TINYPHYSICSENGINE_H
 
-/*
+/**
   author: Miloslav Ciz
   license: CC0 1.0 (public domain)
            found at https://creativecommons.org/publicdomain/zero/1.0/
@@ -83,7 +83,7 @@ typedef struct
 /** Initializes vec4 to a zero vector. */
 void TPE_initVec4(TPE_Vec4 *v);
 
-void TPE_setVec4(TPE_Vec4 *v, TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w);
+void TPE_vec4Set(TPE_Vec4 *v, TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w);
 void TPE_vec3Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec4Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec3Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result);
@@ -96,7 +96,6 @@ TPE_Unit TPE_vec3DotProduct(const TPE_Vec4 v1, const TPE_Vec4 v2);
 void TPE_vec3Normalize(TPE_Vec4 *v);
 void TPE_vec4Normalize(TPE_Vec4 *v);
 void TPE_vec3Project(const TPE_Vec4 v, const TPE_Vec4 base, TPE_Vec4 *result);
-
 
 /** Holds a rotation state around a single axis, in a way that prevents rounding
   errors from distorting the rotation over time. In theory rotation of a body
@@ -153,13 +152,13 @@ typedef struct
 
 /** Initializes a physical body, this should be called on all TPE_Bodys that
   are created.*/
-void TPE_initBody(TPE_Body *body);
+void TPE_bodyInit(TPE_Body *body);
 
 /** Computes a 4x4 transform matrix of given body. The matrix has the same
   format as S3L_Mat4 from small3dlib. */
-void TPE_bodyGetTransformMatrix(TPE_Body *body, TPE_Unit matrix[4][4]);
+void TPE_bodyGetTransformMatrix(const TPE_Body *body, TPE_Unit matrix[4][4]);
 
-void TPE_bodyGetOrientation(TPE_Body *body, TPE_Vec4 *quaternion);
+void TPE_bodyGetOrientation(const TPE_Body *body, TPE_Vec4 *quaternion);
 
 void TPE_bodyStep(TPE_Body *body);
 
@@ -180,7 +179,7 @@ void TPE_quaternionMultiply(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 
 /** Initializes quaternion to the a rotation identity (i.e. NOT zero
   quaternion). */
-void TPE_initQuaternion(TPE_Vec4 *quaternion);
+void TPE_quaternionInit(TPE_Vec4 *quaternion);
 
 /** Converts a rotation given as an axis and angle around this axis (by right
   hand rule) to a rotation quaternion. */
@@ -213,7 +212,7 @@ void TPE_initVec4(TPE_Vec4 *v)
   v->w = 0;
 }
 
-void TPE_setVec4(TPE_Vec4 *v, TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w)
+void TPE_vec4Set(TPE_Vec4 *v, TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w)
 {
   v->x = x;
   v->y = y;
@@ -375,7 +374,7 @@ TPE_Unit TPE_cos(TPE_Unit x)
   return TPE_sin(x + TPE_FRACTIONS_PER_UNIT / 4);
 }
 
-void TPE_initBody(TPE_Body *body)
+void TPE_bodyInit(TPE_Body *body)
 {
   // TODO
 
@@ -384,12 +383,12 @@ void TPE_initBody(TPE_Body *body)
 
   // init orientation to identity unit quaternion (1,0,0,0):
 
-  TPE_initQuaternion(&(body->rotation.originalOrientation));
-  TPE_setVec4(&(body->rotation.axisVelocity),TPE_FRACTIONS_PER_UNIT,0,0,0);
+  TPE_quaternionInit(&(body->rotation.originalOrientation));
+  TPE_vec4Set(&(body->rotation.axisVelocity),TPE_FRACTIONS_PER_UNIT,0,0,0);
   body->rotation.currentAngle = 0;
 }
 
-void TPE_bodyGetOrientation(TPE_Body *body, TPE_Vec4 *quaternion)
+void TPE_bodyGetOrientation(const TPE_Body *body, TPE_Vec4 *quaternion)
 {
   TPE_Vec4 axisRotation;
 
@@ -782,7 +781,7 @@ void TPE_resolvePointCollision(
 // TODO
 }
 
-void TPE_bodyGetTransformMatrix(TPE_Body *body, TPE_Unit matrix[4][4])
+void TPE_bodyGetTransformMatrix(const TPE_Body *body, TPE_Unit matrix[4][4])
 {
   TPE_Vec4 orientation;
 
@@ -794,7 +793,7 @@ void TPE_bodyGetTransformMatrix(TPE_Body *body, TPE_Unit matrix[4][4])
   matrix[2][3] = body->position.z;
 }
 
-void TPE_initQuaternion(TPE_Vec4 *quaternion)
+void TPE_quaternionInit(TPE_Vec4 *quaternion)
 {
   quaternion->x = 0;
   quaternion->y = 0;
