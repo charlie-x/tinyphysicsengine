@@ -48,24 +48,47 @@ int main()
 S3L_Mat4 m;
 cubeModel.customTransformMatrix = &m;
  
-TPE_Vec4 quat, axis;
+TPE_Vec4 quat, quat2, quat3, axis;
 
-TPE_setVec4(&axis,512,512,-512,0);
-
-TPE_vec3Normalize(&axis);
-
-TPE_PRINTF_VEC4(axis);
 
   TPE_Unit frame = 0;
+
+TPE_initQuaternion(&quat);
+
+TPE_setVec4(&axis,512,0,0,0);
+TPE_rotationToQuaternion(axis,2,&quat2);
+
+//TPE_setVec4(&axis,0,512,0,0);
+//TPE_rotationToQuaternion(axis,128,&quat3);
+
+//TPE_quaternionMultiply(quat3,quat2,&quat);  // 2 faces... 3 then 2
+//TPE_quaternionMultiply(quat2,quat3,&quat);  // 1 face... 2 then 3
 
   while (running)
   {
 
+TPE_quaternionMultiply(quat,quat2,&quat);
+TPE_vec4Normalize(&quat);
 
-TPE_rotationToQuaternion(axis,frame,&quat);
+if (frame == 40)
+{
+TPE_setVec4(&axis,0,512,0,0);
+TPE_rotationToQuaternion(axis,5,&quat2);
+//TPE_initQuaternion(&quat2);
+}
+
 TPE_quaternionToRotationMatrix(quat,m);
 
-S3L_logMat4(m);
+TPE_PRINTF_VEC4(quat);
+TPE_PRINTF_VEC4(quat2);
+
+
+TPE_PRINTF_VEC4(quat);
+printf("---- %d\n",frame);
+
+
+
+//S3L_logMat4(m);
 
 /*
 S3L_makeRotationMatrixZXY(128,0,0,&m);

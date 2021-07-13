@@ -88,13 +88,13 @@ void TPE_vec3Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec4Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec3Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec4Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result);
-void TPE_vec3Multiplay(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
-void TPE_vec4Multiplay(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
+void TPE_vec3Multiply(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
+void TPE_vec4Multiply(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
 TPE_Unit TPE_vec3Len(TPE_Vec4 v);
 TPE_Unit TPE_vec4Len(TPE_Vec4 v);
 TPE_Unit TPE_vec3DotProduct(const TPE_Vec4 v1, const TPE_Vec4 v2);
 void TPE_vec3Normalize(TPE_Vec4 *v);
-void TPE_vec4Normalize(TPE_Vec4 v);
+void TPE_vec4Normalize(TPE_Vec4 *v);
 void TPE_vec3Project(const TPE_Vec4 v, const TPE_Vec4 base, TPE_Vec4 *result);
 
 typedef struct
@@ -145,7 +145,14 @@ typedef struct
   TPE_Body *bodies;
 } TPE_PhysicsWorld;
 
+/** Multiplies two quaternions which can be seen as chaining two rotations
+  represented by them. This is not commutative (a*b != b*a)! Rotations a is
+  performed firth, then rotation b is performed. */
 void TPE_quaternionMultiply(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
+
+/** Initializes quaternion to the a rotation identity (i.e. NOT zero
+  quaternion). */
+void TPE_initQuaternion(TPE_Vec4 *quaternion);
 
 /** Converts a rotation given as an axis and angle around this axis (by right
   hand rule) to a rotation quaternion. */
@@ -346,37 +353,41 @@ void TPE_initBody(TPE_Body *body)
 
   // init orientation to identity unit quaternion (1,0,0,0):
 
-  body->orientation.x = 0;
-  body->orientation.y = 0;
-  body->orientation.z = 0;
-  body->orientation.w = TPE_FRACTIONS_PER_UNIT;
+  TPE_initQuaternion(&(body->orientation));
 }
 
 void TPE_quaternionMultiply(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result)
 {
-  result->x =
-    (a.x * b.x - 
-     a.y * b.y -
-     a.z * b.z -
-     a.w * b.w) / TPE_FRACTIONS_PER_UNIT;
+  TPE_Vec4 r; // in case result is identical to a or b
 
-  result->y =
-    (a.y * b.x +
-     a.x * b.y +
-     a.z * b.w -
-     a.w * b.z) / TPE_FRACTIONS_PER_UNIT;
-
-  result->z =
-    (a.x * b.z -
-     a.y * b.w +
-     a.z * b.x +
-     a.w * b.y) / TPE_FRACTIONS_PER_UNIT;
-
-  result->w =
-    (a.x * b.w +
+  r.x =
+    (a.w * b.x +
+     a.x * b.w +
      a.y * b.z -
-     a.z * b.y +
-     a.w * b.x) / TPE_FRACTIONS_PER_UNIT;
+     a.z * b.y) / TPE_FRACTIONS_PER_UNIT;
+
+  r.y =
+    (a.w * b.y -
+     a.x * b.z +
+     a.y * b.w +
+     a.z * b.x) / TPE_FRACTIONS_PER_UNIT;
+
+  r.z =
+    (a.w * b.z +
+     a.x * b.y -
+     a.y * b.x +
+     a.z * b.w) / TPE_FRACTIONS_PER_UNIT;
+
+  r.w =
+    (a.w * b.w -
+     a.x * b.x -
+     a.y * b.y -
+     a.z * b.z) / TPE_FRACTIONS_PER_UNIT;
+
+  result->x = r.x;
+  result->y = r.y;
+  result->z = r.z;
+  result->w = r.w;
 }
 
 void TPE_rotationToQuaternion(TPE_Vec4 axis, TPE_Unit angle, TPE_Vec4 *quaternion)
@@ -517,14 +528,14 @@ void TPE_vec4Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result)
   result->w = a.w - b.w;
 }
 
-void TPE_vec3Multiplay(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result)
+void TPE_vec3Multiply(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result)
 {
   result->x = (v.x * f) / TPE_FRACTIONS_PER_UNIT;
   result->y = (v.y * f) / TPE_FRACTIONS_PER_UNIT;
   result->z = (v.z * f) / TPE_FRACTIONS_PER_UNIT;
 }
 
-void TPE_vec4Multiplay(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result)
+void TPE_vec4Multiply(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result)
 {
   result->x = (v.x * f) / TPE_FRACTIONS_PER_UNIT;
   result->y = (v.y * f) / TPE_FRACTIONS_PER_UNIT;
@@ -563,20 +574,20 @@ void TPE_vec3Normalize(TPE_Vec4 *v)
   v->z = (v->z * TPE_FRACTIONS_PER_UNIT) / l;
 }
 
-void TPE_vec4Normalize(TPE_Vec4 v)
+void TPE_vec4Normalize(TPE_Vec4 *v)
 { 
-  TPE_Unit l = TPE_vec4Len(v);
+  TPE_Unit l = TPE_vec4Len(*v);
 
   if (l == 0)
   {
-    v.x = TPE_FRACTIONS_PER_UNIT;
+    v->x = TPE_FRACTIONS_PER_UNIT;
     return;
   }
 
-  v.x = (v.x * TPE_FRACTIONS_PER_UNIT) / l;
-  v.y = (v.y * TPE_FRACTIONS_PER_UNIT) / l;
-  v.z = (v.z * TPE_FRACTIONS_PER_UNIT) / l;
-  v.w = (v.w * TPE_FRACTIONS_PER_UNIT) / l;
+  v->x = (v->x * TPE_FRACTIONS_PER_UNIT) / l;
+  v->y = (v->y * TPE_FRACTIONS_PER_UNIT) / l;
+  v->z = (v->z * TPE_FRACTIONS_PER_UNIT) / l;
+  v->w = (v->w * TPE_FRACTIONS_PER_UNIT) / l;
 }
 
 void TPE_vec3Project(const TPE_Vec4 v, const TPE_Vec4 base, TPE_Vec4 *result)
@@ -704,6 +715,14 @@ void TPE_bodyGetTransformMatrix(TPE_Body *body, TPE_Unit matrix[4][4])
   matrix[3][0] = body->position.x;
   matrix[3][1] = body->position.y;
   matrix[3][2] = body->position.z;
+}
+
+void TPE_initQuaternion(TPE_Vec4 *quaternion)
+{
+  quaternion->x = 0;
+  quaternion->y = 0;
+  quaternion->z = 0;
+  quaternion->w = TPE_FRACTIONS_PER_UNIT;
 }
 
 #endif // guard
