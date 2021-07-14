@@ -93,6 +93,7 @@ void TPE_vec4Multiply(TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
 TPE_Unit TPE_vec3Len(TPE_Vec4 v);
 TPE_Unit TPE_vec4Len(TPE_Vec4 v);
 TPE_Unit TPE_vec3DotProduct(TPE_Vec4 v1, TPE_Vec4 v2);
+void TPE_vec3CrossProduct(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec3Normalize(TPE_Vec4 *v);
 void TPE_vec4Normalize(TPE_Vec4 *v);
 void TPE_vec3Project(TPE_Vec4 v, TPE_Vec4 base, TPE_Vec4 *result);
@@ -410,13 +411,30 @@ void TPE_bodyGetOrientation(const TPE_Body *body, TPE_Vec4 *quaternion)
   TPE_vec4Normalize(quaternion);
 }
 
+void TPE_vec3CrossProduct(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result)
+{
+  TPE_Vec4 r;
+
+  r.x = a.y * b.z - a.z * b.y;
+  r.y = a.z * b.x - a.x * b.z;
+  r.z = a.x * b.y - a.y * b.x;
+
+  *result = r;
+}
+
 void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity)
 {  
-  TPE_Vec4 linearVelocity;
+  TPE_Vec4 linearVelocity, angularVelocity, rotationAxis;
+
+  TPE_vec3Normalize(&point);
 
   TPE_vec3Project(velocity,point,&linearVelocity);
 
+  TPE_vec3Substract(velocity,linearVelocity,&angularVelocity);
+
   TPE_vec3Add(body->velocity,linearVelocity,&(body->velocity));
+
+  TPE_vec3CrossProduct(point,angularVelocity,&rotationAxis);
 
   // TODO: rotation
 }
