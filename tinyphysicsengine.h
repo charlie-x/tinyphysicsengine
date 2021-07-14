@@ -84,18 +84,18 @@ typedef struct
 void TPE_initVec4(TPE_Vec4 *v);
 
 void TPE_vec4Set(TPE_Vec4 *v, TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w);
-void TPE_vec3Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result);
-void TPE_vec4Add(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result);
-void TPE_vec3Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result);
-void TPE_vec4Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result);
-void TPE_vec3Multiply(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
-void TPE_vec4Multiply(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
+void TPE_vec3Add(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
+void TPE_vec4Add(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
+void TPE_vec3Substract(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
+void TPE_vec4Substract(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
+void TPE_vec3Multiply(TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
+void TPE_vec4Multiply(TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
 TPE_Unit TPE_vec3Len(TPE_Vec4 v);
 TPE_Unit TPE_vec4Len(TPE_Vec4 v);
-TPE_Unit TPE_vec3DotProduct(const TPE_Vec4 v1, const TPE_Vec4 v2);
+TPE_Unit TPE_vec3DotProduct(TPE_Vec4 v1, TPE_Vec4 v2);
 void TPE_vec3Normalize(TPE_Vec4 *v);
 void TPE_vec4Normalize(TPE_Vec4 *v);
-void TPE_vec3Project(const TPE_Vec4 v, const TPE_Vec4 base, TPE_Vec4 *result);
+void TPE_vec3Project(TPE_Vec4 v, TPE_Vec4 base, TPE_Vec4 *result);
 
 /** Holds a rotation state around a single axis, in a way that prevents rounding
   errors from distorting the rotation over time. In theory rotation of a body
@@ -163,6 +163,11 @@ void TPE_bodyGetOrientation(const TPE_Body *body, TPE_Vec4 *quaternion);
 void TPE_bodyStep(TPE_Body *body);
 
 void TPE_bodySetRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity);
+
+/** Applies a velocity change to a body at a specific point (relative to the
+  body center), which will change its linear and/or angular velocity. This is
+  similar to an impulse but doesn't take mass into account, only velocity. */
+void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity);
 
 #define TPE_PRINTF_VEC4(v) printf("[%d %d %d %d]\n",(v).x,(v).y,(v).z,(v).w);
 
@@ -403,6 +408,17 @@ void TPE_bodyGetOrientation(const TPE_Body *body, TPE_Vec4 *quaternion)
     quaternion);
 
   TPE_vec4Normalize(quaternion);
+}
+
+void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity)
+{  
+  TPE_Vec4 linearVelocity;
+
+  TPE_vec3Project(velocity,point,&linearVelocity);
+
+  TPE_vec3Add(body->velocity,linearVelocity,&(body->velocity));
+
+  // TODO: rotation
 }
 
 void TPE_bodyStep(TPE_Body *body)
@@ -662,7 +678,7 @@ void TPE_vec4Normalize(TPE_Vec4 *v)
   v->w = (v->w * TPE_FRACTIONS_PER_UNIT) / l;
 }
 
-void TPE_vec3Project(const TPE_Vec4 v, const TPE_Vec4 base, TPE_Vec4 *result)
+void TPE_vec3Project(TPE_Vec4 v, TPE_Vec4 base, TPE_Vec4 *result)
 {
   TPE_Unit p = TPE_vec3DotProduct(v,base);
 
@@ -718,8 +734,8 @@ void TPE_getVelocitiesAfterCollision(
 }
 
 void TPE_resolvePointCollision(
-  const TPE_Vec4 collisionPoint,
-  const TPE_Vec4 collisionNormal,
+  TPE_Vec4 collisionPoint,
+  TPE_Vec4 collisionNormal,
   TPE_Unit elasticity,
   TPE_Vec4 linVelocity1,
   TPE_Vec4 rotVelocity1,
