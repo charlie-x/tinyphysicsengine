@@ -40,6 +40,8 @@ typedef int32_t TPE_Unit;
 
 #define TPE_INFINITY 2147483647
 
+#define TPE_PI 1608              ///< pi in TPE_Units
+
 #define TPE_SHAPE_POINT     0    ///< single point in space
 #define TPE_SHAPE_SPHERE    1    ///< sphere, params.: radius
 #define TPE_SHAPE_CUBOID    2    ///< cuboid, params.: width, height, depth
@@ -97,6 +99,11 @@ void TPE_vec3CrossProduct(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec3Normalize(TPE_Vec4 *v);
 void TPE_vec4Normalize(TPE_Vec4 *v);
 void TPE_vec3Project(TPE_Vec4 v, TPE_Vec4 base, TPE_Vec4 *result);
+
+/** Converts a linear velocity of an orbiting point to the angular velocity
+  (angle units per time units). This depends on the distance of the point from
+  the center of rotation. */
+TPE_Unit TPE_linearVelocityToAngular(TPE_Unit velocity, TPE_Unit distance);
 
 /** Holds a rotation state around a single axis, in a way that prevents rounding
   errors from distorting the rotation over time. In theory rotation of a body
@@ -425,18 +432,42 @@ void TPE_vec3CrossProduct(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result)
 void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity)
 {  
   TPE_Vec4 linearVelocity, angularVelocity, rotationAxis;
+    
+  TPE_vec3Add(body->velocity,velocity,&(body->velocity));
 
-  TPE_vec3Normalize(&point);
+  TPE_Unit pointDistance = TPE_vec3Len(point);
 
-  TPE_vec3Project(velocity,point,&linearVelocity);
+  if (pointDistance != 0)  
+  {
+    /* normalize the point, we don't use the function as we don't want to    
+       recompute the vector length */
 
-  TPE_vec3Substract(velocity,linearVelocity,&angularVelocity);
+    point.x = (point.x * TPE_FRACTIONS_PER_UNIT) / pointDistance;
+    point.y = (point.y * TPE_FRACTIONS_PER_UNIT) / pointDistance;
+    point.z = (point.z * TPE_FRACTIONS_PER_UNIT) / pointDistance;
 
-  TPE_vec3Add(body->velocity,linearVelocity,&(body->velocity));
+    /* Now we take only a part of the applied velocity, the part projected
+       to a plane perpendicular to the point vector, and this part will
+       contribute to the body rotation. */
 
-  TPE_vec3CrossProduct(point,angularVelocity,&rotationAxis);
+    TPE_Vec4 tmp;
 
-  // TODO: rotation
+    TPE_vec3Project(velocity,point,&tmp);
+    TPE_vec3Substract(velocity,tmp,&angularVelocity);
+
+    TPE_vec3CrossProduct(point,angularVelocity,&rotationAxis);
+
+TPE_bodySetRotation(body,rotationAxis,
+  TPE_linearVelocityToAngular(TPE_vec3Len(angularVelocity),-1 * pointDistance));
+  
+    // TODO: add rotation, not set
+  }
+}
+
+TPE_Unit TPE_linearVelocityToAngular(TPE_Unit velocity, TPE_Unit distance)
+{
+  TPE_Unit circumfence = (2 * TPE_PI * distance) / TPE_FRACTIONS_PER_UNIT;
+  return (velocity * TPE_FRACTIONS_PER_UNIT) / circumfence;
 }
 
 void TPE_bodyStep(TPE_Body *body)
