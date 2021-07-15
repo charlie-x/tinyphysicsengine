@@ -135,9 +135,45 @@ typedef struct
                                    orientation)  */
 } TPE_RotationState;
 
+
+#define TPE_BODY_SHAPE_SPHERE 0
+#define TPE_BODY_SHAPE_CUBOID 1
+#define TPE_BODY_SHAPE_PLANE 2
+#define TPE_BODY_SHAPE_CYLINDER 3
+#define TPE_BODY_SHAPE_MESH 4
+#define TPE_BODY_SHAPE_MULTIBODY 5
+
+typedef struct
+{
+  TPE_Unit radius;
+} TPE_ShapeSphereParams;
+
+typedef struct
+{
+  TPE_Unit width;
+  TPE_Unit height;
+  TPE_Unit depth;
+} TPE_ShapeCuboidParams;
+
+typedef struct
+{
+  TPE_Unit *vertices;
+  uint16_t vertexCount;
+
+  uint16_t *triangles;
+  uint16_t triangleCount;
+} TPE_ShapeMeshParams;
+
 typedef struct
 {
   uint8_t shape;
+
+  union shapeParams
+  {
+    TPE_ShapeSphereParams sphere;
+    TPE_ShapeCuboidParams cuboid;
+    TPE_ShapeMeshParams mesh;
+  };
 
   TPE_Unit shapeParams[TPE_MAX_SHAPE_PARAMS];  ///< parameters of the body type
   void *shapeParamPointers[TPE_MAX_SHAPE_PARAMPOINTERS]; ///< pointer parameters

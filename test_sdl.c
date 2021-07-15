@@ -57,7 +57,7 @@ cubeModel.customTransformMatrix = &m;
 
 TPE_Vec4 p, v;
 
-TPE_vec4Set(&p,-512,512,0,0);
+TPE_vec4Set(&p,0,512,0,0);
 TPE_vec4Set(&v,30,0,0,0);
 
 TPE_bodyApplyVelocity(&body,p,v);
