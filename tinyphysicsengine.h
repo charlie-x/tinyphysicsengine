@@ -215,6 +215,8 @@ void TPE_bodyStep(TPE_Body *body);
 
 void TPE_bodySetRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity);
 
+void TPE_bodyAddRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity);
+
 /** Applies a velocity change to a body at a specific point (relative to the
   body center), which will change its linear and/or angular velocity. This is
   similar to an impulse but doesn't take mass into account, only velocity. */
@@ -500,10 +502,9 @@ void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity)
 
     TPE_vec3CrossProduct(point,angularVelocity,&rotationAxis);
 
-TPE_bodySetRotation(body,rotationAxis,
-  TPE_linearVelocityToAngular(TPE_vec3Len(angularVelocity),-1 * pointDistance));
-  
-    // TODO: add rotation, not set
+    TPE_bodyAddRotation(body,rotationAxis,
+      TPE_linearVelocityToAngular(
+        TPE_vec3Len(angularVelocity),-1 * pointDistance));
   }
 }
 
@@ -531,9 +532,44 @@ void TPE_bodySetRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity)
     velocity *= -1;
   }
 
+  TPE_vec3Normalize(&axis);
+
   body->rotation.axisVelocity = axis;
   body->rotation.axisVelocity.w = velocity;
   body->rotation.currentAngle = 0;
+}
+
+void TPE_bodyAddRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity)
+{
+  /* Rotation is added like this: we convert both the original and added
+     rotation to vectors whose direction is along the rotations axis and
+     magnitude is the rotation speed, then we add these vectors and convert
+     the final vector back to normalized rotation axis + scalar rotation 
+     speed.*/
+
+  body->rotation.axisVelocity.x = 
+    (body->rotation.axisVelocity.x * body->rotation.axisVelocity.w)
+    / TPE_FRACTIONS_PER_UNIT;
+
+  body->rotation.axisVelocity.y = 
+    (body->rotation.axisVelocity.y * body->rotation.axisVelocity.w)
+    / TPE_FRACTIONS_PER_UNIT;
+
+  body->rotation.axisVelocity.z = 
+    (body->rotation.axisVelocity.z * body->rotation.axisVelocity.w)
+    / TPE_FRACTIONS_PER_UNIT;
+
+  TPE_vec3Normalize(&axis);
+
+  axis.x = (axis.x * velocity) / TPE_FRACTIONS_PER_UNIT;
+  axis.y = (axis.y * velocity) / TPE_FRACTIONS_PER_UNIT;
+  axis.z = (axis.z * velocity) / TPE_FRACTIONS_PER_UNIT;
+
+  TPE_vec3Add(body->rotation.axisVelocity,axis,&axis);
+
+  axis.w = TPE_vec3Len(axis);
+
+  TPE_bodySetRotation(body,axis,axis.w);
 }
 
 void TPE_quaternionMultiply(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result)
