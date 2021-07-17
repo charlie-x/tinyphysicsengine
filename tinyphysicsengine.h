@@ -8,6 +8,13 @@
            + additional waiver of all IP
   version: 0.1d
 
+  This is a suckless library for simple 3D (and 2D) physics simulation. The
+  physics is based on the Newtonian model but is further simplified,
+  particularly in the area of rotation: there is no moment of inertia for
+  objects, i.e. every object rotates as if it was a ball, and the object can be
+  rotating around at most one axis at a time, i.e. it is not possible to
+  simulate e.g. the Dzhanibekov effect.
+
   CONVENTIONS:
 
   - Compatibility and simple usage with small3dlib is intended, so most
