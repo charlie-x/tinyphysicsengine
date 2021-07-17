@@ -89,6 +89,8 @@ typedef struct
   TPE_Unit w;
 } TPE_Vec4;
 
+#define TPE_PRINTF_VEC4(v) printf("[%d %d %d %d]\n",(v).x,(v).y,(v).z,(v).w);
+
 /** Initializes vec4 to a zero vector. */
 void TPE_initVec4(TPE_Vec4 *v);
 
@@ -141,14 +143,6 @@ typedef struct
                                    the rotation axis (from the original 
                                    orientation)  */
 } TPE_RotationState;
-
-
-#define TPE_BODY_SHAPE_SPHERE 0
-#define TPE_BODY_SHAPE_CUBOID 1
-#define TPE_BODY_SHAPE_PLANE 2
-#define TPE_BODY_SHAPE_CYLINDER 3
-#define TPE_BODY_SHAPE_MESH 4
-#define TPE_BODY_SHAPE_MULTIBODY 5
 
 typedef struct
 {
@@ -222,7 +216,19 @@ void TPE_bodyAddRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity);
   similar to an impulse but doesn't take mass into account, only velocity. */
 void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity);
 
-#define TPE_PRINTF_VEC4(v) printf("[%d %d %d %d]\n",(v).x,(v).y,(v).z,(v).w);
+/** Collision detection, checks if two bodies are colliding. Returns collision
+  depth (0 if there is no collision) as a return value and a world-space
+  collision point and a collision normal at this point in the pointer
+  parameters. */
+TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2, 
+  TPE_Vec4 *collisionPoint, TPE_Vec4 *collisionNormal);
+
+/** Gets a uint16_t integer type of collision depending on two shapes, the order
+  of shapes doesn't matter. */
+#define TPE_COLLISION_TYPE(shape1,shape2) \
+  ((shape1) <= (shape2) ? \
+  (((uint16_t) (shape1)) << 8) | (shape2) : \
+  (((uint16_t) (shape2)) << 8) | (shape1))
 
 typedef struct
 {
@@ -506,6 +512,48 @@ void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity)
       TPE_linearVelocityToAngular(
         TPE_vec3Len(angularVelocity),-1 * pointDistance));
   }
+}
+
+void _TPE_getShapes(const TPE_Body *b1, const TPE_Body *b2, uint8_t shape1,
+  const TPE_Body **first, const TPE_Body **second)
+{
+  if (b1->shape == shape1)
+  {
+    *first = b1;
+    *second = b2;
+  }
+  else
+  {
+    *first = b2;
+    *second = b1;
+  }
+}
+
+TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2, 
+  TPE_Vec4 *collisionPoint, TPE_Vec4 *collisionNormal)
+{
+  switch (TPE_COLLISION_TYPE(body1->shape,body2->shape))
+  {
+    case TPE_COLLISION_TYPE(TPE_SHAPE_SPHERE,TPE_SHAPE_SPHERE):
+    {
+      break;
+    } 
+
+    case TPE_COLLISION_TYPE(TPE_SHAPE_SPHERE,TPE_SHAPE_CUBOID):
+    {
+      const TPE_Body *sphere;
+      const TPE_Body *cuboid;
+
+      _TPE_getShapes(body1,body2,TPE_SHAPE_SPHERE,&sphere,&cuboid);
+
+      break;
+    } 
+
+    default:
+      break;
+  }
+  
+  return 0;
 }
 
 TPE_Unit TPE_linearVelocityToAngular(TPE_Unit velocity, TPE_Unit distance)

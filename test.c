@@ -12,7 +12,7 @@ int testRotToQuat(
 
   TPE_Vec4 q, axis;
 
-  TPE_setVec4(&axis,x,y,z,0);
+  TPE_vec4Set(&axis,x,y,z,0);
   TPE_rotationToQuaternion(axis,angle,&q);
 
   #define TOLERANCE 10
@@ -32,34 +32,17 @@ int testRotToQuat(
   #undef TOLERANCE
 }
 
-int testQuatToEuler(TPE_Unit yaw, TPE_Unit pitch, TPE_Unit roll)
+int ass(const char *what, int cond)
 {
-
-  TPE_Vec4 q, q2, axis;
-
-
-
-  TPE_setVec4(&axis,F,0,0,0);
-
-  TPE_rotationToQuaternion(axis,pitch,&q);
-
-TPE_PRINTF_VEC4(q);
-  
-
-  TPE_Unit y,p,r;
-
-  TPE_quaternionToEulerAngles(q,&y,&p,&r);
-
-
-
-  //printf("%d %d %d\n",y,p,r);
- 
-
- 
+  printf("testing %s: %s\n",what,cond ? "OK" : "ERROR");
+  return cond;
 }
 
 int main(void)
 {
+  #define ASS(w,c) if (!ass(w,c)) { return 0; } 
+  ASS("shape ID",TPE_COLLISION_TYPE(TPE_SHAPE_SPHERE,TPE_SHAPE_CUBOID) == TPE_COLLISION_TYPE(TPE_SHAPE_CUBOID,TPE_SHAPE_SPHERE))
+
   TPE_Vec4 q1, q2, q3, axis;
 
   testRotToQuat(F,0,0,    0,    0,0,0,F);
@@ -67,8 +50,6 @@ int main(void)
   testRotToQuat(0,F,0,    F/4,  0,361,0,361);
   testRotToQuat(0,0,F,    F/2,  0,0,F,0);
   testRotToQuat(-F,F,F,   -F/8, 195,-195,-195,472);
-
-  testQuatToEuler(0,128,0);
 
   return 0;
 }
