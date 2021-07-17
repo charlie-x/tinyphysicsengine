@@ -89,7 +89,7 @@ typedef struct
   TPE_Unit w;
 } TPE_Vec4;
 
-#define TPE_PRINTF_VEC4(v) printf("[%d %d %d %d]\n",(v).x,(v).y,(v).z,(v).w);
+#define TPE_PRINTF_VEC4(v) printf("[%d %d %d %d] ",(v).x,(v).y,(v).z,(v).w);
 
 /** Initializes vec4 to a zero vector. */
 void TPE_initVec4(TPE_Vec4 *v);
@@ -98,6 +98,7 @@ void TPE_vec4Set(TPE_Vec4 *v, TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w);
 void TPE_vec3Add(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec4Add(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec3Substract(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
+void TPE_vec3Average(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec4Substract(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec3Multiply(TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
 void TPE_vec4Multiply(TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
@@ -146,35 +147,7 @@ typedef struct
 
 typedef struct
 {
-  TPE_Unit radius;
-} TPE_ShapeSphereParams;
-
-typedef struct
-{
-  TPE_Unit width;
-  TPE_Unit height;
-  TPE_Unit depth;
-} TPE_ShapeCuboidParams;
-
-typedef struct
-{
-  TPE_Unit *vertices;
-  uint16_t vertexCount;
-
-  uint16_t *triangles;
-  uint16_t triangleCount;
-} TPE_ShapeMeshParams;
-
-typedef struct
-{
   uint8_t shape;
-
-  union shapeParams
-  {
-    TPE_ShapeSphereParams sphere;
-    TPE_ShapeCuboidParams cuboid;
-    TPE_ShapeMeshParams mesh;
-  };
 
   TPE_Unit shapeParams[TPE_MAX_SHAPE_PARAMS];  ///< parameters of the body type
   void *shapeParamPointers[TPE_MAX_SHAPE_PARAMPOINTERS]; ///< pointer parameters
@@ -216,10 +189,13 @@ void TPE_bodyAddRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity);
   similar to an impulse but doesn't take mass into account, only velocity. */
 void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity);
 
-/** Collision detection, checks if two bodies are colliding. Returns collision
-  depth (0 if there is no collision) as a return value and a world-space
-  collision point and a collision normal at this point in the pointer
-  parameters. */
+/** Collision detection: checks if two bodies are colliding. The return value is
+  the collision depth along the collision normal (0 if the bodies are not
+  colliding). World-space collision point is returned via a pointer. Collision
+  normal is also returned via a pointer and its direction is "away from body1",
+  i.e. if you move body1 in the opposite direction of this normal by the
+  collision depth (return value), the bodies should no longer be colliding
+  (in some cases another collision may still occur). */
 TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2, 
   TPE_Vec4 *collisionPoint, TPE_Vec4 *collisionNormal);
 
@@ -532,10 +508,27 @@ void _TPE_getShapes(const TPE_Body *b1, const TPE_Body *b2, uint8_t shape1,
 TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2, 
   TPE_Vec4 *collisionPoint, TPE_Vec4 *collisionNormal)
 {
+  // now check the actual collisions:
+
   switch (TPE_COLLISION_TYPE(body1->shape,body2->shape))
   {
     case TPE_COLLISION_TYPE(TPE_SHAPE_SPHERE,TPE_SHAPE_SPHERE):
     {
+      TPE_Vec4 distanceVec;
+      TPE_vec3Substract(body2->position,body1->position,&distanceVec);
+      TPE_Unit distance = TPE_vec3Len(distanceVec);
+
+      distance -= body1->shapeParams[0] + body2->shapeParams[0];
+
+      if (distance < 0)
+      {
+        TPE_vec3Average(body1->position,body2->position,collisionPoint);
+        *collisionNormal = distanceVec;
+        TPE_vec3Normalize(collisionNormal);
+
+        return -1 * distance;
+      } 
+
       break;
     } 
 
@@ -782,6 +775,13 @@ void TPE_vec3Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result)
   result->x = a.x - b.x;
   result->y = a.y - b.y;
   result->z = a.z - b.z;
+}
+
+void TPE_vec3Average(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result)
+{
+  result->x = (a.x + b.x) / 2;
+  result->y = (a.y + b.y) / 2;
+  result->z = (a.z + b.z) / 2;
 }
 
 void TPE_vec4Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result)
