@@ -114,13 +114,15 @@ void TPE_vec3Project(TPE_Vec4 v, TPE_Vec4 base, TPE_Vec4 *result);
 
 TPE_Vec4 TPE_vec3Plus(TPE_Vec4 a, TPE_Vec4 b);
 TPE_Vec4 TPE_vec3Minus(TPE_Vec4 a, TPE_Vec4 b);
-TPE_Vec4 TPE_vec3Times(TPE_Vec4 a, TPE_Vec4 b);
+TPE_Vec4 TPE_vec3Times(TPE_Vec4 a, TPE_Unit f);
 TPE_Vec4 TPE_vec3Cross(TPE_Vec4 a, TPE_Vec4 b);
 
 /** Converts a linear velocity of an orbiting point to the angular velocity
   (angle units per time units). This depends on the distance of the point from
   the center of rotation. */
 TPE_Unit TPE_linearVelocityToAngular(TPE_Unit velocity, TPE_Unit distance);
+
+TPE_Unit TPE_angularVelocityToLinear(TPE_Unit velocity, TPE_Unit distance);
 
 /** Holds a rotation state around a single axis, in a way that prevents rounding
   errors from distorting the rotation over time. In theory rotation of a body
@@ -476,9 +478,9 @@ void TPE_vec3CrossProduct(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result)
 {
   TPE_Vec4 r;
 
-  r.x = a.y * b.z - a.z * b.y;
-  r.y = a.z * b.x - a.x * b.z;
-  r.z = a.x * b.y - a.y * b.x;
+  r.x = (a.y * b.z - a.z * b.y) / TPE_FRACTIONS_PER_UNIT;
+  r.y = (a.z * b.x - a.x * b.z) / TPE_FRACTIONS_PER_UNIT;
+  r.z = (a.x * b.y - a.y * b.x) / TPE_FRACTIONS_PER_UNIT;
 
   *result = r;
 }
@@ -586,28 +588,17 @@ TPE_Vec4 TPE_bodyGetPointVelocity(const TPE_Body *body, TPE_Vec4 point)
 {
   TPE_Vec4 result = body->velocity;
 
- 
+  TPE_Vec4 normal = TPE_vec3Cross(
+    point,TPE_vec3Minus(point,body->rotation.axisVelocity));
 
+  TPE_Unit dist = TPE_vec3Len(normal);  // point-line distance
 
+  TPE_Unit velocity = 
+    TPE_angularVelocityToLinear(body->rotation.axisVelocity.w,dist);
 
-  // point-line distance (distance of the point from rotation axis):
+  TPE_vec3Normalize(&normal);
 
-  TPE_Unit dist =
-    (
-    TPE_vec3Len(  
-      TPE_vec3Cross(
-        point,
-        TPE_vec3Minus(point,body->rotation.axisVelocity)
-      )
-    ) * TPE_FRACTIONS_PER_UNIT)
-
-    /
-
-    TPE_vec3Len(body->rotation.axisVelocity)
-    ;
-
-
-  return result;
+  return TPE_vec3Plus(result,TPE_vec3Times(normal,velocity));
 }
 
 void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2, 
@@ -619,6 +610,12 @@ TPE_Unit TPE_linearVelocityToAngular(TPE_Unit velocity, TPE_Unit distance)
 {
   TPE_Unit circumfence = (2 * TPE_PI * distance) / TPE_FRACTIONS_PER_UNIT;
   return (velocity * TPE_FRACTIONS_PER_UNIT) / circumfence;
+}
+
+TPE_Unit TPE_angularVelocityToLinear(TPE_Unit velocity, TPE_Unit distance)
+{
+  TPE_Unit circumfence = (2 * TPE_PI * distance) / TPE_FRACTIONS_PER_UNIT;
+  return (velocity * circumfence) / TPE_FRACTIONS_PER_UNIT;
 }
 
 void TPE_bodyStep(TPE_Body *body)
@@ -847,7 +844,7 @@ TPE_Vec4 TPE_vec3Plus(TPE_Vec4 a, TPE_Vec4 b)
 {
   a.x += b.x;
   a.y += b.y;
-  a.z += a.z;
+  a.z += b.z;
 
   return a;
 }
@@ -861,11 +858,11 @@ TPE_Vec4 TPE_vec3Minus(TPE_Vec4 a, TPE_Vec4 b)
   return a;
 }
 
-TPE_Vec4 TPE_vec3Times(TPE_Vec4 a, TPE_Vec4 b)
+TPE_Vec4 TPE_vec3Times(TPE_Vec4 a, TPE_Unit f)
 {
-  a.x = (a.x * b.x) / TPE_FRACTIONS_PER_UNIT;
-  a.y = (a.y * b.y) / TPE_FRACTIONS_PER_UNIT;
-  a.z = (a.z * a.z) / TPE_FRACTIONS_PER_UNIT;
+  a.x = (a.x * f) / TPE_FRACTIONS_PER_UNIT;
+  a.y = (a.y * f) / TPE_FRACTIONS_PER_UNIT;
+  a.z = (a.z * f) / TPE_FRACTIONS_PER_UNIT;
 
   return a;
 }

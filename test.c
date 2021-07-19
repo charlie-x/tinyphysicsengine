@@ -93,13 +93,12 @@ int main(void)
     TPE_bodyInit(&b1);
     TPE_bodyInit(&b2);
 
-b1.shape = TPE_SHAPE_SPHERE;
-b1.shapeParams[0] = TPE_FRACTIONS_PER_UNIT / 2;
 
-b2.shape = TPE_SHAPE_SPHERE;
-b2.shapeParams[0] = TPE_FRACTIONS_PER_UNIT;
+TPE_bodySetRotation(&b1,TPE_vec4(512,0,0,0),256);
 
-TPE_bodyCollides(&b1,&b2,&collPoint,&collNorm);
+TPE_Vec4 vvv = TPE_bodyGetPointVelocity(&b1,TPE_vec4(0,1024,0,0));
+
+TPE_PRINTF_VEC4(vvv);
 
   }
 
