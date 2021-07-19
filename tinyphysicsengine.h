@@ -94,6 +94,8 @@ typedef struct
 /** Initializes vec4 to a zero vector. */
 void TPE_initVec4(TPE_Vec4 *v);
 
+TPE_Vec4 TPE_vec4(TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w);
+
 void TPE_vec4Set(TPE_Vec4 *v, TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w);
 void TPE_vec3Add(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec4Add(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
@@ -109,6 +111,11 @@ void TPE_vec3CrossProduct(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec3Normalize(TPE_Vec4 *v);
 void TPE_vec4Normalize(TPE_Vec4 *v);
 void TPE_vec3Project(TPE_Vec4 v, TPE_Vec4 base, TPE_Vec4 *result);
+
+TPE_Vec4 TPE_vec3Plus(TPE_Vec4 a, TPE_Vec4 b);
+TPE_Vec4 TPE_vec3Minus(TPE_Vec4 a, TPE_Vec4 b);
+TPE_Vec4 TPE_vec3Times(TPE_Vec4 a, TPE_Vec4 b);
+TPE_Vec4 TPE_vec3Cross(TPE_Vec4 a, TPE_Vec4 b);
 
 /** Converts a linear velocity of an orbiting point to the angular velocity
   (angle units per time units). This depends on the distance of the point from
@@ -199,6 +206,14 @@ void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity);
 TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2, 
   TPE_Vec4 *collisionPoint, TPE_Vec4 *collisionNormal);
 
+/** Gets a velocity of a single point on a rigid body, taking into account its
+  linear velocity and rotation. The point coordinates are relative to the body
+  center. */
+TPE_Vec4 TPE_bodyGetPointVelocity(const TPE_Body *body, TPE_Vec4 point);
+
+void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2, 
+  TPE_Vec4 collisionPoint, TPE_Vec4 collisionNormal);
+
 /** Gets a uint16_t integer type of collision depending on two shapes, the order
   of shapes doesn't matter. */
 #define TPE_COLLISION_TYPE(shape1,shape2) \
@@ -250,6 +265,18 @@ void TPE_initVec4(TPE_Vec4 *v)
   v->y = 0;
   v->z = 0;
   v->w = 0;
+}
+
+TPE_Vec4 TPE_vec4(TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w)
+{
+  TPE_Vec4 r;
+
+  r.x = x;
+  r.y = y;
+  r.z = z;
+  r.w = w;
+
+  return r;
 }
 
 void TPE_vec4Set(TPE_Vec4 *v, TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w)
@@ -456,6 +483,12 @@ void TPE_vec3CrossProduct(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result)
   *result = r;
 }
 
+TPE_Vec4 TPE_vec3Cross(TPE_Vec4 a, TPE_Vec4 b)
+{
+  TPE_vec3CrossProduct(a,b,&a);
+  return a;
+}
+
 void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity)
 {  
   TPE_Vec4 linearVelocity, angularVelocity, rotationAxis;
@@ -547,6 +580,39 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
   }
   
   return 0;
+}
+
+TPE_Vec4 TPE_bodyGetPointVelocity(const TPE_Body *body, TPE_Vec4 point)
+{
+  TPE_Vec4 result = body->velocity;
+
+ 
+
+
+
+  // point-line distance (distance of the point from rotation axis):
+
+  TPE_Unit dist =
+    (
+    TPE_vec3Len(  
+      TPE_vec3Cross(
+        point,
+        TPE_vec3Minus(point,body->rotation.axisVelocity)
+      )
+    ) * TPE_FRACTIONS_PER_UNIT)
+
+    /
+
+    TPE_vec3Len(body->rotation.axisVelocity)
+    ;
+
+
+  return result;
+}
+
+void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2, 
+  TPE_Vec4 collisionPoint, TPE_Vec4 collisionNormal)
+{
 }
 
 TPE_Unit TPE_linearVelocityToAngular(TPE_Unit velocity, TPE_Unit distance)
@@ -775,6 +841,33 @@ void TPE_vec3Substract(const TPE_Vec4 a, const TPE_Vec4 b, TPE_Vec4 *result)
   result->x = a.x - b.x;
   result->y = a.y - b.y;
   result->z = a.z - b.z;
+}
+
+TPE_Vec4 TPE_vec3Plus(TPE_Vec4 a, TPE_Vec4 b)
+{
+  a.x += b.x;
+  a.y += b.y;
+  a.z += a.z;
+
+  return a;
+}
+
+TPE_Vec4 TPE_vec3Minus(TPE_Vec4 a, TPE_Vec4 b)
+{
+  a.x -= b.x;
+  a.y -= b.y;
+  a.z -= a.z;
+
+  return a;
+}
+
+TPE_Vec4 TPE_vec3Times(TPE_Vec4 a, TPE_Vec4 b)
+{
+  a.x = (a.x * b.x) / TPE_FRACTIONS_PER_UNIT;
+  a.y = (a.y * b.y) / TPE_FRACTIONS_PER_UNIT;
+  a.z = (a.z * a.z) / TPE_FRACTIONS_PER_UNIT;
+
+  return a;
 }
 
 void TPE_vec3Average(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result)

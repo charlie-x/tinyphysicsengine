@@ -6,6 +6,13 @@
 #define S3L_RESOLUTION_Y 480
 #define S3L_PIXEL_FUNCTION drawPixel
 
+#define S3L_FLAT 0
+#define S3L_NEAR_CROSS_STRATEGY 1
+#define S3L_PERSPECTIVE_CORRECTION 2
+#define S3L_SORT 0
+#define S3L_STENCIL_BUFFER 0
+#define S3L_Z_BUFFER 2
+
 #include "small3dlib.h"
 
 #include "tinyphysicsengine.h"
@@ -200,7 +207,7 @@ int main()
 
   TPE_Unit frame = 0;
 
-sphere1.velocity.x = 3;
+sphere1.velocity.x = 5;
 sphere2.velocity.x = -3;
 
   while (running)
@@ -218,6 +225,8 @@ if (TPE_bodyCollides(&sphere1,&sphere2,&p,&n))
 
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
       pixels[i] = 0;
+  
+    S3L_newFrame();
 
     S3L_drawScene(scene);
 
