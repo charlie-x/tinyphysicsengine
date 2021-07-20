@@ -210,7 +210,8 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 
 /** Gets a velocity of a single point on a rigid body, taking into account its
   linear velocity and rotation. The point coordinates are relative to the body
-  center. */
+  center. The point does NOT have to be on the surface, it can be inside and
+  even outside the body too. */
 TPE_Vec4 TPE_bodyGetPointVelocity(const TPE_Body *body, TPE_Vec4 point);
 
 void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2, 
@@ -604,6 +605,42 @@ TPE_Vec4 TPE_bodyGetPointVelocity(const TPE_Body *body, TPE_Vec4 point)
 void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2, 
   TPE_Vec4 collisionPoint, TPE_Vec4 collisionNormal)
 {
+  TPE_Vec4 v1, v2;
+
+  v1 = TPE_bodyGetPointVelocity(
+    body1,TPE_vec3Minus(collisionPoint,body1->position)); 
+
+  v2 = TPE_bodyGetPointVelocity(
+    body2,TPE_vec3Minus(collisionPoint,body2->position));
+
+  // TODO: quit if velocities go away from each other (could happen) 
+
+  TPE_vec3Project(v1,collisionNormal,&v1);
+  TPE_vec3Project(v2,collisionNormal,&v2);
+
+  TPE_Unit 
+    v1Abs = TPE_vec3Len(v1),
+    v2Abs = TPE_vec3Len(v2);
+
+  TPE_Unit
+    v1AbsNew = v1Abs,
+    v2AbsNew = v2Abs;
+
+  TPE_getVelocitiesAfterCollision(
+    &v1AbsNew,
+    &v2AbsNew,
+    body1->mass,
+    body2->mass,
+    512); // TODO: elasticity
+  
+  TPE_vec3Normalize(&v1);
+  TPE_vec3Normalize(&v2);
+
+  TPE_bodyApplyVelocity(body1,collisionPoint,
+    TPE_vec3Times(v1,v1AbsNew - v1Abs));
+  
+  TPE_bodyApplyVelocity(body2,collisionPoint,
+    TPE_vec3Times(v2,v2AbsNew - v2Abs));
 }
 
 TPE_Unit TPE_linearVelocityToAngular(TPE_Unit velocity, TPE_Unit distance)
@@ -978,8 +1015,8 @@ void TPE_getVelocitiesAfterCollision(
     *v2 = (*v2 != 0) ? TPE_nonZero(*v2 / ANTI_OVERFLOW_SCALE) : 0;
   }
 
-  TPE_Unit m1Pm2 = m1 + m2;
-  TPE_Unit v2Mv1 = *v2 - *v1;
+  TPE_Unit m1Pm2 = TPE_nonZero(m1 + m2);
+  TPE_Unit v2Mv1 = TPE_nonZero(*v2 - *v1);
 
   TPE_Unit m1v1Pm2v2 = ((m1 * *v1) + (m2 * *v2));
 

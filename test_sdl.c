@@ -221,7 +221,11 @@ sphere2.velocity.x = -3;
 TPE_Vec4 p, n;
 
 if (TPE_bodyCollides(&sphere1,&sphere2,&p,&n))
+{
+  TPE_resolveCollision(&sphere1,&sphere2,p,n);
+
   printf("aaa\n");
+}
 
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
       pixels[i] = 0;
