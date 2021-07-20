@@ -607,13 +607,13 @@ TPE_Vec4 TPE_bodyGetPointVelocity(const TPE_Body *body, TPE_Vec4 point)
 void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2, 
   TPE_Vec4 collisionPoint, TPE_Vec4 collisionNormal)
 {
-  TPE_Vec4 v1, v2;
+  TPE_Vec4 v1, v2, p1, p2;
 
-  v1 = TPE_bodyGetPointVelocity(
-    body1,TPE_vec3Minus(collisionPoint,body1->position)); 
+  p1 = TPE_vec3Minus(collisionPoint,body1->position);
+  p2 = TPE_vec3Minus(collisionPoint,body2->position);
 
-  v2 = TPE_bodyGetPointVelocity(
-    body2,TPE_vec3Minus(collisionPoint,body2->position));
+  v1 = TPE_bodyGetPointVelocity(body1,p1); 
+  v2 = TPE_bodyGetPointVelocity(body2,p2);
 
   int8_t 
     v1Sign = TPE_vec3DotProduct(v1,collisionNormal) >= 0,
@@ -621,8 +621,6 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
 
   if (!v1Sign && v2Sign)
     return; // opposite going velocities => not a real collision
-
-TPE_PRINTF_VEC4(collisionNormal);
 
   TPE_vec3Project(v1,collisionNormal,&v1);
   TPE_vec3Project(v2,collisionNormal,&v2);
@@ -646,10 +644,10 @@ TPE_PRINTF_VEC4(collisionNormal);
     body2->mass,
     512); // TODO: elasticity
 
-  TPE_bodyApplyVelocity(body1,collisionPoint,
+  TPE_bodyApplyVelocity(body1,p1,
     TPE_vec3Times(collisionNormal,v1ScalarNew - v1Scalar));
   
-  TPE_bodyApplyVelocity(body2,collisionPoint,
+  TPE_bodyApplyVelocity(body2,p2,
     TPE_vec3Times(collisionNormal,v2ScalarNew - v2Scalar));
 }
 
