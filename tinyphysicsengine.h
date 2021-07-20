@@ -622,6 +622,8 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
   if (!v1Sign && v2Sign)
     return; // opposite going velocities => not a real collision
 
+TPE_PRINTF_VEC4(collisionNormal);
+
   TPE_vec3Project(v1,collisionNormal,&v1);
   TPE_vec3Project(v2,collisionNormal,&v2);
 
