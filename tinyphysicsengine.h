@@ -456,6 +456,8 @@ void TPE_bodyInit(TPE_Body *body)
   TPE_quaternionInit(&(body->rotation.originalOrientation));
   TPE_vec4Set(&(body->rotation.axisVelocity),TPE_FRACTIONS_PER_UNIT,0,0,0);
   body->rotation.currentAngle = 0;
+
+  body->mass = TPE_FRACTIONS_PER_UNIT;
 }
 
 void TPE_bodyGetOrientation(const TPE_Body *body, TPE_Vec4 *quaternion)
@@ -494,8 +496,8 @@ TPE_Vec4 TPE_vec3Cross(TPE_Vec4 a, TPE_Vec4 b)
 
 void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity)
 {  
-  TPE_Vec4 linearVelocity, angularVelocity, rotationAxis;
-    
+  TPE_Vec4 angularVelocity, rotationAxis;
+  
   TPE_vec3Add(body->velocity,velocity,&(body->velocity));
 
   TPE_Unit pointDistance = TPE_vec3Len(point);
@@ -613,34 +615,40 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
   v2 = TPE_bodyGetPointVelocity(
     body2,TPE_vec3Minus(collisionPoint,body2->position));
 
-  // TODO: quit if velocities go away from each other (could happen) 
+  int8_t 
+    v1Sign = TPE_vec3DotProduct(v1,collisionNormal) >= 0,
+    v2Sign = TPE_vec3DotProduct(v2,collisionNormal) >= 0;
+
+  if (!v1Sign && v2Sign)
+    return; // opposite going velocities => not a real collision
 
   TPE_vec3Project(v1,collisionNormal,&v1);
   TPE_vec3Project(v2,collisionNormal,&v2);
 
   TPE_Unit 
-    v1Abs = TPE_vec3Len(v1),
-    v2Abs = TPE_vec3Len(v2);
+    v1Scalar = TPE_vec3Len(v1) * (v1Sign ? 1 : -1),
+    v2Scalar = TPE_vec3Len(v2) * (v2Sign ? 1 : -1);
+
+  if ((v1Sign && v2Sign && (v2Scalar > v1Scalar)) ||
+    (!v1Sign && !v2Sign && (v1Scalar > v2Scalar)))
+    return; // not a valid collision
 
   TPE_Unit
-    v1AbsNew = v1Abs,
-    v2AbsNew = v2Abs;
+    v1ScalarNew = v1Scalar,
+    v2ScalarNew = v2Scalar;
 
   TPE_getVelocitiesAfterCollision(
-    &v1AbsNew,
-    &v2AbsNew,
+    &v1ScalarNew,
+    &v2ScalarNew,
     body1->mass,
     body2->mass,
     512); // TODO: elasticity
-  
-  TPE_vec3Normalize(&v1);
-  TPE_vec3Normalize(&v2);
 
   TPE_bodyApplyVelocity(body1,collisionPoint,
-    TPE_vec3Times(v1,v1AbsNew - v1Abs));
+    TPE_vec3Times(collisionNormal,v1ScalarNew - v1Scalar));
   
   TPE_bodyApplyVelocity(body2,collisionPoint,
-    TPE_vec3Times(v2,v2AbsNew - v2Abs));
+    TPE_vec3Times(collisionNormal,v2ScalarNew - v2Scalar));
 }
 
 TPE_Unit TPE_linearVelocityToAngular(TPE_Unit velocity, TPE_Unit distance)
