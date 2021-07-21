@@ -13,7 +13,8 @@
   particularly in the area of rotation: there is no moment of inertia for
   objects, i.e. every object rotates as if it was a ball, and the object can be
   rotating around at most one axis at a time, i.e. it is not possible to
-  simulate e.g. the Dzhanibekov effect.
+  simulate e.g. the Dzhanibekov effect. Therefore the library is mostly intended
+  for entertainment software.
 
   CONVENTIONS:
 
@@ -35,6 +36,8 @@
     TPE_FRACTIONS_PER_UNIT parts (instead of 2 * PI or degrees).
 
   - Quaternions are represented as vec4 where x ~ i, y ~ j, z ~ k, w ~ real.
+
+  - There is no vec3 type, vec4 is usead for all vectors, for simplicity.
 */
 
 #include <stdint.h>
@@ -68,6 +71,7 @@ typedef int32_t TPE_Unit;
 
 TPE_Unit TPE_wrap(TPE_Unit value, TPE_Unit mod);
 TPE_Unit TPE_clamp(TPE_Unit v, TPE_Unit v1, TPE_Unit v2);
+static inline TPE_Unit TPE_abs(TPE_Unit x);
 static inline TPE_Unit TPE_nonZero(TPE_Unit x);
 
 /** Returns an integer square root of given value. */
@@ -93,9 +97,6 @@ typedef struct
 
 /** Initializes vec4 to a zero vector. */
 void TPE_initVec4(TPE_Vec4 *v);
-
-TPE_Vec4 TPE_vec4(TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w);
-
 void TPE_vec4Set(TPE_Vec4 *v, TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w);
 void TPE_vec3Add(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec4Add(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
@@ -104,14 +105,17 @@ void TPE_vec3Average(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec4Substract(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec3Multiply(TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
 void TPE_vec4Multiply(TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
-TPE_Unit TPE_vec3Len(TPE_Vec4 v);
-TPE_Unit TPE_vec4Len(TPE_Vec4 v);
-TPE_Unit TPE_vec3DotProduct(TPE_Vec4 v1, TPE_Vec4 v2);
 void TPE_vec3CrossProduct(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec3Normalize(TPE_Vec4 *v);
 void TPE_vec4Normalize(TPE_Vec4 *v);
 void TPE_vec3Project(TPE_Vec4 v, TPE_Vec4 base, TPE_Vec4 *result);
 
+TPE_Unit TPE_vec3Len(TPE_Vec4 v);
+TPE_Unit TPE_vec3LenTaxicab(TPE_Vec4 v);
+TPE_Unit TPE_vec4Len(TPE_Vec4 v);
+TPE_Unit TPE_vec3DotProduct(TPE_Vec4 v1, TPE_Vec4 v2);
+
+TPE_Vec4 TPE_vec4(TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w);
 TPE_Vec4 TPE_vec3Plus(TPE_Vec4 a, TPE_Vec4 b);
 TPE_Vec4 TPE_vec3Minus(TPE_Vec4 a, TPE_Vec4 b);
 TPE_Vec4 TPE_vec3Times(TPE_Vec4 a, TPE_Unit f);
@@ -122,13 +126,14 @@ TPE_Vec4 TPE_vec3Cross(TPE_Vec4 a, TPE_Vec4 b);
   the center of rotation. */
 TPE_Unit TPE_linearVelocityToAngular(TPE_Unit velocity, TPE_Unit distance);
 
+/** Performs the opposite conversion of TPE_linearVelocityToAngular. */
 TPE_Unit TPE_angularVelocityToLinear(TPE_Unit velocity, TPE_Unit distance);
 
 /** Holds a rotation state around a single axis, in a way that prevents rounding
   errors from distorting the rotation over time. In theory rotation of a body
   could be represented as 
 
-  [current orientation, axis of rotation,angular velocity]
+  [current orientation, axis of rotation, angular velocity]
 
   However applying the rotation and normalizing the orientation quaternion each
   simulation step leads to error cumulation and the rotation gets aligned with
@@ -177,20 +182,29 @@ typedef struct
                                  inferred */
 } TPE_Body;
 
-/** Initializes a physical body, this should be called on all TPE_Bodys that
-  are created.*/
+/** Initializes a physical body, this should be called on all TPE_Body objects
+  that are created.*/
 void TPE_bodyInit(TPE_Body *body);
 
 /** Computes a 4x4 transform matrix of given body. The matrix has the same
   format as S3L_Mat4 from small3dlib. */
 void TPE_bodyGetTransformMatrix(const TPE_Body *body, TPE_Unit matrix[4][4]);
 
+/** Gets the current orientation of a body as a quaternion. */
 void TPE_bodyGetOrientation(const TPE_Body *body, TPE_Vec4 *quaternion);
 
+/** Updates the body position and rotation according to its current velocity
+  and rotation state. */
 void TPE_bodyStep(TPE_Body *body);
 
+/** Sets the rotation state of a body as an axis of rotation and angular
+  velocity around this axis. */
 void TPE_bodySetRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity);
 
+/** Adds a rotation to the current rotation of a body. This addition is perfomed
+  as a vector addition of the current and new rotation represented as vectors
+  whose direction is the rotation axis and magnitude is the angular velocity 
+  around that axis. */
 void TPE_bodyAddRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity);
 
 /** Applies a velocity change to a body at a specific point (relative to the
@@ -497,14 +511,18 @@ TPE_Vec4 TPE_vec3Cross(TPE_Vec4 a, TPE_Vec4 b)
 void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity)
 {  
   TPE_Vec4 angularVelocity, rotationAxis;
+
+TPE_PRINTF_VEC4(point);
+TPE_PRINTF_VEC4(velocity);
+printf("\n");
+TPE_PRINTF_VEC4(body->velocity);
   
   TPE_vec3Add(body->velocity,velocity,&(body->velocity));
 
   TPE_Unit pointDistance = TPE_vec3Len(point);
 
-TPE_PRINTF_VEC4(point);
-TPE_PRINTF_VEC4(velocity);
-printf("\n");
+TPE_PRINTF_VEC4(body->velocity);
+printf("\n---\n");
 
   if (pointDistance != 0)  
   {
@@ -626,6 +644,31 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
   if (!v1Sign && v2Sign)
     return; // opposite going velocities => not a real collision
 
+  /* if the velocities are too small, weird behavior occurs, so we define a min
+    velocity for collisions and potentially modify the velocities: */
+
+  // TODO: something more elegant?
+
+  #define MIN_V 5
+
+  if (v1.x != 0 || v1.y != 0 || v1.z != 0)
+    while (TPE_vec3LenTaxicab(v1) < MIN_V)
+    {
+      v1.x *= 2;
+      v1.y *= 2;
+      v1.z *= 2;
+    } 
+
+  if (v2.x != 0 || v2.y != 0 || v2.z != 0)
+    while (TPE_vec3LenTaxicab(v1) < MIN_V)
+    {
+      v2.x *= 2;
+      v2.y *= 2;
+      v2.z *= 2;
+    } 
+
+  #undef MIN_V 
+  
   TPE_vec3Project(v1,collisionNormal,&v1);
   TPE_vec3Project(v2,collisionNormal,&v2);
 
@@ -653,6 +696,9 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
   
   TPE_bodyApplyVelocity(body2,p2,
     TPE_vec3Times(collisionNormal,v2ScalarNew - v2Scalar));
+
+printf("=====\n");
+
 }
 
 TPE_Unit TPE_linearVelocityToAngular(TPE_Unit velocity, TPE_Unit distance)
@@ -946,6 +992,11 @@ void TPE_vec4Multiply(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result)
   result->w = (v.w * f) / TPE_FRACTIONS_PER_UNIT;
 }
 
+TPE_Unit TPE_abs(TPE_Unit x)
+{
+  return (x >= 0) ? x : (-1 * x);
+}
+
 TPE_Unit TPE_vec3Len(TPE_Vec4 v)
 {
   return TPE_sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
@@ -954,6 +1005,11 @@ TPE_Unit TPE_vec3Len(TPE_Vec4 v)
 TPE_Unit TPE_vec4Len(TPE_Vec4 v)
 {
   return TPE_sqrt(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);
+}
+
+TPE_Unit TPE_vec3LenTaxicab(TPE_Vec4 v)
+{
+  return TPE_abs(v.x) + TPE_abs(v.y) + TPE_abs(v.z);
 }
 
 TPE_Unit TPE_vec3DotProduct(const TPE_Vec4 v1, const TPE_Vec4 v2)
@@ -1046,70 +1102,6 @@ void TPE_getVelocitiesAfterCollision(
 
   #undef ANTI_OVERFLOW
   #undef ANTI_OVERFLOW_SCALE
-}
-
-void TPE_resolvePointCollision(
-  TPE_Vec4 collisionPoint,
-  TPE_Vec4 collisionNormal,
-  TPE_Unit elasticity,
-  TPE_Vec4 linVelocity1,
-  TPE_Vec4 rotVelocity1,
-  TPE_Unit m1,
-  TPE_Vec4 linVelocity2,
-  TPE_Vec4 rotVelocity2,
-  TPE_Unit m2)
-{
-  TPE_Vec4 v1, v2, v1New, v2New;
-
-  TPE_initVec4(&v1);
-  TPE_initVec4(&v2);
-  TPE_initVec4(&v1New);
-  TPE_initVec4(&v2New);
-
-  // add lin. and rot. velocities to get the overall vel. of both points:
-
-  TPE_vec4Add(linVelocity1,rotVelocity1,&v1);
-  TPE_vec4Add(linVelocity2,rotVelocity2,&v2);
-
-  /* project both of these velocities to the collision normal as we'll apply
-     the collision equation only in the direction of this normal: */
-
-  TPE_vec3Project(v1,collisionNormal,&v1New);
-  TPE_vec3Project(v2,collisionNormal,&v2New);
-
-  // get the velocities of the components
-
-  TPE_Unit
-    v1NewMag = TPE_vec3Len(v1New),
-    v2NewMag = TPE_vec3Len(v2New);
-
-  /* now also substract this component from the original velocity (so that it
-     will now be in the collision plane), we'll later add back the updated
-     velocity to it */
-
-  TPE_vec4Substract(v1,v1New,&v1); 
-  TPE_vec4Substract(v2,v2New,&v2); 
-
-  // apply the 1D collision equation to velocities along the normal:
-
-  TPE_getVelocitiesAfterCollision(
-    &v1NewMag,
-    &v2NewMag,
-    m1,
-    m2,
-    elasticity);
-
-  // add back the updated velocities to get the new overall velocities:
-
-  v1New.x += (collisionNormal.x * v1NewMag) / TPE_FRACTIONS_PER_UNIT;
-  v1New.y += (collisionNormal.y * v1NewMag) / TPE_FRACTIONS_PER_UNIT;
-  v1New.z += (collisionNormal.z * v1NewMag) / TPE_FRACTIONS_PER_UNIT;
- 
-  v2New.x += (collisionNormal.x * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
-  v2New.y += (collisionNormal.y * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
-  v2New.z += (collisionNormal.z * v2NewMag) / TPE_FRACTIONS_PER_UNIT;
-
-// TODO
 }
 
 void TPE_bodyGetTransformMatrix(const TPE_Body *body, TPE_Unit matrix[4][4])

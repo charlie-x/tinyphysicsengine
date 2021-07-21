@@ -201,8 +201,10 @@ int main()
   sphere1.shapeParams[0] = 512; 
   sphere1.position.x = -700;
 
-sphere1.position.y = 200;
+sphere1.position.y = 400;
+/*
 sphere1.position.z = 300;
+*/
 
   sphere2.shape = TPE_SHAPE_SPHERE;
   sphere2.shapeParams[0] = 512; 
@@ -210,8 +212,8 @@ sphere1.position.z = 300;
 
   TPE_Unit frame = 0;
 
-sphere1.velocity.x = 32;
-sphere2.velocity.x = -16;
+sphere1.velocity.x = 1;
+sphere2.velocity.x = 0;
 
   while (running)
   {
