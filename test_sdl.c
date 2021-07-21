@@ -202,7 +202,7 @@ int main()
   sphere1.position.x = -700;
 
 sphere1.position.y = 200;
-sphere1.position.z = 200;
+sphere1.position.z = 300;
 
   sphere2.shape = TPE_SHAPE_SPHERE;
   sphere2.shapeParams[0] = 512; 

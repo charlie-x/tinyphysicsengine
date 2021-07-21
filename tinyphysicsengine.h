@@ -502,6 +502,10 @@ void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity)
 
   TPE_Unit pointDistance = TPE_vec3Len(point);
 
+TPE_PRINTF_VEC4(point);
+TPE_PRINTF_VEC4(velocity);
+printf("\n");
+
   if (pointDistance != 0)  
   {
     /* normalize the point, we don't use the function as we don't want to    
@@ -898,7 +902,7 @@ TPE_Vec4 TPE_vec3Minus(TPE_Vec4 a, TPE_Vec4 b)
 {
   a.x -= b.x;
   a.y -= b.y;
-  a.z -= a.z;
+  a.z -= b.z;
 
   return a;
 }
