@@ -45,16 +45,11 @@ int testColl(const TPE_Body *b1, const TPE_Body *b2,
   TPE_Unit expRet, TPE_Unit expX, TPE_Unit expY, TPE_Unit expZ,
   TPE_Unit expNX, TPE_Unit expNY, TPE_Unit expNZ)
 {
-  printf("testing collision detection: ");
+  printf("testing collision detection, %d %d: ",b1->shape,b2->shape);
 
   TPE_Vec4 p, n;
 
   TPE_Unit ret = TPE_bodyCollides(b1,b2,&p,&n);
-
-  printf("r = %d, ",ret);
-
-  TPE_PRINTF_VEC4(p);
-  TPE_PRINTF_VEC4(n);
 
   if (!tolerance(ret,expRet) ||
       !tolerance(p.x,expX) ||
@@ -93,12 +88,18 @@ int main(void)
     TPE_bodyInit(&b1);
     TPE_bodyInit(&b2);
 
+    b1.shape = TPE_SHAPE_SPHERE;
+    b2.shape = TPE_SHAPE_SPHERE;
+    
+    b1.shapeParams[0] = TPE_FRACTIONS_PER_UNIT;
+    b2.shapeParams[1] = TPE_FRACTIONS_PER_UNIT;
 
-TPE_bodySetRotation(&b1,TPE_vec4(512,0,0,0),256);
+    b1.position = TPE_vec4(TPE_FRACTIONS_PER_UNIT,TPE_FRACTIONS_PER_UNIT / 2,0,0);
+    b2.position = TPE_vec4(TPE_FRACTIONS_PER_UNIT + TPE_FRACTIONS_PER_UNIT / 2,TPE_FRACTIONS_PER_UNIT / 2,0,0);
+    
+    ASS(testColl(&b1,&b2,256,640,256,0,512,0,0));
+    ASS(testColl(&b2,&b1,256,640,256,0,-512,0,0));
 
-TPE_Vec4 vvv = TPE_bodyGetPointVelocity(&b1,TPE_vec4(0,1024,0,0));
-
-TPE_PRINTF_VEC4(vvv);
 
   }
 
