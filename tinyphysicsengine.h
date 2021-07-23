@@ -112,6 +112,7 @@ void TPE_vec3Project(TPE_Vec4 v, TPE_Vec4 base, TPE_Vec4 *result);
 
 TPE_Unit TPE_vec3Len(TPE_Vec4 v);
 TPE_Unit TPE_vec3LenTaxicab(TPE_Vec4 v);
+TPE_Unit TPE_vec3Dist(TPE_Vec4 a, TPE_Vec4 b);
 TPE_Unit TPE_vec4Len(TPE_Vec4 v);
 TPE_Unit TPE_vec3DotProduct(TPE_Vec4 v1, TPE_Vec4 v2);
 
@@ -121,6 +122,7 @@ TPE_Vec4 TPE_vec3Minus(TPE_Vec4 a, TPE_Vec4 b);
 TPE_Vec4 TPE_vec3Times(TPE_Vec4 a, TPE_Unit f);
 TPE_Vec4 TPE_vec3Cross(TPE_Vec4 a, TPE_Vec4 b);
 static inline TPE_Vec4 TPE_vec3Normalized(TPE_Vec4 v);
+static inline TPE_vec3Projected(TPE_Vec4 v, TPE_Vec4 base);
 
 /** Converts a linear velocity of an orbiting point to the angular velocity
   (angle units per time units). This depends on the distance of the point from
@@ -192,7 +194,7 @@ void TPE_bodyInit(TPE_Body *body);
 void TPE_bodyGetTransformMatrix(const TPE_Body *body, TPE_Unit matrix[4][4]);
 
 /** Gets the current orientation of a body as a quaternion. */
-void TPE_bodyGetOrientation(const TPE_Body *body, TPE_Vec4 *quaternion);
+TPE_Vec4 TPE_bodyGetOrientation(const TPE_Body *body);
 
 /** Updates the body position and rotation according to its current velocity
   and rotation state. */
@@ -481,9 +483,9 @@ void TPE_bodyInit(TPE_Body *body)
   body->mass = TPE_FRACTIONS_PER_UNIT;
 }
 
-void TPE_bodyGetOrientation(const TPE_Body *body, TPE_Vec4 *quaternion)
+TPE_Vec4 TPE_bodyGetOrientation(const TPE_Body *body)
 {
-  TPE_Vec4 axisRotation;
+  TPE_Vec4 axisRotation, result;
 
   TPE_rotationToQuaternion(
     body->rotation.axisVelocity,
@@ -493,9 +495,11 @@ void TPE_bodyGetOrientation(const TPE_Body *body, TPE_Vec4 *quaternion)
   TPE_quaternionMultiply(
     body->rotation.originalOrientation,
     axisRotation,
-    quaternion);
+    &result);
 
-  TPE_vec4Normalize(quaternion);
+  TPE_vec4Normalize(&result);
+
+  return result;
 }
 
 void TPE_vec3CrossProduct(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result)
@@ -575,8 +579,6 @@ void _TPE_getShapes(const TPE_Body *b1, const TPE_Body *b2, uint8_t shape1,
 TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2, 
   TPE_Vec4 *collisionPoint, TPE_Vec4 *collisionNormal)
 {
-  // now check the actual collisions:
-
   switch (TPE_COLLISION_TYPE(body1->shape,body2->shape))
   {
     case TPE_COLLISION_TYPE(TPE_SHAPE_SPHERE,TPE_SHAPE_SPHERE):
@@ -609,10 +611,32 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
       TPE_Vec4 sphereRelativePos = 
         TPE_vec3Minus(sphere->position,cylinder->position);
 
-      TPE_Vec4 cylinderVec = TPE_vec4(0,TPE_FRACTIONS_PER_UNIT,0,0);
+      // vector along the cylinder:
+      TPE_Vec4 cylinderAxis = TPE_vec4(0,TPE_FRACTIONS_PER_UNIT,0,0);
 
-//      TPE_rotationToQuaternion
+      TPE_rotatePoint(&cylinderAxis,TPE_bodyGetOrientation(cylinder));
 
+      TPE_Vec4 sphereAxisPos =
+        TPE_vec3Projected(sphere->position,cylinderAxis);
+
+      TPE_Unit sphereAxisDistance = TPE_vec3Len(sphereAxisPos);
+
+      TPE_Unit sphereDistance = TPE_vec3Len(sphere->position);
+
+      TPE_Unit tmp = cylinder->shapeParams[1] / 2;
+
+      if (sphereAxisDistance <= tmp)
+      {
+        TPE_Unit penetration = cylinder->shapeParams[0] - 
+          (sphereDistance - sphere->shapeParams[0]);
+
+        return (penetration <= 0) ? 0 : penetration;
+      }
+
+      if (sphereAxisDistance >= tmp + sphere->shapeParams[0] * 2)
+        return 0;
+
+      // TODO
 
       break;
     }
@@ -746,7 +770,7 @@ void TPE_bodyStep(TPE_Body *body)
 
 void TPE_bodySetRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity)
 {
-  TPE_bodyGetOrientation(body,&(body->rotation.originalOrientation));
+  body->rotation.originalOrientation = TPE_bodyGetOrientation(body);
 
   if (velocity < 0)
   {
@@ -1027,6 +1051,11 @@ TPE_Unit TPE_vec3Len(TPE_Vec4 v)
   return TPE_sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
+TPE_Unit TPE_vec3Dist(TPE_Vec4 a, TPE_Vec4 b)
+{
+  return TPE_vec3Len(TPE_vec3Minus(a,b));
+}
+
 TPE_Unit TPE_vec4Len(TPE_Vec4 v)
 {
   return TPE_sqrt(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);
@@ -1083,6 +1112,15 @@ void TPE_vec3Project(TPE_Vec4 v, TPE_Vec4 base, TPE_Vec4 *result)
   result->z = (p * base.z) / TPE_FRACTIONS_PER_UNIT;
 }
 
+TPE_vec3Projected(TPE_Vec4 v, TPE_Vec4 base)
+{
+  TPE_Vec4 r;
+
+  TPE_vec3Project(v,base,&r);
+
+  return r;
+}
+
 void TPE_getVelocitiesAfterCollision(
   TPE_Unit *v1,
   TPE_Unit *v2,
@@ -1133,7 +1171,7 @@ void TPE_bodyGetTransformMatrix(const TPE_Body *body, TPE_Unit matrix[4][4])
 {
   TPE_Vec4 orientation;
 
-  TPE_bodyGetOrientation(body,&orientation);
+  orientation = TPE_bodyGetOrientation(body);
 
   TPE_quaternionToRotationMatrix(orientation,matrix);
   matrix[0][3] = body->position.x;
