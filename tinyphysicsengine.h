@@ -120,6 +120,7 @@ TPE_Vec4 TPE_vec3Plus(TPE_Vec4 a, TPE_Vec4 b);
 TPE_Vec4 TPE_vec3Minus(TPE_Vec4 a, TPE_Vec4 b);
 TPE_Vec4 TPE_vec3Times(TPE_Vec4 a, TPE_Unit f);
 TPE_Vec4 TPE_vec3Cross(TPE_Vec4 a, TPE_Vec4 b);
+static inline TPE_Vec4 TPE_vec3Normalized(TPE_Vec4 v);
 
 /** Converts a linear velocity of an orbiting point to the angular velocity
   (angle units per time units). This depends on the distance of the point from
@@ -249,7 +250,7 @@ typedef struct
   performed firth, then rotation b is performed. */
 void TPE_quaternionMultiply(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 
-/** Initializes quaternion to the a rotation identity (i.e. NOT zero
+/** Initializes quaternion to the rotation identity (i.e. NOT zero
   quaternion). */
 void TPE_quaternionInit(TPE_Vec4 *quaternion);
 
@@ -261,10 +262,16 @@ void TPE_rotationToQuaternion(TPE_Vec4 axis, TPE_Unit angle,
 void TPE_quaternionToRotation(TPE_Vec4 quaternion, TPE_Vec4 *axis, 
   TPE_Unit *angle);
 
+/** Computes the conjugate of a quaternion (analogous to matrix inversion, the
+quaternion will represent the opposite rotation). */
+TPE_Vec4 TPE_quaternionConjugate(TPE_Vec4 quaternion);
+
 /** Converts a rotation quaternion to a 4x4 rotation matrix. The matrix is
   indexed as [column][row] and is in the same format as S3L_Mat4 from
   small3dlib. */
 void TPE_quaternionToRotationMatrix(TPE_Vec4 quaternion, TPE_Unit matrix[4][4]);
+
+void TPE_rotatePoint(TPE_Vec4 *point, TPE_Vec4 quaternion);
 
 void TPE_getVelocitiesAfterCollision(
   TPE_Unit *v1,
@@ -591,6 +598,24 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 
       break;
     } 
+
+    case TPE_COLLISION_TYPE(TPE_SHAPE_SPHERE,TPE_SHAPE_CYLINDER):
+    {
+      const TPE_Body *sphere;
+      const TPE_Body *cylinder;
+
+      _TPE_getShapes(body1,body2,TPE_SHAPE_SPHERE,&sphere,&cylinder);
+
+      TPE_Vec4 sphereRelativePos = 
+        TPE_vec3Minus(sphere->position,cylinder->position);
+
+      TPE_Vec4 cylinderVec = TPE_vec4(0,TPE_FRACTIONS_PER_UNIT,0,0);
+
+//      TPE_rotationToQuaternion
+
+
+      break;
+    }
 
     case TPE_COLLISION_TYPE(TPE_SHAPE_SPHERE,TPE_SHAPE_CUBOID):
     {
@@ -1122,6 +1147,31 @@ void TPE_quaternionInit(TPE_Vec4 *quaternion)
   quaternion->y = 0;
   quaternion->z = 0;
   quaternion->w = TPE_FRACTIONS_PER_UNIT;
+}
+
+void TPE_rotatePoint(TPE_Vec4 *point, TPE_Vec4 quaternion)
+{
+  TPE_Vec4 quaternionConjugate = TPE_quaternionConjugate(quaternion);
+
+  point->w = 0;
+
+  TPE_quaternionMultiply(quaternion,*point,point);
+  TPE_quaternionMultiply(*point,quaternionConjugate,point);
+}
+
+TPE_Vec4 TPE_quaternionConjugate(TPE_Vec4 quaternion)
+{
+  quaternion.x *= -1;
+  quaternion.y *= -1;
+  quaternion.z *= -1;
+
+  return quaternion;
+}
+
+TPE_Vec4 TPE_vec3Normalized(TPE_Vec4 v)
+{
+  TPE_vec3Normalize(&v);
+  return v;
 }
 
 #endif // guard

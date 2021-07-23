@@ -72,13 +72,22 @@ int main(void)
   {
     ASS(ass("shape ID",TPE_COLLISION_TYPE(TPE_SHAPE_SPHERE,TPE_SHAPE_CUBOID) == TPE_COLLISION_TYPE(TPE_SHAPE_CUBOID,TPE_SHAPE_SPHERE)))
 
-    TPE_Vec4 q1, q2, q3, axis;
+    TPE_Vec4 q1, q2, q3, axis, p;
 
     ASS(testRotToQuat(F,0,0,    0,    0,0,0,F));
     ASS(testRotToQuat(F,0,0,    F/4,  361,0,0,361));
     ASS(testRotToQuat(0,F,0,    F/4,  0,361,0,361));
     ASS(testRotToQuat(0,0,F,    F/2,  0,0,F,0));
     ASS(testRotToQuat(-F,F,F,   -F/8, 112,-112,-112,472));
+
+TPE_rotationToQuaternion(TPE_vec4(256,256,256,0),512,&q1);
+
+p = TPE_vec4(512,0,0,0);
+
+TPE_rotatePoint(&p,q1);
+
+TPE_PRINTF_VEC4(p);
+return 0;
   }
 
   {
