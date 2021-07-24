@@ -122,7 +122,7 @@ TPE_Vec4 TPE_vec3Minus(TPE_Vec4 a, TPE_Vec4 b);
 TPE_Vec4 TPE_vec3Times(TPE_Vec4 a, TPE_Unit f);
 TPE_Vec4 TPE_vec3Cross(TPE_Vec4 a, TPE_Vec4 b);
 static inline TPE_Vec4 TPE_vec3Normalized(TPE_Vec4 v);
-static inline TPE_vec3Projected(TPE_Vec4 v, TPE_Vec4 base);
+static inline TPE_Vec4 TPE_vec3Projected(TPE_Vec4 v, TPE_Vec4 base);
 
 /** Converts a linear velocity of an orbiting point to the angular velocity
   (angle units per time units). This depends on the distance of the point from
@@ -579,6 +579,8 @@ void _TPE_getShapes(const TPE_Body *b1, const TPE_Body *b2, uint8_t shape1,
 TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2, 
   TPE_Vec4 *collisionPoint, TPE_Vec4 *collisionNormal)
 {
+  // handle collision of different shapes each in a specific case:
+
   switch (TPE_COLLISION_TYPE(body1->shape,body2->shape))
   {
     case TPE_COLLISION_TYPE(TPE_SHAPE_SPHERE,TPE_SHAPE_SPHERE):
@@ -608,35 +610,61 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 
       _TPE_getShapes(body1,body2,TPE_SHAPE_SPHERE,&sphere,&cylinder);
 
-      TPE_Vec4 sphereRelativePos = 
+      TPE_Vec4 sphereRelativePos = // by this we shift the cylinder to [0,0,0]
         TPE_vec3Minus(sphere->position,cylinder->position);
 
-      // vector along the cylinder:
+      // vector along the cylinder height:
       TPE_Vec4 cylinderAxis = TPE_vec4(0,TPE_FRACTIONS_PER_UNIT,0,0);
 
       TPE_rotatePoint(&cylinderAxis,TPE_bodyGetOrientation(cylinder));
 
-      TPE_Vec4 sphereAxisPos =
-        TPE_vec3Projected(sphere->position,cylinderAxis);
+      TPE_Vec4 sphereAxisPos = // sphere pos projected to the cylinder axis
+        TPE_vec3Projected(sphereRelativePos,cylinderAxis);
 
       TPE_Unit sphereAxisDistance = TPE_vec3Len(sphereAxisPos);
 
-      TPE_Unit sphereDistance = TPE_vec3Len(sphere->position);
+      TPE_Unit tmp = cylinder->shapeParams[1] / 2; // half of cylinder height
 
-      TPE_Unit tmp = cylinder->shapeParams[1] / 2;
+      /* now we have three possible regions the sphere can occupy:
 
-      if (sphereAxisDistance <= tmp)
+           C :B:  A  :B: C
+             : :_____: :
+             : |_____| : cylinder
+             : :     : :
+             : :     : : */
+
+      if (sphereAxisDistance >= tmp + sphere->shapeParams[0]) // case C
+        break;
+
+      TPE_Unit sphereSurfaceDistance = // sphere perpend. dist. to the cylinder
+        TPE_vec3Dist(sphereRelativePos,sphereAxisPos); 
+
+      tmp = sphereAxisDistance - tmp;
+
+      if (tmp < 0) // case A
       {
-        TPE_Unit penetration = cylinder->shapeParams[0] - 
-          (sphereDistance - sphere->shapeParams[0]);
+        TPE_Unit penetration = cylinder->shapeParams[0] - sphereSurfaceDistance;
 
-        return (penetration <= 0) ? 0 : penetration;
+        if (penetration > 0)
+        {
+          // TODO: NORMAL AND POS!!!
+          return penetration;
+        }
       }
 
-      if (sphereAxisDistance >= tmp + sphere->shapeParams[0] * 2)
-        return 0;
+      // case B:
 
-      // TODO
+      tmp = // extra penetration depth needed for collision
+        TPE_sqrt(sphere->shapeParams[0] * sphere->shapeParams[0] - tmp * tmp);
+
+      TPE_Unit penetration = 
+        cylinder->shapeParams[0] - tmp - sphereSurfaceDistance;
+
+      if (penetration > 0)
+      {
+        // TODO: NORMAL AND POS!!!
+        return penetration; // TODO: what is actually the penetration?
+      }
 
       break;
     }
@@ -654,7 +682,7 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
     default:
       break;
   }
-  
+
   return 0;
 }
 
@@ -1112,7 +1140,7 @@ void TPE_vec3Project(TPE_Vec4 v, TPE_Vec4 base, TPE_Vec4 *result)
   result->z = (p * base.z) / TPE_FRACTIONS_PER_UNIT;
 }
 
-TPE_vec3Projected(TPE_Vec4 v, TPE_Vec4 base)
+TPE_Vec4 TPE_vec3Projected(TPE_Vec4 v, TPE_Vec4 base)
 {
   TPE_Vec4 r;
 

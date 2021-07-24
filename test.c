@@ -54,6 +54,13 @@ int testColl(const TPE_Body *b1, const TPE_Body *b2,
 
   TPE_Unit ret = TPE_bodyCollides(b1,b2,&p,&n);
 
+#if 1
+  printf("\nret: %d\n",ret);
+  TPE_PRINTF_VEC4(p);
+  TPE_PRINTF_VEC4(n);
+  printf("\n");
+#endif
+
   if (!tolerance(ret,expRet) ||
       !tolerance(p.x,expX) ||
       !tolerance(p.y,expY) ||
@@ -100,6 +107,22 @@ int main(void)
     
     ASS(testColl(&b1,&b2,256,640,256,0,512,0,0));
     ASS(testColl(&b2,&b1,256,640,256,0,-512,0,0));
+
+
+
+
+    b1.shape = TPE_SHAPE_SPHERE;
+    b2.shape = TPE_SHAPE_CYLINDER;
+    
+    b1.shapeParams[0] = TPE_FRACTIONS_PER_UNIT;
+    b2.shapeParams[0] = TPE_FRACTIONS_PER_UNIT;
+    b2.shapeParams[1] = TPE_FRACTIONS_PER_UNIT * 2;
+
+    b1.position = TPE_vec4(TPE_FRACTIONS_PER_UNIT / 2,TPE_FRACTIONS_PER_UNIT * 10,0,0);
+    b2.position = TPE_vec4(0,0,0,0);
+    
+    ASS(testColl(&b1,&b2,0,0,0,0,0,0,0));
+
 
 
   }
