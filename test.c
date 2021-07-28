@@ -62,12 +62,13 @@ int testColl(const TPE_Body *b1, const TPE_Body *b2,
 #endif
 
   if (!tolerance(ret,expRet) ||
-      !tolerance(p.x,expX) ||
-      !tolerance(p.y,expY) ||
-      !tolerance(p.z,expZ) ||
-      !tolerance(n.x,expNX) ||
-      !tolerance(n.y,expNY) ||
-      !tolerance(n.z,expNZ))
+      ((ret != 0) &&
+       (!tolerance(p.x,expX) ||
+        !tolerance(p.y,expY) ||
+        !tolerance(p.z,expZ) ||
+        !tolerance(n.x,expNX) ||
+        !tolerance(n.y,expNY) ||
+        !tolerance(n.z,expNZ))))
     return 0;
 
   puts("OK");
@@ -90,39 +91,51 @@ int main(void)
   }
 
   {
-    TPE_Body b1, b2;
+    puts("collisions:");
+
+    TPE_Body sphere, cylinder;
     TPE_Vec4 collPoint, collNorm;
   
-    TPE_bodyInit(&b1);
-    TPE_bodyInit(&b2);
+    TPE_bodyInit(&sphere);
+    TPE_bodyInit(&cylinder);
 
-    b1.shape = TPE_SHAPE_SPHERE;
-    b2.shape = TPE_SHAPE_SPHERE;
+    // sphere, sphere:
+
+    sphere.shape = TPE_SHAPE_SPHERE;
+    cylinder.shape = TPE_SHAPE_SPHERE;
     
-    b1.shapeParams[0] = TPE_FRACTIONS_PER_UNIT;
-    b2.shapeParams[1] = TPE_FRACTIONS_PER_UNIT;
+    sphere.shapeParams[0] = TPE_FRACTIONS_PER_UNIT;
+    cylinder.shapeParams[1] = TPE_FRACTIONS_PER_UNIT;
 
-    b1.position = TPE_vec4(TPE_FRACTIONS_PER_UNIT,TPE_FRACTIONS_PER_UNIT / 2,0,0);
-    b2.position = TPE_vec4(TPE_FRACTIONS_PER_UNIT + TPE_FRACTIONS_PER_UNIT / 2,TPE_FRACTIONS_PER_UNIT / 2,0,0);
+    sphere.position = TPE_vec4(F,F / 2,0,0);
+    cylinder.position = TPE_vec4(F + F / 2,F / 2,0,0);
     
-    ASS(testColl(&b1,&b2,256,640,256,0,512,0,0));
-    ASS(testColl(&b2,&b1,256,640,256,0,-512,0,0));
+    ASS(testColl(&sphere,&cylinder,256,640,256,0,512,0,0));
+    ASS(testColl(&cylinder,&sphere,256,640,256,0,-512,0,0));
 
+    // sphere, cylinder:
 
-
-
-    b1.shape = TPE_SHAPE_SPHERE;
-    b2.shape = TPE_SHAPE_CYLINDER;
+    sphere.shape = TPE_SHAPE_SPHERE;
+    cylinder.shape = TPE_SHAPE_CYLINDER;
     
-    b1.shapeParams[0] = TPE_FRACTIONS_PER_UNIT;
-    b2.shapeParams[0] = TPE_FRACTIONS_PER_UNIT;
-    b2.shapeParams[1] = TPE_FRACTIONS_PER_UNIT * 2;
+    sphere.shapeParams[0] = F;
+    cylinder.shapeParams[0] = F * 2;
+    cylinder.shapeParams[1] = F * 3;
 
-    b1.position = TPE_vec4(TPE_FRACTIONS_PER_UNIT / 2,TPE_FRACTIONS_PER_UNIT * 10,0,0);
-    b2.position = TPE_vec4(0,0,0,0);
-    
-    ASS(testColl(&b1,&b2,0,0,0,0,0,0,0));
+    sphere.position.y = 6 * F;
+    ASS(testColl(&sphere,&cylinder,0,0,0,0,0,0,0)); // no collision
 
+    sphere.position = TPE_vec4(F * 3 + F / 2,F,0,0);
+    cylinder.position = TPE_vec4(F,0,0,0);
+    ASS(testColl(&sphere,&cylinder,F / 2,3 * F,F,0,-1 * F,0,0)); // collision with cyl. body
+    ASS(testColl(&cylinder,&sphere,F / 2,3 * F,F,0,F,0,0));
+
+    sphere.position.x = F + F / 2;
+    sphere.position.y = 2 * F;
+    ASS(testColl(&sphere,&cylinder,F / 2,F + F / 2,F + F / 2,0,0,-1 * F,0)); // collision with cyl. body
+    ASS(testColl(&cylinder,&sphere,F / 2,F + F / 2,F + F / 2,0,0,F,0));
+
+ 
 
 
   }

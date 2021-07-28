@@ -104,6 +104,7 @@ void TPE_vec3Substract(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec3Average(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec4Substract(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec3Multiply(TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
+void TPE_vec3MultiplyPlain(TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
 void TPE_vec4Multiply(TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result);
 void TPE_vec3CrossProduct(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 *result);
 void TPE_vec3Normalize(TPE_Vec4 *v);
@@ -522,18 +523,10 @@ TPE_Vec4 TPE_vec3Cross(TPE_Vec4 a, TPE_Vec4 b)
 void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity)
 {  
   TPE_Vec4 angularVelocity, rotationAxis;
-
-TPE_PRINTF_VEC4(point);
-TPE_PRINTF_VEC4(velocity);
-printf("\n");
-TPE_PRINTF_VEC4(body->velocity);
   
   TPE_vec3Add(body->velocity,velocity,&(body->velocity));
 
   TPE_Unit pointDistance = TPE_vec3Len(point);
-
-TPE_PRINTF_VEC4(body->velocity);
-printf("\n---\n");
 
   if (pointDistance != 0)  
   {
@@ -633,37 +626,80 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
              : :     : :
              : :     : : */
 
-      if (sphereAxisDistance >= tmp + sphere->shapeParams[0]) // case C
-        break;
+      if (sphereAxisDistance >= tmp + sphere->shapeParams[0]) // case C: no col.
+        break; 
 
-      TPE_Unit sphereSurfaceDistance = // sphere perpend. dist. to the cylinder
-        TPE_vec3Dist(sphereRelativePos,sphereAxisPos); 
+      TPE_Vec4 sphereAxisToRelative =
+        TPE_vec3Minus(sphereRelativePos,sphereAxisPos);
+
+      TPE_Unit sphereCylinderDistance = TPE_vec3Len(sphereAxisToRelative);
 
       tmp = sphereAxisDistance - tmp;
 
-      if (tmp < 0) // case A
+      if (tmp < 0) // case A: potential collision with cylinder body
       {
-        TPE_Unit penetration = cylinder->shapeParams[0] - sphereSurfaceDistance;
+        TPE_Unit penetration = cylinder->shapeParams[0] 
+          - (sphereCylinderDistance - sphere->shapeParams[0]);
+
+        if (penetration > 0)
+        {
+          TPE_vec3Normalize(&sphereAxisToRelative);
+
+          *collisionPoint = TPE_vec3Plus(cylinder->position,
+            TPE_vec3Plus(sphereAxisPos,TPE_vec3Times(
+            sphereAxisToRelative,cylinder->shapeParams[0])));
+
+          *collisionNormal = sphereAxisToRelative;
+
+          if (sphere == body1)
+            TPE_vec3MultiplyPlain(*collisionNormal,-1,collisionNormal);
+
+          return penetration;
+        }
+        else
+          break;
+      }
+
+      /* case B: here we have two subcases, one with the sphere center being
+         within the cylinder radius (collision with the cylinder top/bottom),
+         and the other case (collision with the cylinder top/bottom edge). */
+
+      if (sphereCylinderDistance < cylinder->shapeParams[0]) // top/bottom cap
+      {
+        TPE_Unit penetration = cylinder->shapeParams[1] / 2 - 
+          (sphereAxisDistance - sphere->shapeParams[0]);
+
+        if (penetration <= 0) // shouldn't normally happen, but rounding errors 
+          penetration = 1;
+
+        *collisionNormal = TPE_vec3Normalized(sphereAxisPos);
+
+        *collisionPoint = 
+          TPE_vec3Plus(
+            cylinder->position,
+            TPE_vec3Plus(
+              sphereAxisToRelative,
+              TPE_vec3Times(
+                cylinderAxis,cylinder->shapeParams[1] / 2)));
+
+        if (body1 == sphere)
+          TPE_vec3MultiplyPlain(*collisionNormal,-1,collisionNormal);
+
+        return penetration;
+      }
+      else // potential edge collision
+      {
+        tmp = // extra penetration depth needed for collision
+          TPE_sqrt(sphere->shapeParams[0] * sphere->shapeParams[0] - tmp * tmp);
+
+        TPE_Unit penetration = cylinder->shapeParams[0] - tmp -
+            (sphereCylinderDistance - sphere->shapeParams[0]);
 
         if (penetration > 0)
         {
           // TODO: NORMAL AND POS!!!
-          return penetration;
+          return penetration; // TODO: what is actually the penetration?
         }
-      }
-
-      // case B:
-
-      tmp = // extra penetration depth needed for collision
-        TPE_sqrt(sphere->shapeParams[0] * sphere->shapeParams[0] - tmp * tmp);
-
-      TPE_Unit penetration = 
-        cylinder->shapeParams[0] - tmp - sphereSurfaceDistance;
-
-      if (penetration > 0)
-      {
-        // TODO: NORMAL AND POS!!!
-        return penetration; // TODO: what is actually the penetration?
       }
 
       break;
@@ -773,9 +809,6 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
   
   TPE_bodyApplyVelocity(body2,p2,
     TPE_vec3Times(collisionNormal,v2ScalarNew - v2Scalar));
-
-printf("=====\n");
-
 }
 
 TPE_Unit TPE_linearVelocityToAngular(TPE_Unit velocity, TPE_Unit distance)
@@ -1059,6 +1092,13 @@ void TPE_vec3Multiply(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result)
   result->x = (v.x * f) / TPE_FRACTIONS_PER_UNIT;
   result->y = (v.y * f) / TPE_FRACTIONS_PER_UNIT;
   result->z = (v.z * f) / TPE_FRACTIONS_PER_UNIT;
+}
+
+void TPE_vec3MultiplyPlain(TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result)
+{
+  result->x = v.x * f;
+  result->y = v.y * f;
+  result->z = v.z * f;
 }
 
 void TPE_vec4Multiply(const TPE_Vec4 v, TPE_Unit f, TPE_Vec4 *result)
