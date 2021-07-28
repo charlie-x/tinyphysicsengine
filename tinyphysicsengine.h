@@ -664,6 +664,10 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
          within the cylinder radius (collision with the cylinder top/bottom),
          and the other case (collision with the cylinder top/bottom edge). */
 
+      TPE_Vec4 cylinderPlaneMiddle = TPE_vec3Times(
+          TPE_vec3Normalized(sphereAxisPos),
+             cylinder->shapeParams[1] / 2);
+
       if (sphereCylinderDistance < cylinder->shapeParams[0]) // top/bottom cap
       {
         TPE_Unit penetration = cylinder->shapeParams[1] / 2 - 
@@ -677,10 +681,7 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
         *collisionPoint = 
           TPE_vec3Plus(
             cylinder->position,
-            TPE_vec3Plus(
-              sphereAxisToRelative,
-              TPE_vec3Times(
-                cylinderAxis,cylinder->shapeParams[1] / 2)));
+            TPE_vec3Plus(sphereAxisToRelative,cylinderPlaneMiddle));
 
         if (body1 == sphere)
           TPE_vec3MultiplyPlain(*collisionNormal,-1,collisionNormal);
@@ -689,16 +690,25 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
       }
       else // potential edge collision
       {
-        tmp = // extra penetration depth needed for collision
-          TPE_sqrt(sphere->shapeParams[0] * sphere->shapeParams[0] - tmp * tmp);
 
-        TPE_Unit penetration = cylinder->shapeParams[0] - tmp -
-            (sphereCylinderDistance - sphere->shapeParams[0]);
+        TPE_Vec4 edgePoint = TPE_vec3Plus(cylinderPlaneMiddle,
+            TPE_vec3Times(TPE_vec3Normalized(sphereAxisToRelative),
+              cylinder->shapeParams[0]));
+
+        TPE_Unit penetration = sphere->shapeParams[0] -
+          TPE_vec3Dist(edgePoint,sphereRelativePos);
 
         if (penetration > 0)
         {
-          // TODO: NORMAL AND POS!!!
-          return penetration; // TODO: what is actually the penetration?
+          *collisionPoint = TPE_vec3Plus(cylinder->position,edgePoint);
+
+          *collisionNormal = 
+            TPE_vec3Normalized(TPE_vec3Minus(sphereRelativePos,edgePoint));
+
+          if (body1 == sphere)
+            TPE_vec3MultiplyPlain(*collisionNormal,-1,collisionNormal);
+
+          return penetration;
         }
       }
 

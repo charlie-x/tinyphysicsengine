@@ -135,6 +135,9 @@ int main(void)
     ASS(testColl(&sphere,&cylinder,F / 2,F + F / 2,F + F / 2,0,0,-1 * F,0)); // collision with cyl. body
     ASS(testColl(&cylinder,&sphere,F / 2,F + F / 2,F + F / 2,0,0,F,0));
 
+    sphere.position.x = 3 * F + F / 2;
+    sphere.position.y = 2 * F;
+    ASS(testColl(&sphere,&cylinder,150,3 * F,F + F / 2,0,-362,-362,0)); // collision with cyl. edge
  
 
 
