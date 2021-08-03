@@ -31,6 +31,70 @@ void drawPixel(S3L_PixelInfo *p)
 S3L_Unit cubeVertices[] = { S3L_CUBE_VERTICES(S3L_FRACTIONS_PER_UNIT) };
 S3L_Index cubeTriangles[] = { S3L_CUBE_TRIANGLES };
 
+#define CYLINDER_VERTEX_COUNT 20
+const S3L_Unit cylinderVertices[CYLINDER_VERTEX_COUNT * 3] = {
+      0,  -256,   512,        // 0
+      0,   256,   512,        // 3
+    300,  -256,   414,        // 6
+    300,   256,   414,        // 9
+    486,  -256,   158,        // 12
+    486,   256,   158,        // 15
+    486,  -256,  -158,        // 18
+    486,   256,  -158,        // 21
+    300,  -256,  -414,        // 24
+    300,   256,  -414,        // 27
+      0,  -256,  -512,        // 30
+      0,   256,  -512,        // 33
+   -300,  -256,  -414,        // 36
+   -300,   256,  -414,        // 39
+   -486,  -256,  -158,        // 42
+   -486,   256,  -158,        // 45
+   -486,  -256,   158,        // 48
+   -486,   256,   158,        // 51
+   -300,  -256,   414,        // 54
+   -300,   256,   414         // 57
+}; // cylinderVertices
+
+#define CYLINDER_TRIANGLE_COUNT 36
+const S3L_Index cylinderTriangleIndices[CYLINDER_TRIANGLE_COUNT * 3] = {
+      1,     2,     0,        // 0
+      3,     4,     2,        // 3
+      5,     6,     4,        // 6
+      7,     8,     6,        // 9
+      9,    10,     8,        // 12
+     11,    12,    10,        // 15
+     13,    14,    12,        // 18
+     15,    16,    14,        // 21
+     17,     7,     5,        // 24
+     17,    18,    16,        // 27
+     19,     0,    18,        // 30
+      6,    14,    18,        // 33
+      1,     3,     2,        // 36
+      3,     5,     4,        // 39
+      5,     7,     6,        // 42
+      7,     9,     8,        // 45
+      9,    11,    10,        // 48
+     11,    13,    12,        // 51
+     13,    15,    14,        // 54
+     15,    17,    16,        // 57
+      5,     3,    17,        // 60
+      1,    19,    17,        // 63
+     17,    15,    13,        // 66
+     13,    11,    17,        // 69
+      9,     7,    17,        // 72
+      3,     1,    17,        // 75
+     17,    11,     9,        // 78
+     17,    19,    18,        // 81
+     19,     1,     0,        // 84
+     18,     0,     2,        // 87
+      2,     4,     6,        // 90
+      6,     8,    10,        // 93
+     10,    12,    14,        // 96
+     14,    16,    18,        // 99
+     18,     2,     6,        // 102
+      6,    10,    14         // 105
+}; // cylinderTriangleIndices
+
 #define SPHERE_VERTEX_COUNT 42
 const S3L_Unit sphereVertices[SPHERE_VERTEX_COUNT * 3] = {
       0,  -512,     0,        // 0
@@ -161,6 +225,79 @@ const S3L_Index sphereTriangleIndices[SPHERE_TRIANGLE_COUNT * 3] = {
      13,     1,    14         // 237
 }; // sphereTriangleIndices
 
+typedef struct
+{
+  TPE_Body body;
+  S3L_Model3D model;
+  S3L_Mat4 matrix;
+  S3L_Mat4 scaleMatrix;
+} GraphicalBody;
+
+int bodyCount = 0;
+GraphicalBody bodies[1024];
+
+S3L_Scene scene;
+
+void addBody(uint8_t shape, TPE_Unit param1, TPE_Unit param2, TPE_Unit param3)
+{
+  GraphicalBody *b = &(bodies[bodyCount]);
+  bodyCount++;
+
+  TPE_bodyInit(&(b->body));
+
+  b->body.shape = shape;
+  b->body.shapeParams[0] = param1;
+  b->body.shapeParams[1] = param2;
+  b->body.shapeParams[2] = param3;
+
+  const S3L_Unit *v;
+  const S3L_Index *t;
+  S3L_Index vc, tc;
+  S3L_Unit sx = S3L_FRACTIONS_PER_UNIT, sy = S3L_FRACTIONS_PER_UNIT, sz = S3L_FRACTIONS_PER_UNIT;
+
+  switch (shape)
+  {
+    case TPE_SHAPE_CYLINDER:
+      v = cylinderVertices;
+      t = cylinderTriangleIndices;
+      vc = CYLINDER_VERTEX_COUNT;
+      tc = CYLINDER_TRIANGLE_COUNT;
+      sx = param1; sy = param2; sz = param1;
+      break;
+
+    case TPE_SHAPE_SPHERE:
+    default:
+      v = sphereVertices;
+      t = sphereTriangleIndices;
+      vc = SPHERE_VERTEX_COUNT;
+      tc = SPHERE_TRIANGLE_COUNT;
+      sx = param1; sy = param1; sz = param1;
+      break;
+  }
+
+  S3L_initModel3D(v,vc,t,tc,&(b->model));
+  S3L_makeScaleMatrix(sx,sy,sz,&(b->scaleMatrix));
+
+  S3L_initMat4(&(b->matrix));
+  b->model.customTransformMatrix = &(b->matrix);
+}
+
+void updateBodies()
+{
+  for (int i = 0; i < bodyCount; ++i)
+  {
+    GraphicalBody *b = &(bodies[i]);
+
+    TPE_bodyStep(&(b->body));
+    
+    S3L_Mat4 m;
+
+    TPE_bodyGetTransformMatrix(&(b->body),&m);
+    S3L_copyMat4(&(b->scaleMatrix),&(b->matrix));
+    S3L_mat4Xmat4(&(b->matrix),&m);
+  }
+}
+
 int main()
 {
   SDL_Window *window = SDL_CreateWindow("test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, S3L_RESOLUTION_X, S3L_RESOLUTION_Y, SDL_WINDOW_SHOWN); 
@@ -171,70 +308,29 @@ int main()
 
   int running = 1;
 
-  #define MODELS 2
+  addBody(TPE_SHAPE_CYLINDER,128,1024,0);
 
-  S3L_Model3D models[MODELS];
+  //-------
+  S3L_Model3D models[bodyCount];
 
-  S3L_initModel3D(sphereVertices,SPHERE_VERTEX_COUNT,sphereTriangleIndices,SPHERE_TRIANGLE_COUNT,&(models[0]));
-
-  models[1] = models[0];
+  for (int i = 0; i < bodyCount; ++i)
+    models[i] = bodies[i].model;
 
   S3L_Scene scene;
-
-  S3L_initScene(models,MODELS,&scene);
+  S3L_initScene(models,bodyCount,&scene);
   
   scene.camera.transform.translation.z = -4 * S3L_FRACTIONS_PER_UNIT;
-  
-  S3L_Mat4 m1, m2;
-  
-  models[0].customTransformMatrix = &m1;
-  models[1].customTransformMatrix = &m2;
-
-  //----------------------------------
-
-  TPE_Body sphere1, sphere2;
-
-  TPE_bodyInit(&sphere1);
-  TPE_bodyInit(&sphere2);
-
-  sphere1.shape = TPE_SHAPE_SPHERE;
-  sphere1.shapeParams[0] = 512; 
-  sphere1.position.x = -700;
-
-sphere1.position.y = 400;
-/*
-sphere1.position.z = 300;
-*/
-
-  sphere2.shape = TPE_SHAPE_SPHERE;
-  sphere2.shapeParams[0] = 512; 
-  sphere2.position.x = 700;
+  //-------
 
   TPE_Unit frame = 0;
 
-sphere1.velocity.x = 1;
-sphere2.velocity.x = 0;
-
   while (running)
   {
-    TPE_bodyGetTransformMatrix(&sphere1,m1);
-    TPE_bodyGetTransformMatrix(&sphere2,m2);
-
-    TPE_bodyStep(&sphere1);
-    TPE_bodyStep(&sphere2);
-
-TPE_Vec4 p, n;
-
-if (TPE_bodyCollides(&sphere1,&sphere2,&p,&n))
-{
-  TPE_resolveCollision(&sphere1,&sphere2,p,n);
-}
-
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
       pixels[i] = 0;
-  
-    S3L_newFrame();
 
+    S3L_newFrame();
+    updateBodies();
     S3L_drawScene(scene);
 
     SDL_UpdateTexture(textureSDL,NULL,pixels,S3L_RESOLUTION_X * sizeof(uint32_t));

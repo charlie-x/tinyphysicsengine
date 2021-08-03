@@ -456,7 +456,11 @@ typedef S3L_Unit S3L_Mat4[4][4];
 /** Initializes a 4x4 matrix to identity. */
 static inline void S3L_initMat4(S3L_Mat4 *m);
 
+void S3L_copyMat4(S3L_Mat4 *src, S3L_Mat4 *dst);
+
 void S3L_transposeMat4(S3L_Mat4 *m);
+
+// TODO: why pass pointer to matrix when matrix is an array? fix this?
 
 void S3L_makeTranslationMat(
   S3L_Unit offsetX,
@@ -494,7 +498,7 @@ void S3L_vec3Xmat4(S3L_Vec4 *v, S3L_Mat4 *m);
   Result is stored in the first matrix. The result represents a transformation
   that has the same effect as applying the transformation represented by m1 and
   then m2 (in that order). */
-void S3L_mat4Xmat4(S3L_Mat4 *m1, S3L_Mat4 *m2);
+void S3L_mat4Xmat4(S3L_Mat4 *m1, const S3L_Mat4 *m2);
 
 typedef struct
 {
@@ -532,7 +536,7 @@ typedef struct
 
 void S3L_initModel3D(
   const S3L_Unit *vertices,
-  S3L_Unit vertexCount,
+  S3L_Index vertexCount,
   const S3L_Index *triangles,
   S3L_Index triangleCount,
   S3L_Model3D *model);
@@ -995,6 +999,13 @@ void S3L_initMat4(S3L_Mat4 *m)
   #undef S
 }
 
+void S3L_copyMat4(S3L_Mat4 *src, S3L_Mat4 *dst)
+{
+  for (uint8_t j = 0; j < 4; ++j)
+    for (uint8_t i = 0; i < 4; ++i)
+      (*dst)[i][j] = (*src)[i][j];
+}
+
 S3L_Unit S3L_dotProductVec3(S3L_Vec4 a, S3L_Vec4 b)
 {
   return (a.x * b.x + a.y * b.y + a.z * b.z) / S3L_FRACTIONS_PER_UNIT;
@@ -1294,7 +1305,7 @@ S3L_Unit S3L_distanceManhattan(S3L_Vec4 a, S3L_Vec4 b)
     S3L_abs(a.z - b.z);
 }
 
-void S3L_mat4Xmat4(S3L_Mat4 *m1, S3L_Mat4 *m2)
+void S3L_mat4Xmat4(S3L_Mat4 *m1, const S3L_Mat4 *m2)
 {
   S3L_Mat4 mat1;
 
@@ -1735,7 +1746,7 @@ void S3L_initPixelInfo(S3L_PixelInfo *p)
 
 void S3L_initModel3D(
   const S3L_Unit *vertices,
-  S3L_Unit vertexCount,
+  S3L_Index vertexCount,
   const S3L_Index *triangles,
   S3L_Index triangleCount,
   S3L_Model3D *model)
@@ -2694,11 +2705,11 @@ void S3L_drawScene(S3L_Scene scene)
     S3L_Index triangleCount = scene.models[modelIndex].triangleCount;
 
     triangleIndex = 0;
+      
+    model = &(scene.models[modelIndex]);
     
     while (triangleIndex < triangleCount)
     {
-      model = &(scene.models[modelIndex]);
-
       /* Some kind of cache could be used in theory to not project perviously
          already projected vertices, but after some testing this was abandoned,
          no gain was seen. */
