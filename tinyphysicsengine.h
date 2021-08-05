@@ -197,6 +197,8 @@ void TPE_bodyGetTransformMatrix(const TPE_Body *body, TPE_Unit matrix[4][4]);
 /** Gets the current orientation of a body as a quaternion. */
 TPE_Vec4 TPE_bodyGetOrientation(const TPE_Body *body);
 
+TPE_Vec4 TPE_bodySetOrientation(TPE_Body *body, TPE_Vec4 orientation);
+
 /** Updates the body position and rotation according to its current velocity
   and rotation state. */
 void TPE_bodyStep(TPE_Body *body);
@@ -484,6 +486,12 @@ void TPE_bodyInit(TPE_Body *body)
   body->mass = TPE_FRACTIONS_PER_UNIT;
 }
 
+TPE_Vec4 TPE_bodySetOrientation(TPE_Body *body, TPE_Vec4 orientation)
+{
+  body->rotation.originalOrientation = orientation;
+  body->rotation.currentAngle = 0;
+}
+
 TPE_Vec4 TPE_bodyGetOrientation(const TPE_Body *body)
 {
   TPE_Vec4 axisRotation, result;
@@ -690,7 +698,6 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
       }
       else // potential edge collision
       {
-
         TPE_Vec4 edgePoint = TPE_vec3Plus(cylinderPlaneMiddle,
             TPE_vec3Times(TPE_vec3Normalized(sphereAxisToRelative),
               cylinder->shapeParams[0]));
@@ -1267,12 +1274,26 @@ void TPE_quaternionInit(TPE_Vec4 *quaternion)
 
 void TPE_rotatePoint(TPE_Vec4 *point, TPE_Vec4 quaternion)
 {
+  // TODO: the first method is bugged, but maybe would be faster?
+
+#if 0
   TPE_Vec4 quaternionConjugate = TPE_quaternionConjugate(quaternion);
 
   point->w = 0;
 
   TPE_quaternionMultiply(quaternion,*point,point);
   TPE_quaternionMultiply(*point,quaternionConjugate,point);
+#else
+  TPE_Unit m[4][4];
+
+  TPE_quaternionToRotationMatrix(quaternion,m);
+
+  TPE_Vec4 p = *point;
+
+  point->x = (p.x * m[0][0] + p.y * m[0][1] + p.z * m[0][2]) / TPE_FRACTIONS_PER_UNIT;
+  point->y = (p.x * m[1][0] + p.y * m[1][1] + p.z * m[1][2]) / TPE_FRACTIONS_PER_UNIT;
+  point->z = (p.x * m[2][0] + p.y * m[2][1] + p.z * m[2][2]) / TPE_FRACTIONS_PER_UNIT;
+#endif
 }
 
 TPE_Vec4 TPE_quaternionConjugate(TPE_Vec4 quaternion)

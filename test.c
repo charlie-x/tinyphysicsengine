@@ -88,6 +88,19 @@ int main(void)
     ASS(testRotToQuat(0,F,0,    F/4,  0,361,0,361));
     ASS(testRotToQuat(0,0,F,    F/2,  0,0,F,0));
     ASS(testRotToQuat(-F,F,F,   -F/8, 112,-112,-112,472));
+
+
+    TPE_Vec4 p = TPE_vec4(10,200,100,0), p2, q;
+  
+
+    p2 = p;
+    TPE_rotationToQuaternion(TPE_vec4(512,0,0,0),F/4,&q);
+    TPE_rotatePoint(&p2,q);
+
+TPE_PRINTF_VEC4(p2);
+
+return 0;
+
   }
 
   {

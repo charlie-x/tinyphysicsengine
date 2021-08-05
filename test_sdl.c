@@ -11,7 +11,7 @@
 #define S3L_PERSPECTIVE_CORRECTION 2
 #define S3L_SORT 0
 #define S3L_STENCIL_BUFFER 0
-#define S3L_Z_BUFFER 2
+#define S3L_Z_BUFFER 1
 
 #include "small3dlib.h"
 
@@ -20,6 +20,29 @@
 #define PIXELS_SIZE (S3L_RESOLUTION_X * S3L_RESOLUTION_Y * 4)
 
 uint8_t pixels[PIXELS_SIZE];
+
+void draw2DPoint(int x, int y, int r, int g, int b)
+{
+  if (x < 1 || x > S3L_RESOLUTION_X - 1 ||
+      y < 1 || y > S3L_RESOLUTION_Y - 1)
+    return;
+
+  uint32_t index = ((y - 1) * S3L_RESOLUTION_X + x) * 4;
+
+  #define d pixels[index] = 0; pixels[index + 1] = b; pixels[index + 2] = g; pixels[index + 3] = r;
+
+  d
+  index += S3L_RESOLUTION_X * 4 - 4;
+  d
+  index += 4;
+  d
+  index += 4;
+  d
+  index += S3L_RESOLUTION_X * 4 - 4;
+  d
+
+  #undef d
+}
 
 void drawPixel(S3L_PixelInfo *p)
 {
@@ -276,9 +299,9 @@ void addBody(uint8_t shape, TPE_Unit param1, TPE_Unit param2, TPE_Unit param3)
   }
 
   S3L_initModel3D(v,vc,t,tc,&(b->model));
-  S3L_makeScaleMatrix(sx,sy,sz,&(b->scaleMatrix));
+  S3L_makeScaleMatrix(sx,sy,sz,b->scaleMatrix);
 
-  S3L_initMat4(&(b->matrix));
+  S3L_initMat4(b->matrix);
   b->model.customTransformMatrix = &(b->matrix);
 }
 
@@ -292,9 +315,9 @@ void updateBodies()
     
     S3L_Mat4 m;
 
-    TPE_bodyGetTransformMatrix(&(b->body),&m);
-    S3L_copyMat4(&(b->scaleMatrix),&(b->matrix));
-    S3L_mat4Xmat4(&(b->matrix),&m);
+    TPE_bodyGetTransformMatrix(&(b->body),m);
+    S3L_copyMat4(b->scaleMatrix,b->matrix);
+    S3L_mat4Xmat4(b->matrix,m);
   }
 }
 
@@ -308,7 +331,8 @@ int main()
 
   int running = 1;
 
-  addBody(TPE_SHAPE_CYLINDER,128,1024,0);
+  addBody(TPE_SHAPE_CYLINDER,300,1024,0);
+  addBody(TPE_SHAPE_SPHERE,256,0,0);
 
   //-------
   S3L_Model3D models[bodyCount];
@@ -324,14 +348,40 @@ int main()
 
   TPE_Unit frame = 0;
 
+bodies[1].body.position.x = 600;
+
+TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,100,255,0),1 );
+/*
+TPE_Vec4 quat;
+TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),40,&quat);
+TPE_bodySetOrientation(&(bodies[0].body),quat);
+*/
   while (running)
   {
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
       pixels[i] = 0;
 
     S3L_newFrame();
+
     updateBodies();
+
     S3L_drawScene(scene);
+
+    TPE_Vec4 p, n;
+
+    if (TPE_bodyCollides(&(bodies[0].body),&(bodies[1].body),&p,&n))
+    {
+      S3L_Vec4 p2, scr;
+     
+      S3L_setVec4(&p2,p.x,p.y,p.z,p.w); 
+
+      project3DPointToScreen(
+        p2,
+        scene.camera,
+        &scr);
+
+      draw2DPoint(scr.x,scr.y,255,0,0);
+    }
 
     SDL_UpdateTexture(textureSDL,NULL,pixels,S3L_RESOLUTION_X * sizeof(uint32_t));
 
@@ -345,6 +395,40 @@ int main()
           running = 0;
       }
     }
+
+    const uint8_t *state = SDL_GetKeyboardState(NULL);
+
+    S3L_Vec4 camF, camR;
+ 
+    S3L_rotationToDirections(scene.camera.transform.rotation,20,&camF,&camR,0);
+
+    if (state[SDL_SCANCODE_LSHIFT])
+    {
+      if (state[SDL_SCANCODE_UP])
+        S3L_vec3Add(&scene.camera.transform.translation,camF);
+      else if (state[SDL_SCANCODE_DOWN])
+        S3L_vec3Sub(&scene.camera.transform.translation,camF);
+      else if (state[SDL_SCANCODE_LEFT])
+        S3L_vec3Sub(&scene.camera.transform.translation,camR);
+      else if (state[SDL_SCANCODE_RIGHT])
+        S3L_vec3Add(&scene.camera.transform.translation,camR);
+    }
+    else
+    {
+      if (state[SDL_SCANCODE_UP])
+        scene.camera.transform.rotation.x += 2;
+      else if (state[SDL_SCANCODE_DOWN])
+        scene.camera.transform.rotation.x -= 2;
+      else if (state[SDL_SCANCODE_LEFT])
+        scene.camera.transform.rotation.y += 2;
+      else if (state[SDL_SCANCODE_RIGHT])
+        scene.camera.transform.rotation.y -= 2;
+    }
+
+    if (state[SDL_SCANCODE_P])
+      scene.camera.transform.translation.y += 20;
+    else if (state[SDL_SCANCODE_O])
+      scene.camera.transform.translation.y -= 20;
 
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer,textureSDL,NULL,NULL);
