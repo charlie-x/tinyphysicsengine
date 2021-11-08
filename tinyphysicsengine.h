@@ -54,10 +54,11 @@ typedef int32_t TPE_Unit;
 
 #define TPE_SHAPE_POINT     0    ///< single point in space
 #define TPE_SHAPE_SPHERE    1    ///< sphere, params.: radius
-#define TPE_SHAPE_CUBOID    2    ///< cuboid, params.: width, height, depth
-#define TPE_SHAPE_PLANE     3    ///< plane, params.: width, depth
-#define TPE_SHAPE_CYLINDER  4    ///< cylinder, params.: radius, height
-#define TPE_SHAPE_TRIMESH   5    /**< triangle mesh, params.:
+#define TPE_SHAPE_CAPSULE   2    ///< capsule: radius, height
+#define TPE_SHAPE_CUBOID    3    ///< cuboid, params.: width, height, depth
+#define TPE_SHAPE_PLANE     4    ///< plane, params.: width, depth
+#define TPE_SHAPE_CYLINDER  5    ///< cylinder, params.: radius, height
+#define TPE_SHAPE_TRIMESH   6    /**< triangle mesh, params.:
                                         vertex count,
                                         triangle count
                                         vertices (int32_t pointer),
@@ -124,6 +125,9 @@ TPE_Vec4 TPE_vec3Times(TPE_Vec4 a, TPE_Unit f);
 TPE_Vec4 TPE_vec3Cross(TPE_Vec4 a, TPE_Vec4 b);
 static inline TPE_Vec4 TPE_vec3Normalized(TPE_Vec4 v);
 static inline TPE_Vec4 TPE_vec3Projected(TPE_Vec4 v, TPE_Vec4 base);
+
+/** Returns the closest point on given line segment (a,b) to given point (p). */
+TPE_Vec4 TPE_lineSegmentClosestPoint(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 p);
 
 /** Converts a linear velocity of an orbiting point to the angular velocity
   (angle units per time units). This depends on the distance of the point from
@@ -1309,6 +1313,23 @@ TPE_Vec4 TPE_vec3Normalized(TPE_Vec4 v)
 {
   TPE_vec3Normalize(&v);
   return v;
+}
+
+TPE_Vec4 TPE_lineSegmentClosestPoint(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 p)
+{
+  TPE_Vec4 ab = TPE_vec3Minus(b,a);
+
+  TPE_Unit t = ((TPE_vec3DotProduct(ab,TPE_vec3Minus(p,a)) * 
+    TPE_FRACTIONS_PER_UNIT) / TPE_vec3DotProduct(ab,ab));
+
+  if (t < 0)
+    t = 0;
+  else if (t > TPE_FRACTIONS_PER_UNIT)
+    t = TPE_FRACTIONS_PER_UNIT;  
+
+  TPE_vec3Multiply(ab,t,&ab);
+
+  return TPE_vec3Plus(a,ab);
 }
 
 #endif // guard

@@ -97,10 +97,15 @@ int main(void)
     TPE_rotationToQuaternion(TPE_vec4(512,0,0,0),F/4,&q);
     TPE_rotatePoint(&p2,q);
 
-TPE_PRINTF_VEC4(p2);
+    #define TEST_LINE_SEGMENT_CLOSE(ax,ay,az,bx,by,bz,px,py,pz,rx,ry,rz) \
+      ASS(ass("line segment closest",TPE_vec3Dist(TPE_lineSegmentClosestPoint(\
+        TPE_vec4(ax,ay,az,0),TPE_vec4(bx,by,bz,0),TPE_vec4(px,py,pz,0)),\
+        TPE_vec4(rx,ry,rz,0)) < 10))
+
+    TEST_LINE_SEGMENT_CLOSE(0,0,0, 100,0,0, 50,0,0, 50,0,0)
+    TEST_LINE_SEGMENT_CLOSE(-100,-100,20, 1000,10000,20000, -3000,-5000,-1000, -100,-100,20)
 
 return 0;
-
   }
 
   {

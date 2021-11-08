@@ -348,9 +348,11 @@ int main()
 
   TPE_Unit frame = 0;
 
-bodies[1].body.position.x = 600;
+bodies[0].body.position.x = 50;
+bodies[1].body.position.x = -700;
+bodies[1].body.position.z = 200;
 
-TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,100,255,0),1 );
+TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,128,255,0),1);
 /*
 TPE_Vec4 quat;
 TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),40,&quat);
@@ -381,6 +383,17 @@ TPE_bodySetOrientation(&(bodies[0].body),quat);
         &scr);
 
       draw2DPoint(scr.x,scr.y,255,0,0);
+
+      p2.x += n.x / 2;
+      p2.y += n.y / 2;
+      p2.z += n.z / 2;
+
+      project3DPointToScreen(
+        p2,
+        scene.camera,
+        &scr);
+
+      draw2DPoint(scr.x,scr.y,255,255,255);
     }
 
     SDL_UpdateTexture(textureSDL,NULL,pixels,S3L_RESOLUTION_X * sizeof(uint32_t));
@@ -402,6 +415,8 @@ TPE_bodySetOrientation(&(bodies[0].body),quat);
  
     S3L_rotationToDirections(scene.camera.transform.rotation,20,&camF,&camR,0);
 
+#define SHIFT_STEP 5
+
     if (state[SDL_SCANCODE_LSHIFT])
     {
       if (state[SDL_SCANCODE_UP])
@@ -416,19 +431,34 @@ TPE_bodySetOrientation(&(bodies[0].body),quat);
     else
     {
       if (state[SDL_SCANCODE_UP])
-        scene.camera.transform.rotation.x += 2;
+        scene.camera.transform.rotation.x += SHIFT_STEP;
       else if (state[SDL_SCANCODE_DOWN])
-        scene.camera.transform.rotation.x -= 2;
+        scene.camera.transform.rotation.x -= SHIFT_STEP;
       else if (state[SDL_SCANCODE_LEFT])
-        scene.camera.transform.rotation.y += 2;
+        scene.camera.transform.rotation.y += SHIFT_STEP;
       else if (state[SDL_SCANCODE_RIGHT])
-        scene.camera.transform.rotation.y -= 2;
+        scene.camera.transform.rotation.y -= SHIFT_STEP;
     }
 
+    if (state[SDL_SCANCODE_L])
+      bodies[1].body.position.x += SHIFT_STEP;
+    else if (state[SDL_SCANCODE_J])
+      bodies[1].body.position.x -= SHIFT_STEP;
+    else if (state[SDL_SCANCODE_I])
+      bodies[1].body.position.z += SHIFT_STEP;
+    else if (state[SDL_SCANCODE_K])
+      bodies[1].body.position.z -= SHIFT_STEP;
+    else if (state[SDL_SCANCODE_N])
+      bodies[1].body.position.y += SHIFT_STEP;
+    else if (state[SDL_SCANCODE_M])
+      bodies[1].body.position.y -= SHIFT_STEP;
+  
     if (state[SDL_SCANCODE_P])
-      scene.camera.transform.translation.y += 20;
+      scene.camera.transform.translation.y += SHIFT_STEP;
     else if (state[SDL_SCANCODE_O])
-      scene.camera.transform.translation.y -= 20;
+      scene.camera.transform.translation.y -= SHIFT_STEP;
+
+#undef SHIFT_STEP
 
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer,textureSDL,NULL,NULL);
