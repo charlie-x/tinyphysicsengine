@@ -608,8 +608,44 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
       break;
     } 
 
+    case TPE_COLLISION_TYPE(TPE_SHAPE_SPHERE,TPE_SHAPE_CAPSULE):
+    {
+      const TPE_Body *sphere;
+      const TPE_Body *capsule;
+
+      _TPE_getShapes(body1,body2,TPE_SHAPE_SPHERE,&sphere,&capsule);
+
+      TPE_Vec4 capsuleQuat = TPE_bodyGetOrientation(capsule);
+
+      // capsule endpoints:
+      TPE_Vec4 cA = TPE_vec4(0,capsule->shapeParams[1] / 2,0,0);
+      TPE_Vec4 cB = TPE_vec4(0,-1 * cA.y,0,0);
+
+      TPE_rotatePoint(&cA,capsuleQuat);
+      TPE_rotatePoint(&cB,capsuleQuat);
+
+      TPE_vec3Add(cA,capsule->position,&cA);
+      TPE_vec3Add(cB,capsule->position,&cB);
+
+      TPE_Body sphere2; // sphere at the capsule's closest point
+
+      TPE_bodyInit(&sphere2);
+      sphere2.shape = TPE_SHAPE_SPHERE;
+      sphere2.shapeParams[0] = capsule->shapeParams[0];
+      sphere2.position = TPE_lineSegmentClosestPoint(cA,cB,sphere->position);
+
+      uint8_t swap = sphere == body2;
+
+      return TPE_bodyCollides(swap ? &sphere2 : sphere,swap ? sphere : &sphere2,
+        collisionPoint,collisionNormal);
+
+      break;
+    }
+
     case TPE_COLLISION_TYPE(TPE_SHAPE_SPHERE,TPE_SHAPE_CYLINDER):
     {
+      // TODO: would this be better to do via sphere-capsule collision?
+
       const TPE_Body *sphere;
       const TPE_Body *cylinder;
 

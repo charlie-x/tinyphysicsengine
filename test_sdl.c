@@ -281,6 +281,7 @@ void addBody(uint8_t shape, TPE_Unit param1, TPE_Unit param2, TPE_Unit param3)
   switch (shape)
   {
     case TPE_SHAPE_CYLINDER:
+    case TPE_SHAPE_CAPSULE:
       v = cylinderVertices;
       t = cylinderTriangleIndices;
       vc = CYLINDER_VERTEX_COUNT;
@@ -331,7 +332,7 @@ int main()
 
   int running = 1;
 
-  addBody(TPE_SHAPE_CYLINDER,300,1024,0);
+  addBody(TPE_SHAPE_CAPSULE,300,1024,0);
   addBody(TPE_SHAPE_SPHERE,256,0,0);
 
   //-------
@@ -352,7 +353,7 @@ bodies[0].body.position.x = 50;
 bodies[1].body.position.x = -700;
 bodies[1].body.position.z = 200;
 
-TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,128,255,0),1);
+//TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,128,255,0),1);
 /*
 TPE_Vec4 quat;
 TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),40,&quat);
