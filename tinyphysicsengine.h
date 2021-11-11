@@ -581,6 +581,21 @@ void _TPE_getShapes(const TPE_Body *b1, const TPE_Body *b2, uint8_t shape1,
   }
 }
 
+_TPE_getCapsuleCyllinderEndpoints(const TPE_Body *body, 
+  TPE_Vec4 *a, TPE_Vec4 *b)
+{
+  TPE_Vec4 quat = TPE_bodyGetOrientation(body);
+
+  *a = TPE_vec4(0,body->shapeParams[1] / 2,0,0);
+  *b = TPE_vec4(0,-1 * a->y,0,0);
+
+  TPE_rotatePoint(a,quat);
+  TPE_rotatePoint(b,quat);
+
+  TPE_vec3Add(*a,body->position,a);
+  TPE_vec3Add(*b,body->position,b);
+}
+
 TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2, 
   TPE_Vec4 *collisionPoint, TPE_Vec4 *collisionNormal)
 {
@@ -606,7 +621,7 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
       } 
 
       break;
-    } 
+    }
 
     case TPE_COLLISION_TYPE(TPE_SHAPE_SPHERE,TPE_SHAPE_CAPSULE):
     {
@@ -615,17 +630,9 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 
       _TPE_getShapes(body1,body2,TPE_SHAPE_SPHERE,&sphere,&capsule);
 
-      TPE_Vec4 capsuleQuat = TPE_bodyGetOrientation(capsule);
+      TPE_Vec4 cA, cB;
 
-      // capsule endpoints:
-      TPE_Vec4 cA = TPE_vec4(0,capsule->shapeParams[1] / 2,0,0);
-      TPE_Vec4 cB = TPE_vec4(0,-1 * cA.y,0,0);
-
-      TPE_rotatePoint(&cA,capsuleQuat);
-      TPE_rotatePoint(&cB,capsuleQuat);
-
-      TPE_vec3Add(cA,capsule->position,&cA);
-      TPE_vec3Add(cB,capsule->position,&cB);
+      _TPE_getCapsuleCyllinderEndpoints(capsule,&cA,&cB);
 
       TPE_Body sphere2; // sphere at the capsule's closest point
 
@@ -639,6 +646,61 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
       return TPE_bodyCollides(swap ? &sphere2 : sphere,swap ? sphere : &sphere2,
         collisionPoint,collisionNormal);
 
+      break;
+    }
+
+    case TPE_COLLISION_TYPE(TPE_SHAPE_CAPSULE,TPE_SHAPE_CAPSULE):
+    {
+      TPE_Vec4 a1, b1, a2, b2;
+
+      _TPE_getCapsuleCyllinderEndpoints(body1,&a1,&b1);
+      _TPE_getCapsuleCyllinderEndpoints(body2,&a2,&b2);
+
+      TPE_Unit aa, ab, ba, bb; // squared distances between points
+
+      TPE_Vec4 tmp; 
+
+      tmp = TPE_vec3Minus(a1,a2);
+      aa = tmp.x * tmp.x + tmp.y * tmp.y + tmp.z * tmp.z;
+
+      tmp = TPE_vec3Minus(a1,b2);
+      ab = tmp.x * tmp.x + tmp.y * tmp.y + tmp.z * tmp.z;
+
+      tmp = TPE_vec3Minus(b1,a2);
+      ba = tmp.x * tmp.x + tmp.y * tmp.y + tmp.z * tmp.z;
+
+      tmp = TPE_vec3Minus(b1,b2);
+      bb = tmp.x * tmp.x + tmp.y * tmp.y + tmp.z * tmp.z;
+
+      // let a1 hold the point figuring in the shortest distance:
+
+      if (ab < aa)
+        aa = ab; // means: aa = min(aa,ab)
+
+      if (bb < ba)
+        ba = bb; // means: ba = min(ba,bb)
+
+      if (ba < aa) // means: min(ba,bb) < min(aa,ab)
+        a1 = b1;
+
+      a2 = TPE_lineSegmentClosestPoint(a2,b2,a1);
+      a1 = TPE_lineSegmentClosestPoint(a1,b1,a2);
+
+      // now a1 and a2 are the closest two points on capsule axes
+
+      TPE_Body sphere1, sphere2;
+      
+      TPE_bodyInit(&sphere1);
+      sphere1.shape = TPE_SHAPE_SPHERE;
+      sphere1.shapeParams[0] = body1->shapeParams[0];
+      sphere1.position = a1;
+      
+      TPE_bodyInit(&sphere2);
+      sphere2.shape = TPE_SHAPE_SPHERE;
+      sphere2.shapeParams[0] = body2->shapeParams[0];
+      sphere2.position = a2;
+
+      return TPE_bodyCollides(&sphere1,&sphere2,collisionPoint,collisionNormal);
       break;
     }
 
@@ -1356,7 +1418,7 @@ TPE_Vec4 TPE_lineSegmentClosestPoint(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 p)
   TPE_Vec4 ab = TPE_vec3Minus(b,a);
 
   TPE_Unit t = ((TPE_vec3DotProduct(ab,TPE_vec3Minus(p,a)) * 
-    TPE_FRACTIONS_PER_UNIT) / TPE_vec3DotProduct(ab,ab));
+    TPE_FRACTIONS_PER_UNIT) / TPE_nonZero(TPE_vec3DotProduct(ab,ab)));
 
   if (t < 0)
     t = 0;

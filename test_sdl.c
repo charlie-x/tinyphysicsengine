@@ -333,7 +333,8 @@ int main()
   int running = 1;
 
   addBody(TPE_SHAPE_CAPSULE,300,1024,0);
-  addBody(TPE_SHAPE_SPHERE,256,0,0);
+//  addBody(TPE_SHAPE_SPHERE,256,0,0);
+addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 
   //-------
   S3L_Model3D models[bodyCount];
@@ -353,7 +354,7 @@ bodies[0].body.position.x = 50;
 bodies[1].body.position.x = -700;
 bodies[1].body.position.z = 200;
 
-//TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,128,255,0),1);
+TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,0,128,0),1);
 /*
 TPE_Vec4 quat;
 TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),40,&quat);
