@@ -360,13 +360,13 @@ int main()
 
   TPE_Unit frame = 0;
 
-bodies[0].body.position.x = -150;
+bodies[0].body.position.x = 350;
 bodies[1].body.position.x = 200;
-bodies[1].body.position.z = 100;
+bodies[1].body.position.z = -100;
 
-TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,200,128,0),1);
+//TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,200,128,0),1);
 
-TPE_bodySetRotation( &(bodies[1].body),TPE_vec4(210,50,1,0),1);
+//TPE_bodySetRotation( &(bodies[1].body),TPE_vec4(210,50,1,0),1);
 /*
 TPE_Vec4 quat;
 TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),40,&quat);

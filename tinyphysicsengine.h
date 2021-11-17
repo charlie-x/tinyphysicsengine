@@ -202,7 +202,7 @@ void TPE_bodyGetTransformMatrix(const TPE_Body *body, TPE_Unit matrix[4][4]);
 /** Gets the current orientation of a body as a quaternion. */
 TPE_Vec4 TPE_bodyGetOrientation(const TPE_Body *body);
 
-TPE_Vec4 TPE_bodySetOrientation(TPE_Body *body, TPE_Vec4 orientation);
+void TPE_bodySetOrientation(TPE_Body *body, TPE_Vec4 orientation);
 
 /** Updates the body position and rotation according to its current velocity
   and rotation state. */
@@ -491,7 +491,7 @@ void TPE_bodyInit(TPE_Body *body)
   body->mass = TPE_FRACTIONS_PER_UNIT;
 }
 
-TPE_Vec4 TPE_bodySetOrientation(TPE_Body *body, TPE_Vec4 orientation)
+void TPE_bodySetOrientation(TPE_Body *body, TPE_Vec4 orientation)
 {
   body->rotation.originalOrientation = orientation;
   body->rotation.currentAngle = 0;
@@ -582,7 +582,7 @@ void _TPE_getShapes(const TPE_Body *b1, const TPE_Body *b2, uint8_t shape1,
   }
 }
 
-_TPE_getCapsuleCyllinderEndpoints(const TPE_Body *body, 
+void _TPE_getCapsuleCyllinderEndpoints(const TPE_Body *body, 
   TPE_Vec4 *a, TPE_Vec4 *b)
 {
   TPE_Vec4 quat = TPE_bodyGetOrientation(body);
@@ -596,6 +596,8 @@ _TPE_getCapsuleCyllinderEndpoints(const TPE_Body *body,
   TPE_vec3Add(*a,body->position,a);
   TPE_vec3Add(*b,body->position,b);
 }
+
+int aaa = 0;
 
 /** Helpter function for cuboid collision detection. Given a line segment
   as a line equation limited by parameter bounds t1 and t2, center point C and
@@ -873,23 +875,37 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 
     case TPE_COLLISION_TYPE(TPE_SHAPE_CUBOID,TPE_SHAPE_CUBOID):
     {
-      TPE_Vec4 collisions = TPE_vec4(0,0,0,0); // w stores coll. count
+      TPE_Vec4 collisions = TPE_vec4(0,0,0,0); // w = coll. count
 
       for (uint8_t i = 0; i < 2; ++i) // for each body
       {
-        TPE_Vec4 a1, a2, a3, q;
+        TPE_Vec4 aX1, aY1, aZ1, // first cuboid axes
+                 aX2, aY2, aZ2, // second cuboid axes
+                 q;
 
         q = TPE_bodyGetOrientation(body1);
 
-        // construct the three cuboid axes:
+        // construct the cuboid axes:
 
-        a1 = TPE_vec4(body1->shapeParams[0] / 2,0,0,0);
-        a2 = TPE_vec4(0,body1->shapeParams[1] / 2,0,0);
-        a3 = TPE_vec4(0,0,body1->shapeParams[2] / 2,0);
+        aX1 = TPE_vec4(body1->shapeParams[0] / 2,0,0,0);
+        TPE_rotatePoint(&aX1,q);
 
-        TPE_rotatePoint(&a1,q);
-        TPE_rotatePoint(&a2,q);
-        TPE_rotatePoint(&a3,q);
+        aY1 = TPE_vec4(0,body1->shapeParams[1] / 2,0,0);
+        TPE_rotatePoint(&aY1,q);
+
+        aZ1 = TPE_vec4(0,0,body1->shapeParams[2] / 2,0);
+        TPE_rotatePoint(&aZ1,q);
+
+        q = TPE_bodyGetOrientation(body2);
+
+        aX2 = TPE_vec4(body2->shapeParams[0] / 2,0,0,0);
+        TPE_rotatePoint(&aX2,q);
+
+        aY2 = TPE_vec4(0,body2->shapeParams[1] / 2,0,0);
+        TPE_rotatePoint(&aY2,q);
+
+        aZ2 = TPE_vec4(0,0,body2->shapeParams[2] / 2,0);
+        TPE_rotatePoint(&aZ2,q);
 
         uint8_t edges[12] = // list of all cuboid edges as combinations of axes
         {       // xyz xyz 
@@ -904,7 +920,7 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
           0x3d, // +++ +-+ |
           0x19, // -++ --+ | sides
           0x10, // -+- --- |
-          0x35  // ++- +-+ |
+          0x34  // ++- +-- |
         };
  
         for (uint8_t j = 0; j < 12; ++j) // for each edge
@@ -919,36 +935,32 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 #define offsetCenter(c,v,a) \
   v = (edge & c) ? TPE_vec3Plus(v,a) : TPE_vec3Minus(v,a);
 
-          offsetCenter(0x04,lineStart,a1)
-          offsetCenter(0x02,lineStart,a2)
-          offsetCenter(0x01,lineStart,a3)
+          offsetCenter(0x04,lineStart,aX1)
+          offsetCenter(0x02,lineStart,aY1)
+          offsetCenter(0x01,lineStart,aZ1)
 
-          offsetCenter(0x20,lineEnd,a1)
-          offsetCenter(0x10,lineEnd,a2)
-          offsetCenter(0x08,lineEnd,a3)
+          offsetCenter(0x20,lineEnd,aX1)
+          offsetCenter(0x10,lineEnd,aY1)
+          offsetCenter(0x08,lineEnd,aZ1)
 
 #undef offsetCenter 
 
           TPE_Unit t1 = 0, t2 = TPE_FRACTIONS_PER_UNIT;
-                
-          TPE_Vec4 quat = TPE_bodyGetOrientation(body2);
 
+aaa = (i == 0 && j == 2);
+                
           for (uint8_t k = 0; k < 3; ++k) // for each axis
           {
-            TPE_Vec4 sideOffset;
-
-            TPE_initVec4(&sideOffset);
+            TPE_Vec4 *sideOffset;
 
             if (k == 0)
-              sideOffset.x = body2->shapeParams[0] / 2;
+              sideOffset = &aX2;
             else if (k == 1)
-              sideOffset.y = body2->shapeParams[1] / 2;
+              sideOffset = &aY2;
             else
-              sideOffset.z = body2->shapeParams[2] / 2;
+              sideOffset = &aZ2;
 
-            TPE_rotatePoint(&sideOffset,quat);
-
-            _TPE_cutLineSegmentByPlanes(body2->position,sideOffset,lineStart,
+            _TPE_cutLineSegmentByPlanes(body2->position,*sideOffset,lineStart,
             TPE_vec3Minus(lineEnd,lineStart),&t1,&t2);
 
             if (t1 > t2)
@@ -958,7 +970,6 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
           if (t2 > t1) // if part of edge exists between all side planes
           {
             // edge collided with the cuboid
-
             *collisionPoint = TPE_vec3Minus(lineEnd,lineStart);
 
             t1 = (t1 + t2) / 2;
@@ -979,10 +990,10 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 
         // now swap the bodies and do it again:
 
-        TPE_Body *tmp = body1;
+        const TPE_Body *tmp = body1;
         body1 = body2;
         body2 = tmp;
-      } // for each body 
+      } // for each body
 
       if (collisions.w > 0)
       {
