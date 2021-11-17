@@ -117,6 +117,7 @@ TPE_Unit TPE_vec3LenTaxicab(TPE_Vec4 v);
 TPE_Unit TPE_vec3Dist(TPE_Vec4 a, TPE_Vec4 b);
 TPE_Unit TPE_vec4Len(TPE_Vec4 v);
 TPE_Unit TPE_vec3DotProduct(TPE_Vec4 v1, TPE_Vec4 v2);
+TPE_Unit TPE_vec3DotProductPlain(TPE_Vec4 v1, TPE_Vec4 v2);
 
 TPE_Vec4 TPE_vec4(TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w);
 TPE_Vec4 TPE_vec3Plus(TPE_Vec4 a, TPE_Vec4 b);
@@ -596,6 +597,54 @@ _TPE_getCapsuleCyllinderEndpoints(const TPE_Body *body,
   TPE_vec3Add(*b,body->position,b);
 }
 
+/** Helpter function for cuboid collision detection. Given a line segment
+  as a line equation limited by parameter bounds t1 and t2, center point C and
+  side offset from the center point O, the function further limits the parameter
+  bounds (t1, t2) to restrict the line only to the region between two planes:
+  both with normal O, one passing throung point C + O and the other through
+  C - O. If t2 > t1 after this function finishes, the line segment is completely
+  outside the region. */
+void _TPE_cutLineSegmentByPlanes(TPE_Vec4 center, TPE_Vec4 sideOffset, 
+  TPE_Vec4 lineStart, TPE_Vec4 lineDir, TPE_Unit *t1, TPE_Unit *t2)
+{
+  TPE_Unit da = TPE_vec3DotProductPlain(sideOffset,lineStart);
+
+  TPE_Vec4 dc;
+
+  dc.z = 0;
+
+  // TODO: dor(d,dc) could be cached for all sides between calls to save recomputing
+
+  dc = TPE_vec3Plus(center,sideOffset);
+
+  TPE_Unit denom = TPE_nonZero(TPE_vec3DotProductPlain(sideOffset,lineDir));
+
+  TPE_Unit tA = 
+    ((TPE_vec3DotProductPlain(sideOffset,dc) - da) * TPE_FRACTIONS_PER_UNIT) 
+    / denom;
+
+  dc = TPE_vec3Minus(center,sideOffset);
+
+  TPE_Unit tB = 
+    ((TPE_vec3DotProductPlain(sideOffset,dc) - da) * TPE_FRACTIONS_PER_UNIT) 
+    / denom;
+
+  if (tB < tA)
+  {
+    TPE_Unit tmp = tA;
+    tA = tB;
+    tB = tmp;
+  }
+
+  if (tA > *t1)
+    *t1 = tA;
+
+  if (tB < *t2)
+    *t2 = tB;
+}
+
+int aaaa = 0;
+
 TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2, 
   TPE_Vec4 *collisionPoint, TPE_Vec4 *collisionNormal)
 {
@@ -824,12 +873,98 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
       break;
     }
 
-    case TPE_COLLISION_TYPE(TPE_SHAPE_SPHERE,TPE_SHAPE_CUBOID):
+    case TPE_COLLISION_TYPE(TPE_SHAPE_CUBOID,TPE_SHAPE_CUBOID):
     {
-      const TPE_Body *sphere;
-      const TPE_Body *cuboid;
+      TPE_Vec4 a1, a2, a3, q;
 
-      _TPE_getShapes(body1,body2,TPE_SHAPE_SPHERE,&sphere,&cuboid);
+      q = TPE_bodyGetOrientation(body1);
+
+      a1 = TPE_vec4(body1->shapeParams[0] / 2,0,0,0);
+      a2 = TPE_vec4(0,body1->shapeParams[1] / 2,0,0);
+      a3 = TPE_vec4(0,0,body1->shapeParams[2] / 2,0);
+
+      TPE_rotatePoint(&a1,q);
+      TPE_rotatePoint(&a2,q);
+      TPE_rotatePoint(&a3,q);
+
+      uint8_t edges[12] =
+      {       // xyz xyz 
+        0x3b, // +++ -++ |
+        0x3e, // +++ ++- | top
+        0x13, // -+- -++ |
+        0x16, // -+- ++- |
+        0x29, // +-+ --+  |
+        0x2c, // +-+ +--  | bottom
+        0x01, // --- --+  |
+        0x04, // --- +--  |
+        0x3d, // +++ +-+ |
+        0x19, // -++ --+ | sides
+        0x10, // -+- --- |
+        0x35  // ++- +-+ |
+      };
+
+      for (uint8_t i = 0; i < 12; ++i) // for each edge
+      {
+        TPE_Vec4 lineStart = body1->position;
+        TPE_Vec4 lineEnd = body1->position;
+
+        uint8_t edge = edges[i];
+
+#define offsetCenter(c,v,a) \
+  v = (edge & c) ? TPE_vec3Plus(v,a) : TPE_vec3Minus(v,a);
+
+        offsetCenter(0x04,lineStart,a1)
+        offsetCenter(0x02,lineStart,a2)
+        offsetCenter(0x01,lineStart,a3)
+
+        offsetCenter(0x20,lineEnd,a1)
+        offsetCenter(0x10,lineEnd,a2)
+        offsetCenter(0x08,lineEnd,a3)
+
+#undef offsetCenter 
+
+        TPE_Unit t1 = 0, t2 = TPE_FRACTIONS_PER_UNIT;
+              
+        TPE_Vec4 quat = TPE_bodyGetOrientation(body2);
+
+        for (uint8_t i = 0; i < 3; ++i) // for each axis
+        {
+          TPE_Vec4 sideOffset;
+
+          TPE_initVec4(&sideOffset);
+
+          if (i == 0)
+            sideOffset.x = body2->shapeParams[0] / 2;
+          else if (i == 1)
+            sideOffset.y = body2->shapeParams[1] / 2;
+          else
+            sideOffset.z = body2->shapeParams[2] / 2;
+
+          TPE_rotatePoint(&sideOffset,quat);
+
+          _TPE_cutLineSegmentByPlanes(body2->position,sideOffset,lineStart,
+          TPE_vec3Minus(lineEnd,lineStart),&t1,&t2);
+        }
+
+        if (t2 > t1)
+        {
+
+aaaa++;
+          printf("%d %d %d\n",aaaa,t1,t2);
+/*
+          *collisionPoint = TPE_vec3Minus(lineEnd,lineStart);
+
+          collisionPoint->x = (collisionPoint->x * ((t1 + t2) / 2)) / TPE_FRACTIONS_PER_UNIT;
+          collisionPoint->y = (collisionPoint->y * ((t1 + t2) / 2)) / TPE_FRACTIONS_PER_UNIT;
+          collisionPoint->z = (collisionPoint->z * ((t1 + t2) / 2)) / TPE_FRACTIONS_PER_UNIT;
+
+          *collisionPoint = TPE_vec3Plus(lineStart,*collisionPoint);
+          return 10;
+*/
+        }
+      } // for each edge
+          
+printf("---\n");
 
       break;
     } 
@@ -1257,6 +1392,11 @@ TPE_Unit TPE_vec3DotProduct(const TPE_Vec4 v1, const TPE_Vec4 v2)
 {
   return
     (v1.x * v2.x + v1.y * v2.y + v1.z * v2.z) / TPE_FRACTIONS_PER_UNIT;
+}
+
+TPE_Unit TPE_vec3DotProductPlain(const TPE_Vec4 v1, const TPE_Vec4 v2)
+{
+  return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 }
 
 void TPE_vec3Normalize(TPE_Vec4 *v)

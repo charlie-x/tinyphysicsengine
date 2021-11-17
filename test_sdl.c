@@ -297,6 +297,14 @@ void addBody(uint8_t shape, TPE_Unit param1, TPE_Unit param2, TPE_Unit param3)
       tc = SPHERE_TRIANGLE_COUNT;
       sx = param1; sy = param1; sz = param1;
       break;
+
+    case TPE_SHAPE_CUBOID:
+      v = cubeVertices;
+      t = cubeTriangles;
+      vc = S3L_CUBE_VERTEX_COUNT;
+      tc = S3L_CUBE_TRIANGLE_COUNT;
+      sx = param1; sy = param2; sz = param3;
+      break;
   }
 
   S3L_initModel3D(v,vc,t,tc,&(b->model));
@@ -332,9 +340,11 @@ int main()
 
   int running = 1;
 
-  addBody(TPE_SHAPE_CAPSULE,300,1024,0);
+//  addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 //  addBody(TPE_SHAPE_SPHERE,256,0,0);
-addBody(TPE_SHAPE_CAPSULE,300,1024,0);
+//addBody(TPE_SHAPE_CAPSULE,300,1024,0);
+  addBody(TPE_SHAPE_CUBOID,600,600,600);
+  addBody(TPE_SHAPE_CUBOID,700,400,500);
 
   //-------
   S3L_Model3D models[bodyCount];
@@ -350,11 +360,13 @@ addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 
   TPE_Unit frame = 0;
 
-bodies[0].body.position.x = 50;
-bodies[1].body.position.x = -700;
-bodies[1].body.position.z = 200;
+bodies[0].body.position.x = -150;
+bodies[1].body.position.x = 200;
+bodies[1].body.position.z = 100;
 
-TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,0,128,0),1);
+TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,200,128,0),1);
+
+//TPE_bodySetRotation( &(bodies[1].body),TPE_vec4(0,50,128,0),1);
 /*
 TPE_Vec4 quat;
 TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),40,&quat);
@@ -373,7 +385,17 @@ TPE_bodySetOrientation(&(bodies[0].body),quat);
 
     TPE_Vec4 p, n;
 
-    if (TPE_bodyCollides(&(bodies[0].body),&(bodies[1].body),&p,&n))
+S3L_Vec4 aaa,bbb;
+
+S3L_setVec4(&aaa,0,0,0,0);      
+      project3DPointToScreen(
+        aaa,
+        scene.camera,
+        &bbb);
+draw2DPoint(bbb.x,bbb.y,255,0,0);
+
+
+    if (TPE_bodyCollides(&(bodies[1].body),&(bodies[0].body),&p,&n))
     {
       S3L_Vec4 p2, scr;
      
