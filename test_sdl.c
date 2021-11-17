@@ -366,7 +366,7 @@ bodies[1].body.position.z = 100;
 
 TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,200,128,0),1);
 
-//TPE_bodySetRotation( &(bodies[1].body),TPE_vec4(0,50,128,0),1);
+TPE_bodySetRotation( &(bodies[1].body),TPE_vec4(210,50,1,0),1);
 /*
 TPE_Vec4 quat;
 TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),40,&quat);
@@ -384,16 +384,6 @@ TPE_bodySetOrientation(&(bodies[0].body),quat);
     S3L_drawScene(scene);
 
     TPE_Vec4 p, n;
-
-S3L_Vec4 aaa,bbb;
-
-S3L_setVec4(&aaa,0,0,0,0);      
-      project3DPointToScreen(
-        aaa,
-        scene.camera,
-        &bbb);
-draw2DPoint(bbb.x,bbb.y,255,0,0);
-
 
     if (TPE_bodyCollides(&(bodies[1].body),&(bodies[0].body),&p,&n))
     {
@@ -417,7 +407,7 @@ draw2DPoint(bbb.x,bbb.y,255,0,0);
         scene.camera,
         &scr);
 
-      draw2DPoint(scr.x,scr.y,255,255,255);
+      //draw2DPoint(scr.x,scr.y,255,255,255);
     }
 
     SDL_UpdateTexture(textureSDL,NULL,pixels,S3L_RESOLUTION_X * sizeof(uint32_t));

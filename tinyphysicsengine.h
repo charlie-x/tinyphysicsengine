@@ -643,8 +643,6 @@ void _TPE_cutLineSegmentByPlanes(TPE_Vec4 center, TPE_Vec4 sideOffset,
     *t2 = tB;
 }
 
-int aaaa = 0;
-
 TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2, 
   TPE_Vec4 *collisionPoint, TPE_Vec4 *collisionNormal)
 {
@@ -875,96 +873,124 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 
     case TPE_COLLISION_TYPE(TPE_SHAPE_CUBOID,TPE_SHAPE_CUBOID):
     {
-      TPE_Vec4 a1, a2, a3, q;
+      TPE_Vec4 collisions = TPE_vec4(0,0,0,0); // w stores coll. count
 
-      q = TPE_bodyGetOrientation(body1);
-
-      a1 = TPE_vec4(body1->shapeParams[0] / 2,0,0,0);
-      a2 = TPE_vec4(0,body1->shapeParams[1] / 2,0,0);
-      a3 = TPE_vec4(0,0,body1->shapeParams[2] / 2,0);
-
-      TPE_rotatePoint(&a1,q);
-      TPE_rotatePoint(&a2,q);
-      TPE_rotatePoint(&a3,q);
-
-      uint8_t edges[12] =
-      {       // xyz xyz 
-        0x3b, // +++ -++ |
-        0x3e, // +++ ++- | top
-        0x13, // -+- -++ |
-        0x16, // -+- ++- |
-        0x29, // +-+ --+  |
-        0x2c, // +-+ +--  | bottom
-        0x01, // --- --+  |
-        0x04, // --- +--  |
-        0x3d, // +++ +-+ |
-        0x19, // -++ --+ | sides
-        0x10, // -+- --- |
-        0x35  // ++- +-+ |
-      };
-
-      for (uint8_t i = 0; i < 12; ++i) // for each edge
+      for (uint8_t i = 0; i < 2; ++i) // for each body
       {
-        TPE_Vec4 lineStart = body1->position;
-        TPE_Vec4 lineEnd = body1->position;
+        TPE_Vec4 a1, a2, a3, q;
 
-        uint8_t edge = edges[i];
+        q = TPE_bodyGetOrientation(body1);
+
+        // construct the three cuboid axes:
+
+        a1 = TPE_vec4(body1->shapeParams[0] / 2,0,0,0);
+        a2 = TPE_vec4(0,body1->shapeParams[1] / 2,0,0);
+        a3 = TPE_vec4(0,0,body1->shapeParams[2] / 2,0);
+
+        TPE_rotatePoint(&a1,q);
+        TPE_rotatePoint(&a2,q);
+        TPE_rotatePoint(&a3,q);
+
+        uint8_t edges[12] = // list of all cuboid edges as combinations of axes
+        {       // xyz xyz 
+          0x3b, // +++ -++ |
+          0x3e, // +++ ++- | top
+          0x13, // -+- -++ |
+          0x16, // -+- ++- |
+          0x29, // +-+ --+  |
+          0x2c, // +-+ +--  | bottom
+          0x01, // --- --+  |
+          0x04, // --- +--  |
+          0x3d, // +++ +-+ |
+          0x19, // -++ --+ | sides
+          0x10, // -+- --- |
+          0x35  // ++- +-+ |
+        };
+ 
+        for (uint8_t j = 0; j < 12; ++j) // for each edge
+        {
+          // we check the edge against all sides of the other cuboid
+
+          TPE_Vec4 lineStart = body1->position;
+          TPE_Vec4 lineEnd = body1->position;
+
+          uint8_t edge = edges[j];
 
 #define offsetCenter(c,v,a) \
   v = (edge & c) ? TPE_vec3Plus(v,a) : TPE_vec3Minus(v,a);
 
-        offsetCenter(0x04,lineStart,a1)
-        offsetCenter(0x02,lineStart,a2)
-        offsetCenter(0x01,lineStart,a3)
+          offsetCenter(0x04,lineStart,a1)
+          offsetCenter(0x02,lineStart,a2)
+          offsetCenter(0x01,lineStart,a3)
 
-        offsetCenter(0x20,lineEnd,a1)
-        offsetCenter(0x10,lineEnd,a2)
-        offsetCenter(0x08,lineEnd,a3)
+          offsetCenter(0x20,lineEnd,a1)
+          offsetCenter(0x10,lineEnd,a2)
+          offsetCenter(0x08,lineEnd,a3)
 
 #undef offsetCenter 
 
-        TPE_Unit t1 = 0, t2 = TPE_FRACTIONS_PER_UNIT;
-              
-        TPE_Vec4 quat = TPE_bodyGetOrientation(body2);
+          TPE_Unit t1 = 0, t2 = TPE_FRACTIONS_PER_UNIT;
+                
+          TPE_Vec4 quat = TPE_bodyGetOrientation(body2);
 
-        for (uint8_t i = 0; i < 3; ++i) // for each axis
-        {
-          TPE_Vec4 sideOffset;
+          for (uint8_t k = 0; k < 3; ++k) // for each axis
+          {
+            TPE_Vec4 sideOffset;
 
-          TPE_initVec4(&sideOffset);
+            TPE_initVec4(&sideOffset);
 
-          if (i == 0)
-            sideOffset.x = body2->shapeParams[0] / 2;
-          else if (i == 1)
-            sideOffset.y = body2->shapeParams[1] / 2;
-          else
-            sideOffset.z = body2->shapeParams[2] / 2;
+            if (k == 0)
+              sideOffset.x = body2->shapeParams[0] / 2;
+            else if (k == 1)
+              sideOffset.y = body2->shapeParams[1] / 2;
+            else
+              sideOffset.z = body2->shapeParams[2] / 2;
 
-          TPE_rotatePoint(&sideOffset,quat);
+            TPE_rotatePoint(&sideOffset,quat);
 
-          _TPE_cutLineSegmentByPlanes(body2->position,sideOffset,lineStart,
-          TPE_vec3Minus(lineEnd,lineStart),&t1,&t2);
-        }
+            _TPE_cutLineSegmentByPlanes(body2->position,sideOffset,lineStart,
+            TPE_vec3Minus(lineEnd,lineStart),&t1,&t2);
 
-        if (t2 > t1)
-        {
+            if (t1 > t2)
+              break; // no solution already, no point checking on
+          }
 
-aaaa++;
-          printf("%d %d %d\n",aaaa,t1,t2);
-/*
-          *collisionPoint = TPE_vec3Minus(lineEnd,lineStart);
+          if (t2 > t1) // if part of edge exists between all side planes
+          {
+            // edge collided with the cuboid
 
-          collisionPoint->x = (collisionPoint->x * ((t1 + t2) / 2)) / TPE_FRACTIONS_PER_UNIT;
-          collisionPoint->y = (collisionPoint->y * ((t1 + t2) / 2)) / TPE_FRACTIONS_PER_UNIT;
-          collisionPoint->z = (collisionPoint->z * ((t1 + t2) / 2)) / TPE_FRACTIONS_PER_UNIT;
+            *collisionPoint = TPE_vec3Minus(lineEnd,lineStart);
 
-          *collisionPoint = TPE_vec3Plus(lineStart,*collisionPoint);
-          return 10;
-*/
-        }
-      } // for each edge
-          
-printf("---\n");
+            t1 = (t1 + t2) / 2;
+
+            collisionPoint->x = 
+              (collisionPoint->x * t1) / TPE_FRACTIONS_PER_UNIT;
+            collisionPoint->y = 
+              (collisionPoint->y * t1) / TPE_FRACTIONS_PER_UNIT;
+            collisionPoint->z = 
+              (collisionPoint->z * t1) / TPE_FRACTIONS_PER_UNIT;
+
+            *collisionPoint = TPE_vec3Plus(lineStart,*collisionPoint);
+
+            collisions = TPE_vec3Plus(collisions,*collisionPoint);
+            collisions.w++;
+          }
+        } // for each edge
+
+        // now swap the bodies and do it again:
+
+        TPE_Body *tmp = body1;
+        body1 = body2;
+        body2 = tmp;
+      } // for each body 
+
+      if (collisions.w > 0)
+      {
+        collisions.x /= collisions.w;
+        collisions.y /= collisions.w;
+        collisions.z /= collisions.w;
+        return 10;
+      }
 
       break;
     } 
