@@ -226,10 +226,10 @@ void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity);
 /** Collision detection: checks if two bodies are colliding. The return value is
   the collision depth along the collision normal (0 if the bodies are not
   colliding). World-space collision point is returned via a pointer. Collision
-  normal is also returned via a pointer and its direction is "away from body1",
-  i.e. if you move body1 in the opposite direction of this normal by the
-  collision depth (return value), the bodies should no longer be colliding
-  (in some cases another collision may still occur). */
+  normal (normalized) is also returned via a pointer and its direction is
+  "away from body1", i.e. if you move body1 in the opposite direction of this
+  normal by the collision depth (return value), the bodies should no longer
+  exhibit this particular collision. */
 TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2, 
   TPE_Vec4 *collisionPoint, TPE_Vec4 *collisionNormal);
 
@@ -597,8 +597,6 @@ void _TPE_getCapsuleCyllinderEndpoints(const TPE_Body *body,
   TPE_vec3Add(*b,body->position,b);
 }
 
-int aaa = 0;
-
 /** Helpter function for cuboid collision detection. Given a line segment
   as a line equation limited by parameter bounds t1 and t2, center point C and
   side offset from the center point O, the function further limits the parameter
@@ -876,13 +874,13 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
     case TPE_COLLISION_TYPE(TPE_SHAPE_CUBOID,TPE_SHAPE_CUBOID):
     {
       TPE_Vec4 collisions = TPE_vec4(0,0,0,0); // w = coll. count
+        
+      TPE_Vec4 aX1, aY1, aZ1, // first cuboid axes
+               aX2, aY2, aZ2, // second cuboid axes
+               q;
 
       for (uint8_t i = 0; i < 2; ++i) // for each body
       {
-        TPE_Vec4 aX1, aY1, aZ1, // first cuboid axes
-                 aX2, aY2, aZ2, // second cuboid axes
-                 q;
-
         q = TPE_bodyGetOrientation(body1);
 
         // construct the cuboid axes:
@@ -947,8 +945,6 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 
           TPE_Unit t1 = 0, t2 = TPE_FRACTIONS_PER_UNIT;
 
-aaa = (i == 0 && j == 2);
-                
           for (uint8_t k = 0; k < 3; ++k) // for each axis
           {
             TPE_Vec4 *sideOffset;
@@ -995,12 +991,55 @@ aaa = (i == 0 && j == 2);
         body2 = tmp;
       } // for each body
 
-      if (collisions.w > 0)
+      if (collisions.w > 0) // collision happened?
       {
+        // average all collision points to get the center point
+
         collisions.x /= collisions.w;
         collisions.y /= collisions.w;
         collisions.z /= collisions.w;
-        return 10;
+
+        *collisionPoint = collisions;
+        collisionPoint->w = 0;
+
+        // compute the coll. normal as the axis closest to the coll. point
+
+        TPE_Vec4 bestAxis = TPE_vec4(1,0,0,0);
+        TPE_Unit bestDot = -1;
+        TPE_Unit currentDot;
+
+        // TODO: optimize this shit? create array instead of aX1, aX2 etc.?
+
+        collisions = TPE_vec3Minus(*collisionPoint,body1->position); // reuse
+
+        #define checkAxis(a) \
+          currentDot = (TPE_vec3DotProduct(a,collisions) * TPE_FRACTIONS_PER_UNIT) / \
+            TPE_vec3DotProduct(a,a); \
+          if (currentDot > bestDot) \
+            { bestDot = currentDot; bestAxis = a; } \
+          else { \
+            currentDot *= -1; \
+            if (currentDot > bestDot) { \
+              bestDot = currentDot; bestAxis = a; \
+              TPE_vec3MultiplyPlain(a,-1,&a); } \
+          }
+
+        checkAxis(aX1)
+        checkAxis(aY1)
+        checkAxis(aZ1)
+
+        collisions = TPE_vec3Minus(*collisionPoint,body2->position);
+
+        checkAxis(aX2)
+        checkAxis(aY2)
+        checkAxis(aZ2)
+
+        #undef checkAxis
+
+        *collisionNormal = bestAxis;
+        TPE_vec3Normalize(collisionNormal);
+
+        return 50; // TODO: this
       }
 
       break;

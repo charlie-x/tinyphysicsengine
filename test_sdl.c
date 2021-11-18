@@ -341,8 +341,9 @@ int main()
   int running = 1;
 
 //  addBody(TPE_SHAPE_CAPSULE,300,1024,0);
-//  addBody(TPE_SHAPE_SPHERE,256,0,0);
+//  addBody(TPE_SHAPE_CAPSULE,256,0,0);
 //addBody(TPE_SHAPE_CAPSULE,300,1024,0);
+
   addBody(TPE_SHAPE_CUBOID,600,600,600);
   addBody(TPE_SHAPE_CUBOID,700,400,500);
 
@@ -364,8 +365,7 @@ bodies[0].body.position.x = 350;
 bodies[1].body.position.x = 200;
 bodies[1].body.position.z = -100;
 
-//TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,200,128,0),1);
-
+TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,200,128,0),1);
 //TPE_bodySetRotation( &(bodies[1].body),TPE_vec4(210,50,1,0),1);
 /*
 TPE_Vec4 quat;
@@ -385,29 +385,32 @@ TPE_bodySetOrientation(&(bodies[0].body),quat);
 
     TPE_Vec4 p, n;
 
-    if (TPE_bodyCollides(&(bodies[1].body),&(bodies[0].body),&p,&n))
+    TPE_Unit collDepth = TPE_bodyCollides(&(bodies[1].body),&(bodies[0].body),&p,&n);
+
+    if (collDepth)
     {
       S3L_Vec4 p2, scr;
      
       S3L_setVec4(&p2,p.x,p.y,p.z,p.w); 
 
-      project3DPointToScreen(
-        p2,
-        scene.camera,
-        &scr);
-
+      project3DPointToScreen(p2,scene.camera,&scr);
       draw2DPoint(scr.x,scr.y,255,0,0);
 
-      p2.x += n.x / 2;
-      p2.y += n.y / 2;
-      p2.z += n.z / 2;
+      TPE_vec3Multiply(n,collDepth,&n);
 
-      project3DPointToScreen(
-        p2,
-        scene.camera,
-        &scr);
+      p2.x = p.x + n.x;
+      p2.y = p.y + n.y;
+      p2.z = p.z + n.z;
 
-      //draw2DPoint(scr.x,scr.y,255,255,255);
+      project3DPointToScreen(p2,scene.camera,&scr);
+      draw2DPoint(scr.x,scr.y,255,255,255);
+
+      p2.x = p.x - n.x;
+      p2.y = p.y - n.y;
+      p2.z = p.z - n.z;
+
+      project3DPointToScreen(p2,scene.camera,&scr);
+      draw2DPoint(scr.x,scr.y,255,255,255);
     }
 
     SDL_UpdateTexture(textureSDL,NULL,pixels,S3L_RESOLUTION_X * sizeof(uint32_t));
