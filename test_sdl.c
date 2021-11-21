@@ -366,7 +366,7 @@ bodies[1].body.position.x = 200;
 bodies[1].body.position.z = -100;
 
 TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,200,128,0),1);
-//TPE_bodySetRotation( &(bodies[1].body),TPE_vec4(210,50,1,0),1);
+TPE_bodySetRotation( &(bodies[1].body),TPE_vec4(210,50,1,0),1);
 /*
 TPE_Vec4 quat;
 TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),40,&quat);
@@ -397,6 +397,12 @@ TPE_bodySetOrientation(&(bodies[0].body),quat);
       draw2DPoint(scr.x,scr.y,255,0,0);
 
       TPE_vec3Multiply(n,collDepth,&n);
+
+TPE_vec3Substract
+(bodies[1].body.position,n,&bodies[1].body.position);
+
+TPE_vec3Add
+(bodies[0].body.position,n,&bodies[0].body.position);
 
       p2.x = p.x + n.x;
       p2.y = p.y + n.y;

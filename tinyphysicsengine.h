@@ -873,8 +873,11 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 
     case TPE_COLLISION_TYPE(TPE_SHAPE_CUBOID,TPE_SHAPE_CUBOID):
     {
-      TPE_Vec4 collisions = TPE_vec4(0,0,0,0); // w = coll. count
-        
+      TPE_Vec4 collisionExtentMax = TPE_vec4(-TPE_INFINITY,-TPE_INFINITY,-TPE_INFINITY,0),
+        collisionExtentMin = TPE_vec4(TPE_INFINITY,TPE_INFINITY,TPE_INFINITY,0);
+
+      uint8_t collisionHappened = 0;
+
       TPE_Vec4 aX1, aY1, aZ1, // first cuboid axes
                aX2, aY2, aZ2, // second cuboid axes
                q;
@@ -945,6 +948,8 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 
           TPE_Unit t1 = 0, t2 = TPE_FRACTIONS_PER_UNIT;
 
+          TPE_Vec4 edgeDir = TPE_vec3Minus(lineEnd,lineStart);
+
           for (uint8_t k = 0; k < 3; ++k) // for each axis
           {
             TPE_Vec4 *sideOffset;
@@ -957,7 +962,7 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
               sideOffset = &aZ2;
 
             _TPE_cutLineSegmentByPlanes(body2->position,*sideOffset,lineStart,
-            TPE_vec3Minus(lineEnd,lineStart),&t1,&t2);
+            edgeDir,&t1,&t2);
 
             if (t1 > t2)
               break; // no solution already, no point checking on
@@ -966,40 +971,78 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
           if (t2 > t1) // if part of edge exists between all side planes
           {
             // edge collided with the cuboid
-            *collisionPoint = TPE_vec3Minus(lineEnd,lineStart);
+ 
+            collisionHappened = 1;
 
-            t1 = (t1 + t2) / 2;
-
-            collisionPoint->x = 
-              (collisionPoint->x * t1) / TPE_FRACTIONS_PER_UNIT;
-            collisionPoint->y = 
-              (collisionPoint->y * t1) / TPE_FRACTIONS_PER_UNIT;
-            collisionPoint->z = 
-              (collisionPoint->z * t1) / TPE_FRACTIONS_PER_UNIT;
-
+            *collisionPoint = edgeDir;
+            collisionPoint->x = (collisionPoint->x * t1) / TPE_FRACTIONS_PER_UNIT;
+            collisionPoint->y = (collisionPoint->y * t1) / TPE_FRACTIONS_PER_UNIT;
+            collisionPoint->z = (collisionPoint->z * t1) / TPE_FRACTIONS_PER_UNIT;
             *collisionPoint = TPE_vec3Plus(lineStart,*collisionPoint);
 
-            collisions = TPE_vec3Plus(collisions,*collisionPoint);
-            collisions.w++;
+            if (collisionPoint->x > collisionExtentMax.x)
+              collisionExtentMax.x = collisionPoint->x;
+
+            if (collisionPoint->x < collisionExtentMin.x)
+              collisionExtentMin.x = collisionPoint->x;
+
+            if (collisionPoint->y > collisionExtentMax.y)
+              collisionExtentMax.y = collisionPoint->y;
+
+            if (collisionPoint->y < collisionExtentMin.y)
+              collisionExtentMin.y = collisionPoint->y;
+
+            if (collisionPoint->z > collisionExtentMax.z)
+              collisionExtentMax.z = collisionPoint->z;
+
+            if (collisionPoint->z < collisionExtentMin.z)
+              collisionExtentMin.z = collisionPoint->z;
+
+            *collisionPoint = edgeDir;
+            collisionPoint->x = (collisionPoint->x * t2) / TPE_FRACTIONS_PER_UNIT;
+            collisionPoint->y = (collisionPoint->y * t2) / TPE_FRACTIONS_PER_UNIT;
+            collisionPoint->z = (collisionPoint->z * t2) / TPE_FRACTIONS_PER_UNIT;
+            *collisionPoint = TPE_vec3Plus(lineStart,*collisionPoint);
+
+            if (collisionPoint->x > collisionExtentMax.x)
+              collisionExtentMax.x = collisionPoint->x;
+
+            if (collisionPoint->x < collisionExtentMin.x)
+              collisionExtentMin.x = collisionPoint->x;
+
+            if (collisionPoint->y > collisionExtentMax.y)
+              collisionExtentMax.y = collisionPoint->y;
+
+            if (collisionPoint->y < collisionExtentMin.y)
+              collisionExtentMin.y = collisionPoint->y;
+
+            if (collisionPoint->z > collisionExtentMax.z)
+              collisionExtentMax.z = collisionPoint->z;
+
+            if (collisionPoint->z < collisionExtentMin.z)
+              collisionExtentMin.z = collisionPoint->z;
           }
         } // for each edge
 
-        // now swap the bodies and do it again:
+        if (i == 0)
+        {
+          // now swap the bodies and do it again:
 
-        const TPE_Body *tmp = body1;
-        body1 = body2;
-        body2 = tmp;
+          const TPE_Body *tmp = body1;
+          body1 = body2;
+          body2 = tmp;
+        }
       } // for each body
 
-      if (collisions.w > 0) // collision happened?
+      if (collisionHappened)
       {
         // average all collision points to get the center point
 
-        collisions.x /= collisions.w;
-        collisions.y /= collisions.w;
-        collisions.z /= collisions.w;
+        *collisionPoint = TPE_vec3Plus(collisionExtentMin,collisionExtentMax);
 
-        *collisionPoint = collisions;
+        collisionPoint->x /= 2;
+        collisionPoint->y /= 2;
+        collisionPoint->z /= 2;
         collisionPoint->w = 0;
 
         // compute the coll. normal as the axis closest to the coll. point
@@ -1008,27 +1051,32 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
         TPE_Unit bestDot = -1;
         TPE_Unit currentDot;
 
+uint8_t currentBody = 0;
+uint8_t bestBody = 0;
+
         // TODO: optimize this shit? create array instead of aX1, aX2 etc.?
 
-        collisions = TPE_vec3Minus(*collisionPoint,body1->position); // reuse
+        collisionExtentMin = TPE_vec3Minus(*collisionPoint,body1->position); // reuse
 
         #define checkAxis(a) \
-          currentDot = (TPE_vec3DotProduct(a,collisions) * TPE_FRACTIONS_PER_UNIT) / \
+          currentDot = (TPE_vec3DotProduct(a,collisionExtentMin) * TPE_FRACTIONS_PER_UNIT) / \
             TPE_vec3DotProduct(a,a); \
           if (currentDot > bestDot) \
-            { bestDot = currentDot; bestAxis = a; } \
+            { bestDot = currentDot; bestAxis = a; bestBody = currentBody; } \
           else { \
             currentDot *= -1; \
             if (currentDot > bestDot) { \
-              bestDot = currentDot; bestAxis = a; \
-              TPE_vec3MultiplyPlain(a,-1,&a); } \
+              bestDot = currentDot; bestAxis = a; bestBody = currentBody; \
+              TPE_vec3MultiplyPlain(bestAxis,-1,&bestAxis); } \
           }
 
         checkAxis(aX1)
         checkAxis(aY1)
         checkAxis(aZ1)
 
-        collisions = TPE_vec3Minus(*collisionPoint,body2->position);
+        collisionExtentMin = TPE_vec3Minus(*collisionPoint,body2->position);
+
+currentBody = 1;
 
         checkAxis(aX2)
         checkAxis(aY2)
@@ -1036,10 +1084,18 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 
         #undef checkAxis
 
+// TODO: optimize this mess
+
         *collisionNormal = bestAxis;
         TPE_vec3Normalize(collisionNormal);
 
-        return 50; // TODO: this
+TPE_Unit len = TPE_nonZero(TPE_vec3Len(bestAxis));
+
+return 
+len -
+TPE_vec3DotProductPlain(bestAxis,
+  TPE_vec3Minus(*collisionPoint,bestBody == 0 ? body1->position : body2->position)
+  ) / len;
       }
 
       break;
