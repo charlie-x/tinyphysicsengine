@@ -361,17 +361,27 @@ int main()
 
   TPE_Unit frame = 0;
 
-bodies[0].body.position.x = 350;
-bodies[1].body.position.x = 200;
+bodies[0].body.position.x = -350;
+bodies[1].body.position.x = 400;
 bodies[1].body.position.z = -100;
 
-TPE_bodySetRotation( &(bodies[0].body),TPE_vec4(0,200,128,0),1);
-TPE_bodySetRotation( &(bodies[1].body),TPE_vec4(210,50,1,0),1);
+//bodies[0].body.velocity = TPE_vec4(20,20,0,0);
+
+TPE_bodySetRotation(&(bodies[0].body),TPE_vec4(0,128,0,0),8);
+TPE_bodySetRotation( &(bodies[1].body),TPE_vec4(210,50,1,0),5);
 /*
 TPE_Vec4 quat;
 TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),40,&quat);
 TPE_bodySetOrientation(&(bodies[0].body),quat);
 */
+
+TPE_Vec4 aaaaaa = TPE_bodyGetPointVelocity(&(bodies[0].body),
+TPE_vec4(300,0,0,0));
+
+TPE_PRINTF_VEC4(aaaaaa)
+
+int collided = 0;
+
   while (running)
   {
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
@@ -385,10 +395,33 @@ TPE_bodySetOrientation(&(bodies[0].body),quat);
 
     TPE_Vec4 p, n;
 
+#define BOUND 2000
+for (int i = 0; i < bodyCount; ++i)
+{
+  if (bodies[i].body.position.x > BOUND ||
+    bodies[i].body.position.x < -BOUND)
+    bodies[i].body.velocity.x *= -1;
+
+  if (bodies[i].body.position.y > BOUND ||
+    bodies[i].body.position.y < -BOUND)
+    bodies[i].body.velocity.y *= -1;
+
+  if (bodies[i].body.position.z > BOUND ||
+    bodies[i].body.position.z < -BOUND)
+    bodies[i].body.velocity.z *= -1;
+}
+
+
     TPE_Unit collDepth = TPE_bodyCollides(&(bodies[1].body),&(bodies[0].body),&p,&n);
 
     if (collDepth)
     {
+//if (!collided)
+TPE_resolveCollision(&(bodies[1].body),&(bodies[0].body), 
+  p,n,collDepth);
+
+collided = 1;
+
       S3L_Vec4 p2, scr;
      
       S3L_setVec4(&p2,p.x,p.y,p.z,p.w); 
@@ -398,12 +431,14 @@ TPE_bodySetOrientation(&(bodies[0].body),quat);
 
       TPE_vec3Multiply(n,collDepth,&n);
 
+
+/*
 TPE_vec3Substract
 (bodies[1].body.position,n,&bodies[1].body.position);
 
 TPE_vec3Add
 (bodies[0].body.position,n,&bodies[0].body.position);
-
+*/
       p2.x = p.x + n.x;
       p2.y = p.y + n.y;
       p2.z = p.z + n.z;

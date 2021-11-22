@@ -123,6 +123,7 @@ TPE_Vec4 TPE_vec4(TPE_Unit x, TPE_Unit y, TPE_Unit z, TPE_Unit w);
 TPE_Vec4 TPE_vec3Plus(TPE_Vec4 a, TPE_Vec4 b);
 TPE_Vec4 TPE_vec3Minus(TPE_Vec4 a, TPE_Vec4 b);
 TPE_Vec4 TPE_vec3Times(TPE_Vec4 a, TPE_Unit f);
+TPE_Vec4 TPE_vec3TimesAntiZero(TPE_Vec4 a, TPE_Unit f);
 TPE_Vec4 TPE_vec3Cross(TPE_Vec4 a, TPE_Vec4 b);
 static inline TPE_Vec4 TPE_vec3Normalized(TPE_Vec4 v);
 static inline TPE_Vec4 TPE_vec3Projected(TPE_Vec4 v, TPE_Vec4 base);
@@ -240,7 +241,7 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 TPE_Vec4 TPE_bodyGetPointVelocity(const TPE_Body *body, TPE_Vec4 point);
 
 void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2, 
-  TPE_Vec4 collisionPoint, TPE_Vec4 collisionNormal);
+  TPE_Vec4 collisionPoint, TPE_Vec4 collisionNormal, TPE_Unit collisionDepth);
 
 /** Gets a uint16_t integer type of collision depending on two shapes, the order
   of shapes doesn't matter. */
@@ -534,15 +535,15 @@ TPE_Vec4 TPE_vec3Cross(TPE_Vec4 a, TPE_Vec4 b)
 }
 
 void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity)
-{  
-  TPE_Vec4 angularVelocity, rotationAxis;
-  
-  TPE_vec3Add(body->velocity,velocity,&(body->velocity));
-
+{ 
   TPE_Unit pointDistance = TPE_vec3Len(point);
 
   if (pointDistance != 0)  
   {
+    TPE_Vec4 angularVelocity, rotationAxis;
+  
+    TPE_vec3Add(body->velocity,velocity,&(body->velocity));
+
     /* normalize the point, we don't use the function as we don't want to    
        recompute the vector length */
 
@@ -557,8 +558,8 @@ void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity)
     TPE_Vec4 tmp;
 
     TPE_vec3Project(velocity,point,&tmp);
-    TPE_vec3Substract(velocity,tmp,&angularVelocity);
 
+    TPE_vec3Substract(velocity,tmp,&angularVelocity);
     TPE_vec3CrossProduct(point,angularVelocity,&rotationAxis);
 
     TPE_bodyAddRotation(body,rotationAxis,
@@ -873,18 +874,20 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 
     case TPE_COLLISION_TYPE(TPE_SHAPE_CUBOID,TPE_SHAPE_CUBOID):
     {
-      TPE_Vec4 collisionExtentMax = TPE_vec4(-TPE_INFINITY,-TPE_INFINITY,-TPE_INFINITY,0),
-        collisionExtentMin = TPE_vec4(TPE_INFINITY,TPE_INFINITY,TPE_INFINITY,0);
+      TPE_Vec4 // min/max extent of the colliding area:
+        collisionExtentMax = 
+          TPE_vec4(-TPE_INFINITY,-TPE_INFINITY,-TPE_INFINITY,0),
+        collisionExtentMin = 
+          TPE_vec4(TPE_INFINITY,TPE_INFINITY,TPE_INFINITY,0);
 
       uint8_t collisionHappened = 0;
 
       TPE_Vec4 aX1, aY1, aZ1, // first cuboid axes
-               aX2, aY2, aZ2, // second cuboid axes
-               q;
+               aX2, aY2, aZ2; // second cuboid axes
 
       for (uint8_t i = 0; i < 2; ++i) // for each body
       {
-        q = TPE_bodyGetOrientation(body1);
+        TPE_Vec4 q = TPE_bodyGetOrientation(body1);
 
         // construct the cuboid axes:
 
@@ -950,7 +953,7 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 
           TPE_Vec4 edgeDir = TPE_vec3Minus(lineEnd,lineStart);
 
-          for (uint8_t k = 0; k < 3; ++k) // for each axis
+          for (uint8_t k = 0; k < 3; ++k) // for each axis (pair of sides)
           {
             TPE_Vec4 *sideOffset;
 
@@ -1051,8 +1054,8 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
         TPE_Unit bestDot = -1;
         TPE_Unit currentDot;
 
-uint8_t currentBody = 0;
-uint8_t bestBody = 0;
+        uint8_t currentBody = 0;
+        uint8_t bestBody = 0;
 
         // TODO: optimize this shit? create array instead of aX1, aX2 etc.?
 
@@ -1060,7 +1063,7 @@ uint8_t bestBody = 0;
 
         #define checkAxis(a) \
           currentDot = (TPE_vec3DotProduct(a,collisionExtentMin) * TPE_FRACTIONS_PER_UNIT) / \
-            TPE_vec3DotProduct(a,a); \
+            TPE_nonZero(TPE_vec3DotProduct(a,a)); \
           if (currentDot > bestDot) \
             { bestDot = currentDot; bestAxis = a; bestBody = currentBody; } \
           else { \
@@ -1076,7 +1079,7 @@ uint8_t bestBody = 0;
 
         collisionExtentMin = TPE_vec3Minus(*collisionPoint,body2->position);
 
-currentBody = 1;
+        currentBody = 1;
 
         checkAxis(aX2)
         checkAxis(aY2)
@@ -1084,18 +1087,21 @@ currentBody = 1;
 
         #undef checkAxis
 
-// TODO: optimize this mess
+// TODO: optimize/refactor this mess
 
         *collisionNormal = bestAxis;
+
+        if (bestBody == 0)
+          TPE_vec3MultiplyPlain(*collisionNormal,-1,collisionNormal); 
+
         TPE_vec3Normalize(collisionNormal);
 
-TPE_Unit len = TPE_nonZero(TPE_vec3Len(bestAxis));
+        TPE_Unit len = TPE_nonZero(TPE_vec3Len(bestAxis));
 
-return 
-len -
-TPE_vec3DotProductPlain(bestAxis,
-  TPE_vec3Minus(*collisionPoint,bestBody == 0 ? body1->position : body2->position)
-  ) / len;
+        return len -
+          TPE_vec3DotProductPlain(bestAxis,
+          TPE_vec3Minus(*collisionPoint,
+            bestBody == 0 ? body1->position : body2->position)) / len;
       }
 
       break;
@@ -1115,6 +1121,8 @@ TPE_Vec4 TPE_bodyGetPointVelocity(const TPE_Body *body, TPE_Vec4 point)
   TPE_Vec4 normal = TPE_vec3Cross(
     point,TPE_vec3Minus(point,body->rotation.axisVelocity));
 
+TPE_vec3MultiplyPlain(normal,-1,&normal); // TODO: think about WHY
+
   TPE_Unit dist = TPE_vec3Len(normal);  // point-line distance
 
   TPE_Unit velocity = 
@@ -1126,8 +1134,9 @@ TPE_Vec4 TPE_bodyGetPointVelocity(const TPE_Body *body, TPE_Vec4 point)
 }
 
 void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2, 
-  TPE_Vec4 collisionPoint, TPE_Vec4 collisionNormal)
+  TPE_Vec4 collisionPoint, TPE_Vec4 collisionNormal, TPE_Unit collisionDepth)
 {
+printf("---\n");
   TPE_Vec4 v1, v2, p1, p2;
 
   p1 = TPE_vec3Minus(collisionPoint,body1->position);
@@ -1140,8 +1149,19 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
     v1Sign = TPE_vec3DotProduct(v1,collisionNormal) >= 0,
     v2Sign = TPE_vec3DotProduct(v2,collisionNormal) >= 0;
 
-  if (!v1Sign && v2Sign)
-    return; // opposite going velocities => not a real collision
+TPE_PRINTF_VEC4(collisionNormal)
+printf("\n");
+
+TPE_PRINTF_VEC4(body1->position)
+TPE_PRINTF_VEC4(body2->position)
+printf("%d %d\n",v1Sign,v2Sign);
+
+TPE_PRINTF_VEC4(v1)
+TPE_PRINTF_VEC4(v2)
+printf("\n");
+
+//  if (!v1Sign && v2Sign)
+//    return; // opposite going velocities => not a real collision
 
   /* if the velocities are too small, weird behavior occurs, so we define a min
     velocity for collisions and potentially modify the velocities: */
@@ -1159,7 +1179,7 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
     } 
 
   if (v2.x != 0 || v2.y != 0 || v2.z != 0)
-    while (TPE_vec3LenTaxicab(v1) < MIN_V)
+    while (TPE_vec3LenTaxicab(v2) < MIN_V)
     {
       v2.x *= 2;
       v2.y *= 2;
@@ -1167,7 +1187,7 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
     } 
 
   #undef MIN_V 
-  
+
   TPE_vec3Project(v1,collisionNormal,&v1);
   TPE_vec3Project(v2,collisionNormal,&v2);
 
@@ -1175,9 +1195,9 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
     v1Scalar = TPE_vec3Len(v1) * (v1Sign ? 1 : -1),
     v2Scalar = TPE_vec3Len(v2) * (v2Sign ? 1 : -1);
 
-  if ((v1Sign && v2Sign && (v2Scalar > v1Scalar)) ||
-    (!v1Sign && !v2Sign && (v1Scalar > v2Scalar)))
-    return; // not a valid collision
+//  if ((v1Sign && v2Sign && (v2Scalar > v1Scalar)) ||
+//    (!v1Sign && !v2Sign && (v1Scalar > v2Scalar)))
+//    return; // not a valid collision
 
   TPE_Unit
     v1ScalarNew = v1Scalar,
@@ -1190,10 +1210,16 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
     body2->mass,
     512); // TODO: elasticity
 
+// TODO: ACTUALLY MAKE SURE ENERGY IS CONSERVED (rounding errors may add energy!)
+
+//TPE_vec3MultiplyPlain(collisionNormal,-1,&collisionNormal);
+
   TPE_bodyApplyVelocity(body1,p1,
+//    TPE_vec3TimesAntiZero(collisionNormal,v1ScalarNew - v1Scalar));
     TPE_vec3Times(collisionNormal,v1ScalarNew - v1Scalar));
   
   TPE_bodyApplyVelocity(body2,p2,
+//    TPE_vec3TimesAntiZero(collisionNormal,v2ScalarNew - v2Scalar));
     TPE_vec3Times(collisionNormal,v2ScalarNew - v2Scalar));
 }
 
@@ -1454,6 +1480,23 @@ TPE_Vec4 TPE_vec3Times(TPE_Vec4 a, TPE_Unit f)
   a.x = (a.x * f) / TPE_FRACTIONS_PER_UNIT;
   a.y = (a.y * f) / TPE_FRACTIONS_PER_UNIT;
   a.z = (a.z * f) / TPE_FRACTIONS_PER_UNIT;
+
+  return a;
+}
+
+TPE_Vec4 TPE_vec3TimesAntiZero(TPE_Vec4 a, TPE_Unit f)
+{
+  if (a.x != 0)
+    a.x = a.x >= TPE_FRACTIONS_PER_UNIT ? a.x / TPE_FRACTIONS_PER_UNIT : 
+      (a.x > 0 ? 1 : -1);
+
+  if (a.y != 0)
+    a.y = a.y >= TPE_FRACTIONS_PER_UNIT ? a.y / TPE_FRACTIONS_PER_UNIT :
+      (a.y > 0 ? 1 : -1);
+
+  if (a.z != 0)
+    a.z = a.z >= TPE_FRACTIONS_PER_UNIT ? a.z / TPE_FRACTIONS_PER_UNIT :
+      (a.z > 0 ? 1 : -1);
 
   return a;
 }
