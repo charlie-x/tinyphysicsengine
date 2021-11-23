@@ -273,6 +273,8 @@ void addBody(uint8_t shape, TPE_Unit param1, TPE_Unit param2, TPE_Unit param3)
   b->body.shapeParams[1] = param2;
   b->body.shapeParams[2] = param3;
 
+  TPE_bodyRecomputeBounds(&b->body);
+
   const S3L_Unit *v;
   const S3L_Index *t;
   S3L_Index vc, tc;
@@ -344,8 +346,8 @@ int main()
 //  addBody(TPE_SHAPE_CAPSULE,256,0,0);
 //addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 
-  addBody(TPE_SHAPE_CUBOID,600,600,600);
-  addBody(TPE_SHAPE_CUBOID,700,400,500);
+  addBody(TPE_SHAPE_CUBOID,1200,1200,1200);
+  addBody(TPE_SHAPE_CUBOID,1400,800,1000);
 
   //-------
   S3L_Model3D models[bodyCount];
@@ -356,16 +358,21 @@ int main()
   S3L_Scene scene;
   S3L_initScene(models,bodyCount,&scene);
   
-  scene.camera.transform.translation.z = -4 * S3L_FRACTIONS_PER_UNIT;
+  scene.camera.transform.translation.z = -8 * S3L_FRACTIONS_PER_UNIT;
   //-------
 
   TPE_Unit frame = 0;
 
-bodies[0].body.position.x = -350;
-bodies[1].body.position.x = 400;
+bodies[0].body.position.x = -700;
+bodies[1].body.position.x = 800;
 bodies[1].body.position.z = -100;
 
-bodies[0].body.velocity = TPE_vec4(20,20,0,0);
+bodies[0].body.position = TPE_vec4(2875,-950,0,0);
+bodies[1].body.position = TPE_vec4(-1725,-550,-100,0);
+bodies[0].body.velocity = TPE_vec4(150,0,0,0);
+bodies[1].body.velocity = TPE_vec4(0,100,0,0);
+
+//bodies[0].body.velocity = TPE_vec4(150,100,0,0);
 
 //TPE_bodySetRotation(&(bodies[0].body),TPE_vec4(0,128,0,0),8);
 //TPE_bodySetRotation( &(bodies[1].body),TPE_vec4(210,50,1,0),5);
@@ -395,7 +402,7 @@ int collided = 0;
 
     TPE_Vec4 p, n;
 
-#define BOUND 1000
+#define BOUND 3000
 for (int i = 0; i < bodyCount; ++i)
 {
   if (bodies[i].body.position.x > BOUND ||
@@ -411,14 +418,16 @@ for (int i = 0; i < bodyCount; ++i)
     bodies[i].body.velocity.z *= -1;
 }
 
+printf("\nkin. energy: %d\n",
+  TPE_bodyGetKineticEnergy(&bodies[0].body) +
+  TPE_bodyGetKineticEnergy(&bodies[1].body));
+
 
     TPE_Unit collDepth = TPE_bodyCollides(&(bodies[1].body),&(bodies[0].body),&p,&n);
 
     if (collDepth)
     {
-printf("momentum: %d\n",
-TPE_vec3Len(bodies[0].body.velocity) + 
-TPE_vec3Len(bodies[1].body.velocity));
+
 
 //if (collided < 2)
 TPE_resolveCollision(&(bodies[1].body),&(bodies[0].body), 
@@ -501,6 +510,8 @@ TPE_vec3Add
       else if (state[SDL_SCANCODE_RIGHT])
         scene.camera.transform.rotation.y -= SHIFT_STEP;
     }
+
+#define SHIFT_STEP 50
 
     if (state[SDL_SCANCODE_L])
       bodies[1].body.position.x += SHIFT_STEP;

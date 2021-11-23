@@ -190,11 +190,16 @@ typedef struct
                                  the rotation axis, angular momentum and data
                                  from which current orientation can be
                                  inferred */
+  TPE_Unit boundingSphereRadius;
 } TPE_Body;
 
 /** Initializes a physical body, this should be called on all TPE_Body objects
   that are created.*/
 void TPE_bodyInit(TPE_Body *body);
+
+/** Recomputes the body bounding sphere, must be called every time the body's
+  shape parameters change. */
+void TPE_bodyRecomputeBounds(TPE_Body *body);
 
 /** Computes a 4x4 transform matrix of given body. The matrix has the same
   format as S3L_Mat4 from small3dlib. */
@@ -224,13 +229,24 @@ void TPE_bodyAddRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity);
   similar to an impulse but doesn't take mass into account, only velocity. */
 void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity);
 
+/** Computes and returns a body's bounding sphere radius, i.e. the maximum
+  extent from its center point. */
+TPE_Unit TPE_bodyGetMaxExtent(const TPE_Body *body);
+
+/** Computes and returns a body's total kinetic energy (sum of linear and
+  rotational kin. energy). In rotating bodies this may not be physically
+  accurate as, for simplicity, we operate with the moment of inertia of sphere
+  for all bodies (when in reality moment of inertia depends on shape). */
+TPE_Unit TPE_bodyGetKineticEnergy(const TPE_Body *body);
+
 /** Collision detection: checks if two bodies are colliding. The return value is
   the collision depth along the collision normal (0 if the bodies are not
   colliding). World-space collision point is returned via a pointer. Collision
   normal (normalized) is also returned via a pointer and its direction is
   "away from body1", i.e. if you move body1 in the opposite direction of this
   normal by the collision depth (return value), the bodies should no longer
-  exhibit this particular collision. */
+  exhibit this particular collision. This function checks the bounding spheres
+  to quickly opt out of impossible collisions. */
 TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2, 
   TPE_Vec4 *collisionPoint, TPE_Vec4 *collisionNormal);
 
@@ -490,6 +506,8 @@ void TPE_bodyInit(TPE_Body *body)
   body->rotation.currentAngle = 0;
 
   body->mass = TPE_FRACTIONS_PER_UNIT;
+
+  body->boundingSphereRadius = 0;
 }
 
 void TPE_bodySetOrientation(TPE_Body *body, TPE_Vec4 orientation)
@@ -562,9 +580,9 @@ void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity)
     TPE_vec3Substract(velocity,tmp,&angularVelocity);
     TPE_vec3CrossProduct(point,angularVelocity,&rotationAxis);
 
-    TPE_bodyAddRotation(body,rotationAxis,
-      TPE_linearVelocityToAngular(
-        TPE_vec3Len(angularVelocity),-1 * pointDistance));
+//    TPE_bodyAddRotation(body,rotationAxis,
+//      TPE_linearVelocityToAngular(
+//        TPE_vec3Len(angularVelocity),-1 * pointDistance));
   }
 }
 
@@ -648,6 +666,19 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
   TPE_Vec4 *collisionPoint, TPE_Vec4 *collisionNormal)
 {
   // handle collision of different shapes each in a specific case:
+
+  uint16_t collType = TPE_COLLISION_TYPE(body1->shape,body2->shape);
+
+  if (collType != TPE_COLLISION_TYPE(TPE_SHAPE_SPHERE,TPE_SHAPE_SPHERE))
+  {
+    // initial bounding sphere check to quickly discard impossible collisions
+
+    // TODO: taxicab could be also considered here
+
+    if (TPE_vec3Len(TPE_vec3Minus(body1->position,body2->position)) >
+        body1->boundingSphereRadius + body2->boundingSphereRadius)
+      return 0;
+  } 
 
   switch (TPE_COLLISION_TYPE(body1->shape,body2->shape))
   {
@@ -1170,17 +1201,6 @@ TPE_vec3Substract(body1->position,collisionPoint,&body1->position);
 
   tmp = TPE_vec3DotProduct(v2,collisionNormal);
   int8_t v2Sign = tmp > 0 ? 1 : (tmp < 0 ? -1 : 0);
-
-TPE_PRINTF_VEC4(collisionNormal)
-printf("\n");
-
-TPE_PRINTF_VEC4(body1->position)
-TPE_PRINTF_VEC4(body2->position)
-printf("%d %d\n",v1Sign,v2Sign);
-
-TPE_PRINTF_VEC4(v1)
-TPE_PRINTF_VEC4(v2)
-printf("\n");
 
   if (v1Sign == -1 && v2Sign != -1)
     return; // opposite going velocities => not a real collision
@@ -1785,6 +1805,48 @@ TPE_Vec4 TPE_lineSegmentClosestPoint(TPE_Vec4 a, TPE_Vec4 b, TPE_Vec4 p)
   TPE_vec3Multiply(ab,t,&ab);
 
   return TPE_vec3Plus(a,ab);
+}
+
+TPE_Unit TPE_bodyGetKineticEnergy(const TPE_Body *body)
+{
+  TPE_Unit v = TPE_vec3Len(body->velocity);
+
+  v *= v;
+
+  v = (v == 0 || v >= TPE_FRACTIONS_PER_UNIT) ?
+    v / TPE_FRACTIONS_PER_UNIT : 1;
+
+// TODO: handle small values
+
+  return (body->mass * v) /
+    (2 * TPE_FRACTIONS_PER_UNIT);
+
+  // TODO: rot
+}
+
+TPE_Unit TPE_bodyGetMaxExtent(const TPE_Body *body)
+{
+  switch (body->shape)
+  {
+    case TPE_SHAPE_SPHERE:
+      return body->shapeParams[0]; 
+      break;
+
+    case TPE_SHAPE_CUBOID:
+      return TPE_vec3Len(TPE_vec4(
+        body->shapeParams[0] / 2,
+        body->shapeParams[1] / 2,
+        body->shapeParams[2] / 2,0));
+      break;
+
+    // TODO: other shapes
+    default: return 0; break;
+  }
+}
+
+void TPE_bodyRecomputeBounds(TPE_Body *body)
+{
+  body->boundingSphereRadius = TPE_bodyGetMaxExtent(body);
 }
 
 #endif // guard
