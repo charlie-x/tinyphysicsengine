@@ -1142,6 +1142,16 @@ printf("---\n");
   p1 = TPE_vec3Minus(collisionPoint,body1->position);
   p2 = TPE_vec3Minus(collisionPoint,body2->position);
 
+/*
+  TODO:
+
+  We don't have to compute second body's final velocity! From momentum
+  preservation it can be computer from the initial total momentum and first
+  body's new momentum.
+
+  ALSO: compute the rotation velocity from preservaion of rotational kinetic
+  energy!
+*/
 
 // separate the bodies:
 
