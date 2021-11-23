@@ -1142,12 +1142,24 @@ printf("---\n");
   p1 = TPE_vec3Minus(collisionPoint,body1->position);
   p2 = TPE_vec3Minus(collisionPoint,body2->position);
 
+
+// separate the bodies:
+
+collisionPoint = collisionNormal; // reuse collisionPoint
+TPE_vec3Multiply(collisionPoint,collisionDepth,&collisionPoint);
+TPE_vec3Add(body2->position,collisionPoint,&body2->position);
+TPE_vec3Substract(body1->position,collisionPoint,&body1->position);
+
+
+
   v1 = TPE_bodyGetPointVelocity(body1,p1); 
   v2 = TPE_bodyGetPointVelocity(body2,p2);
+ 
+  TPE_Unit tmp = TPE_vec3DotProduct(v1,collisionNormal);
+  int8_t v1Sign = tmp > 0 ? 1 : (tmp < 0 ? -1 : 0);
 
-  int8_t 
-    v1Sign = TPE_vec3DotProduct(v1,collisionNormal) >= 0,
-    v2Sign = TPE_vec3DotProduct(v2,collisionNormal) >= 0;
+  tmp = TPE_vec3DotProduct(v2,collisionNormal);
+  int8_t v2Sign = tmp > 0 ? 1 : (tmp < 0 ? -1 : 0);
 
 TPE_PRINTF_VEC4(collisionNormal)
 printf("\n");
@@ -1160,8 +1172,8 @@ TPE_PRINTF_VEC4(v1)
 TPE_PRINTF_VEC4(v2)
 printf("\n");
 
-//  if (!v1Sign && v2Sign)
-//    return; // opposite going velocities => not a real collision
+  if (v1Sign == -1 && v2Sign != -1)
+    return; // opposite going velocities => not a real collision
 
   /* if the velocities are too small, weird behavior occurs, so we define a min
     velocity for collisions and potentially modify the velocities: */
@@ -1192,12 +1204,12 @@ printf("\n");
   TPE_vec3Project(v2,collisionNormal,&v2);
 
   TPE_Unit 
-    v1Scalar = TPE_vec3Len(v1) * (v1Sign ? 1 : -1),
-    v2Scalar = TPE_vec3Len(v2) * (v2Sign ? 1 : -1);
+    v1Scalar = TPE_vec3Len(v1) * v1Sign,
+    v2Scalar = TPE_vec3Len(v2) * v2Sign;
 
-//  if ((v1Sign && v2Sign && (v2Scalar > v1Scalar)) ||
-//    (!v1Sign && !v2Sign && (v1Scalar > v2Scalar)))
-//    return; // not a valid collision
+  if ((v1Sign == 1 && v2Sign == 1 && (v2Scalar > v1Scalar)) ||
+    (v1Sign == -1 && v2Sign == -1 && (v1Scalar > v2Scalar)))
+    return; // not a valid collision
 
   TPE_Unit
     v1ScalarNew = v1Scalar,
@@ -1210,7 +1222,7 @@ printf("\n");
     body2->mass,
     512); // TODO: elasticity
 
-// TODO: ACTUALLY MAKE SURE ENERGY IS CONSERVED (rounding errors may add energy!)
+// TODO: ACTUALLY MAKE SURE MOMENTUM IS CONSERVED (rounding errors may add energy!)
 
 //TPE_vec3MultiplyPlain(collisionNormal,-1,&collisionNormal);
 
@@ -1486,6 +1498,25 @@ TPE_Vec4 TPE_vec3Times(TPE_Vec4 a, TPE_Unit f)
 
 TPE_Vec4 TPE_vec3TimesAntiZero(TPE_Vec4 a, TPE_Unit f)
 {
+  a.x *= f;
+
+  if (a.x != 0)
+    a.x = a.x >= TPE_FRACTIONS_PER_UNIT ? a.x / TPE_FRACTIONS_PER_UNIT : 
+      (a.x > 0 ? 1 : -1);
+
+  a.y *= f;
+
+  if (a.y != 0)
+    a.y = a.y >= TPE_FRACTIONS_PER_UNIT ? a.y / TPE_FRACTIONS_PER_UNIT :
+      (a.y > 0 ? 1 : -1);
+
+  a.z *= f;
+
+  if (a.z != 0)
+    a.z = a.z >= TPE_FRACTIONS_PER_UNIT ? a.z / TPE_FRACTIONS_PER_UNIT :
+      (a.z > 0 ? 1 : -1);
+
+/*
   if (a.x != 0)
     a.x = a.x >= TPE_FRACTIONS_PER_UNIT ? a.x / TPE_FRACTIONS_PER_UNIT : 
       (a.x > 0 ? 1 : -1);
@@ -1497,6 +1528,7 @@ TPE_Vec4 TPE_vec3TimesAntiZero(TPE_Vec4 a, TPE_Unit f)
   if (a.z != 0)
     a.z = a.z >= TPE_FRACTIONS_PER_UNIT ? a.z / TPE_FRACTIONS_PER_UNIT :
       (a.z > 0 ? 1 : -1);
+*/
 
   return a;
 }

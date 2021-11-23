@@ -365,10 +365,10 @@ bodies[0].body.position.x = -350;
 bodies[1].body.position.x = 400;
 bodies[1].body.position.z = -100;
 
-//bodies[0].body.velocity = TPE_vec4(20,20,0,0);
+bodies[0].body.velocity = TPE_vec4(20,20,0,0);
 
-TPE_bodySetRotation(&(bodies[0].body),TPE_vec4(0,128,0,0),8);
-TPE_bodySetRotation( &(bodies[1].body),TPE_vec4(210,50,1,0),5);
+//TPE_bodySetRotation(&(bodies[0].body),TPE_vec4(0,128,0,0),8);
+//TPE_bodySetRotation( &(bodies[1].body),TPE_vec4(210,50,1,0),5);
 /*
 TPE_Vec4 quat;
 TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),40,&quat);
@@ -395,7 +395,7 @@ int collided = 0;
 
     TPE_Vec4 p, n;
 
-#define BOUND 2000
+#define BOUND 1000
 for (int i = 0; i < bodyCount; ++i)
 {
   if (bodies[i].body.position.x > BOUND ||
@@ -416,11 +416,15 @@ for (int i = 0; i < bodyCount; ++i)
 
     if (collDepth)
     {
-//if (!collided)
+printf("momentum: %d\n",
+TPE_vec3Len(bodies[0].body.velocity) + 
+TPE_vec3Len(bodies[1].body.velocity));
+
+//if (collided < 2)
 TPE_resolveCollision(&(bodies[1].body),&(bodies[0].body), 
   p,n,collDepth);
 
-collided = 1;
+collided++;
 
       S3L_Vec4 p2, scr;
      
@@ -522,7 +526,7 @@ TPE_vec3Add
     SDL_RenderCopy(renderer,textureSDL,NULL,NULL);
     SDL_RenderPresent(renderer);
 
-    usleep(20000);
+    usleep(10000);
 
     frame++;
   }
