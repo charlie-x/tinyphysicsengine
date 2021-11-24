@@ -346,8 +346,8 @@ int main()
 //  addBody(TPE_SHAPE_CAPSULE,256,0,0);
 //addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 
-  addBody(TPE_SHAPE_CUBOID,1200,1200,1200);
-  addBody(TPE_SHAPE_CUBOID,1400,800,1000);
+  addBody(TPE_SHAPE_CUBOID,1000,600,800);
+  addBody(TPE_SHAPE_CUBOID,700,800,650);
 
   //-------
   S3L_Model3D models[bodyCount];
@@ -363,8 +363,8 @@ int main()
 
   TPE_Unit frame = 0;
 
-bodies[0].body.position.x = -700;
-bodies[1].body.position.x = 800;
+bodies[0].body.position.x = -200;
+bodies[1].body.position.x = 100;
 bodies[1].body.position.z = -100;
 
 bodies[0].body.position = TPE_vec4(2875,-950,0,0);
@@ -382,11 +382,6 @@ TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),40,&quat);
 TPE_bodySetOrientation(&(bodies[0].body),quat);
 */
 
-TPE_Vec4 aaaaaa = TPE_bodyGetPointVelocity(&(bodies[0].body),
-TPE_vec4(300,0,0,0));
-
-TPE_PRINTF_VEC4(aaaaaa)
-
 int collided = 0;
 
   while (running)
@@ -403,6 +398,7 @@ int collided = 0;
     TPE_Vec4 p, n;
 
 #define BOUND 3000
+
 for (int i = 0; i < bodyCount; ++i)
 {
   if (bodies[i].body.position.x > BOUND ||

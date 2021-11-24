@@ -638,15 +638,18 @@ void _TPE_cutLineSegmentByPlanes(TPE_Vec4 center, TPE_Vec4 sideOffset,
 
   TPE_Unit denom = TPE_nonZero(TPE_vec3DotProductPlain(sideOffset,lineDir));
 
-  TPE_Unit tA = 
-    ((TPE_vec3DotProductPlain(sideOffset,dc) - da) * TPE_FRACTIONS_PER_UNIT) 
-    / denom;
+#define tAntiOverflow(t) \
+  TPE_Unit t = TPE_vec3DotProductPlain(sideOffset,dc) - da;\
+  t = (TPE_abs(t) < 500000) ? (t * TPE_FRACTIONS_PER_UNIT) / denom :\
+    (((t / 64) * TPE_FRACTIONS_PER_UNIT) / TPE_nonZero(denom / 64));
+
+  tAntiOverflow(tA)  
 
   dc = TPE_vec3Minus(center,sideOffset);
 
-  TPE_Unit tB = 
-    ((TPE_vec3DotProductPlain(sideOffset,dc) - da) * TPE_FRACTIONS_PER_UNIT) 
-    / denom;
+  tAntiOverflow(tB)
+
+#undef tAntiOverflow
 
   if (tB < tA)
   {
@@ -671,7 +674,8 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 
   if (collType != TPE_COLLISION_TYPE(TPE_SHAPE_SPHERE,TPE_SHAPE_SPHERE))
   {
-    // initial bounding sphere check to quickly discard impossible collisions
+    /* initial bounding sphere check to quickly discard impossible collisions,
+       plus this also prevents overflow errors in long-distance computations */
 
     // TODO: taxicab could be also considered here
 
