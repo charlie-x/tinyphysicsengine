@@ -78,6 +78,10 @@ static inline TPE_Unit TPE_nonZero(TPE_Unit x);
 /** Returns an integer square root of given value. */
 TPE_Unit TPE_sqrt(TPE_Unit value);
 
+/** Multiplies two values (with normalization) so that the result is 0 only if
+  one or both values are zero. */
+TPE_Unit TPE_timesAntiZero(TPE_Unit a, TPE_Unit b);
+
 /** Returns a sine of given arguments, both in TPE_Units (see the library
   conventions). */
 TPE_Unit TPE_sin(TPE_Unit x);
@@ -1820,10 +1824,29 @@ TPE_Unit TPE_bodyGetKineticEnergy(const TPE_Body *body)
   v = (v == 0 || v >= TPE_FRACTIONS_PER_UNIT) ?
     v / TPE_FRACTIONS_PER_UNIT : 1;
 
+  v = (body->mass * v) / (2 * TPE_FRACTIONS_PER_UNIT);
+
 // TODO: handle small values
 
-  return (body->mass * v) /
-    (2 * TPE_FRACTIONS_PER_UNIT);
+// TODO: clean this mess :)
+
+TPE_Unit r = TPE_bodyGetMaxExtent(body);
+  
+r =
+(
+  TPE_timesAntiZero(
+    TPE_timesAntiZero(r,r),
+    TPE_timesAntiZero(body->rotation.axisVelocity.w,body->rotation.axisVelocity.w)
+  )
+  *
+  body->mass
+)
+/ (5 * TPE_FRACTIONS_PER_UNIT);
+
+if (r == 0 && body->rotation.axisVelocity.w != 0)
+  r = 1;
+
+  return v + r;
 
   // TODO: rot
 }
@@ -1851,6 +1874,14 @@ TPE_Unit TPE_bodyGetMaxExtent(const TPE_Body *body)
 void TPE_bodyRecomputeBounds(TPE_Body *body)
 {
   body->boundingSphereRadius = TPE_bodyGetMaxExtent(body);
+}
+
+TPE_Unit TPE_timesAntiZero(TPE_Unit a, TPE_Unit b)
+{
+  TPE_Unit result = a * b;
+
+  return result >= TPE_FRACTIONS_PER_UNIT ?
+    result / TPE_FRACTIONS_PER_UNIT : (result != 0 ? 1 : 0);
 }
 
 #endif // guard

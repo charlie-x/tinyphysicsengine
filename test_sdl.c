@@ -346,8 +346,8 @@ int main()
 //  addBody(TPE_SHAPE_CAPSULE,256,0,0);
 //addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 
-  addBody(TPE_SHAPE_CUBOID,1000,600,800);
-  addBody(TPE_SHAPE_CUBOID,700,800,650);
+  addBody(TPE_SHAPE_CUBOID,1500,1000,900);
+  addBody(TPE_SHAPE_CUBOID,800,1100,1200);
 
   //-------
   S3L_Model3D models[bodyCount];
@@ -369,12 +369,12 @@ bodies[1].body.position.z = -100;
 
 bodies[0].body.position = TPE_vec4(2875,-950,0,0);
 bodies[1].body.position = TPE_vec4(-1725,-550,-100,0);
-bodies[0].body.velocity = TPE_vec4(150,0,0,0);
-bodies[1].body.velocity = TPE_vec4(0,100,0,0);
+bodies[0].body.velocity = TPE_vec4(15,0,0,0);
+//bodies[1].body.velocity = TPE_vec4(0,100,0,0);
 
 //bodies[0].body.velocity = TPE_vec4(150,100,0,0);
 
-//TPE_bodySetRotation(&(bodies[0].body),TPE_vec4(0,128,0,0),8);
+TPE_bodySetRotation(&(bodies[0].body),TPE_vec4(0,128,0,0),10);
 //TPE_bodySetRotation( &(bodies[1].body),TPE_vec4(210,50,1,0),5);
 /*
 TPE_Vec4 quat;
@@ -386,6 +386,7 @@ int collided = 0;
 
   while (running)
   {
+
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
       pixels[i] = 0;
 
