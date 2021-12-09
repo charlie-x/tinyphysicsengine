@@ -232,6 +232,12 @@ void TPE_bodyAddRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity);
   body center), which will change its linear and/or angular velocity. This is
   similar to an impulse but doesn't take mass into account, only velocity. */
 void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity);
+  // TODO: DELETE THIS SHIT ^
+
+/** Applies impulse (force in short time) to a body at a specified point
+  (relative to its center), which will potentially change its linear and/or
+  angular velocity. */
+  void TPE_bodyApplyImpulse(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 impulse);
 
 /** Computes and returns a body's bounding sphere radius, i.e. the maximum
   extent from its center point. */
@@ -554,6 +560,41 @@ TPE_Vec4 TPE_vec3Cross(TPE_Vec4 a, TPE_Vec4 b)
 {
   TPE_vec3CrossProduct(a,b,&a);
   return a;
+}
+
+void TPE_bodyApplyImpulse(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 impulse)
+{
+  TPE_Unit pointDistance = TPE_vec3Len(point);
+
+  if (pointDistance != 0)  
+  {
+    impulse.x = (impulse.x * TPE_FRACTIONS_PER_UNIT) / body->mass;
+    impulse.y = (impulse.y * TPE_FRACTIONS_PER_UNIT) / body->mass;
+    impulse.z = (impulse.z * TPE_FRACTIONS_PER_UNIT) / body->mass;
+  
+    TPE_vec3Add(body->velocity,impulse,&(body->velocity));
+
+    /* normalize the point, we don't use the function as we don't want to    
+       recompute the vector length */
+
+    point.x = (point.x * TPE_FRACTIONS_PER_UNIT) / pointDistance;
+    point.y = (point.y * TPE_FRACTIONS_PER_UNIT) / pointDistance;
+    point.z = (point.z * TPE_FRACTIONS_PER_UNIT) / pointDistance;
+
+    /* for simplicity we'll suppose angular momentum of a sphere: */
+
+    impulse = TPE_vec3Cross(impulse,point);
+
+    TPE_Unit r = TPE_bodyGetMaxExtent(body);
+
+    r = (2 * r * r) / TPE_FRACTIONS_PER_UNIT;
+
+    impulse.x = (5 * impulse.x * TPE_FRACTIONS_PER_UNIT) / r;   
+    impulse.y = (5 * impulse.y * TPE_FRACTIONS_PER_UNIT) / r;   
+    impulse.z = (5 * impulse.z * TPE_FRACTIONS_PER_UNIT) / r;   
+
+    TPE_bodyAddRotation(body,impulse,TPE_vec3Len(impulse));
+  }
 }
 
 void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity)
@@ -1847,8 +1888,6 @@ if (r == 0 && body->rotation.axisVelocity.w != 0)
   r = 1;
 
   return v + r;
-
-  // TODO: rot
 }
 
 TPE_Unit TPE_bodyGetMaxExtent(const TPE_Body *body)
