@@ -347,7 +347,7 @@ int main()
 //addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 
   addBody(TPE_SHAPE_CUBOID,1000,1000,1000);
-  addBody(TPE_SHAPE_CUBOID,1000,3000,3000);
+  addBody(TPE_SHAPE_CUBOID,600,4000,4000);
 
 bodies[1].body.mass = TPE_INFINITY;
 
@@ -365,21 +365,24 @@ bodies[1].body.mass = TPE_INFINITY;
 
   TPE_Unit frame = 0;
 
-
 bodies[0].body.position = TPE_vec4(500,-950,0,0);
-bodies[1].body.position = TPE_vec4(-625,-550,-100,0);
+bodies[1].body.position = TPE_vec4(-950,-550,-100,0);
 bodies[0].body.velocity = TPE_vec4(10,0,0,0);
 
 //TPE_bodyApplyImpulse(&(bodies[0].body),TPE_vec4(256,0,0,0),TPE_vec4(-1,-1,-1,0));
-
-printf("%d\n",bodies[0].body.rotation.axisVelocity.w);
 
 //bodies[1].body.velocity = TPE_vec4(0,100,0,0);
 
 //bodies[0].body.velocity = TPE_vec4(150,100,0,0);
 
-TPE_bodySetRotation(&(bodies[0].body),TPE_vec4(100,128,10,0),10);
+//TPE_bodySetRotation(&(bodies[0].body),TPE_vec4(100,128,10,0),10);
 //TPE_bodySetRotation(&(bodies[1].body),TPE_vec4(210,50,1,0),5);
+
+TPE_Vec4 qqq;
+TPE_rotationToQuaternion(TPE_vec4(100,300,50,0),400,&qqq);
+
+TPE_bodySetOrientation(&(bodies[0].body),qqq);
+
 /*
 TPE_Vec4 quat;
 TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),40,&quat);
@@ -390,6 +393,9 @@ int collided = 0;
 
   while (running)
   {
+
+bodies[0].body.velocity.x -= 1;
+
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
       pixels[i] = 0;
 
@@ -419,11 +425,9 @@ for (int i = 0; i < bodyCount; ++i)
 }
 
 
-/*
 printf("\nkin. energy: %d\n",
   TPE_bodyGetKineticEnergy(&bodies[0].body) +
   TPE_bodyGetKineticEnergy(&bodies[1].body));
-*/
 
     TPE_Unit collDepth = TPE_bodyCollides(&(bodies[1].body),&(bodies[0].body),&p,&n);
 

@@ -1178,10 +1178,16 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 
         TPE_Unit len = TPE_nonZero(TPE_vec3Len(bestAxis));
 
-        return len -
+        TPE_Unit result = len -
           TPE_vec3DotProductPlain(bestAxis,
           TPE_vec3Minus(*collisionPoint,
             bestBody == 0 ? body1->position : body2->position)) / len;
+
+        /* TODO: for some reason negative result is sometimes computed and the
+           next line kind of fixes it, but I don't know why this happens --
+           FIGURE THIS OUT!!! */
+
+        return result >= 1 ? result : result * -1;
       }
 
       break;
@@ -1259,7 +1265,7 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
     TPE_vec3Multiply(collisionPoint,collisionDepth,&collisionPoint);
     TPE_vec3Add(body2->position,collisionPoint,&body2->position);
   }
-  
+
   if (TPE_vec3DotProduct(collisionNormal,(TPE_bodyGetPointVelocity(body1,p1))) <
     TPE_vec3DotProduct(collisionNormal,(TPE_bodyGetPointVelocity(body2,p2))))
     return; // invalid collision (bodies going away from each other)
