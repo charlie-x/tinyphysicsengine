@@ -1216,102 +1216,97 @@ TPE_vec3MultiplyPlain(normal,-1,&normal); // TODO: think about WHY
 void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2, 
   TPE_Vec4 collisionPoint, TPE_Vec4 collisionNormal, TPE_Unit collisionDepth)
 {
-printf("---\n");
+
+/*
+  TODO:
+    - detect and reject false collisions (body going away from another)
+    - handle small values!!!
+*/
+
   TPE_Vec4 v1, v2, p1, p2;
 
   p1 = TPE_vec3Minus(collisionPoint,body1->position);
   p2 = TPE_vec3Minus(collisionPoint,body2->position);
 
-/*
-  TODO:
+  // separate the bodies:
 
-  We don't have to compute second body's final velocity! From momentum
-  preservation it can be computer from the initial total momentum and first
-  body's new momentum.
+  collisionPoint = collisionNormal; // reuse collisionPoint
+  TPE_vec3Multiply(collisionPoint,collisionDepth,&collisionPoint);
+  TPE_vec3Add(body2->position,collisionPoint,&body2->position);
+  TPE_vec3Substract(body1->position,collisionPoint,&body1->position);
 
-  ALSO: compute the rotation velocity from preservaion of rotational kinetic
-  energy!
-*/
+// solve the quadratic equation:
 
-// separate the bodies:
+TPE_Unit r1 = TPE_bodyGetMaxExtent(body1);
+TPE_Unit w1 = ((((body1->mass * r1) / TPE_FRACTIONS_PER_UNIT) * r1) /
+  TPE_FRACTIONS_PER_UNIT) / 5;
+TPE_Unit q1 = (TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT * 2) / w1;
+TPE_Vec4 nxp1 = TPE_vec3Cross(collisionNormal,p1);
+TPE_Vec4 rot1 =
+  TPE_vec3Times(body1->rotation.axisVelocity,body1->rotation.axisVelocity.w);
 
-collisionPoint = collisionNormal; // reuse collisionPoint
-TPE_vec3Multiply(collisionPoint,collisionDepth,&collisionPoint);
-TPE_vec3Add(body2->position,collisionPoint,&body2->position);
-TPE_vec3Substract(body1->position,collisionPoint,&body1->position);
+TPE_Unit r2 = TPE_bodyGetMaxExtent(body2);
+TPE_Unit w2 = ((((body2->mass * r2) / TPE_FRACTIONS_PER_UNIT) * r2) /
+  TPE_FRACTIONS_PER_UNIT) / 5;
+TPE_Unit q2 = (TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT * 2) / w2;
+TPE_Vec4 nxp2 = TPE_vec3Cross(collisionNormal,p2);
+TPE_Vec4 rot2 =
+  TPE_vec3Times(body2->rotation.axisVelocity,body2->rotation.axisVelocity.w);
 
+TPE_Unit a =
+  (TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT) / body1->mass +
+  (TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT) / body2->mass +
+  (q1 * TPE_vec3DotProduct(nxp1,nxp1) + q2 * TPE_vec3DotProduct(nxp2,nxp2)) / 
+  (2 * TPE_FRACTIONS_PER_UNIT);
 
-
-  v1 = TPE_bodyGetPointVelocity(body1,p1); 
-  v2 = TPE_bodyGetPointVelocity(body2,p2);
+TPE_Unit b =
+  TPE_vec3DotProduct(body2->velocity,collisionNormal) -
+  TPE_vec3DotProduct(body1->velocity,collisionNormal) +
+  TPE_vec3DotProduct(rot2,nxp2) -
+  TPE_vec3DotProduct(rot1,nxp1);
  
-  TPE_Unit tmp = TPE_vec3DotProduct(v1,collisionNormal);
-  int8_t v1Sign = tmp > 0 ? 1 : (tmp < 0 ? -1 : 0);
+TPE_Unit c =
+  (
+    body1->mass * TPE_vec3DotProduct(body1->velocity,body1->velocity) +
+    body2->mass * TPE_vec3DotProduct(body2->velocity,body2->velocity)
+  ) / (2 * TPE_FRACTIONS_PER_UNIT) +
+  (
+    w1 * TPE_vec3DotProduct(rot1,rot1) +
+    w2 * TPE_vec3DotProduct(rot2,rot2)
+  ) / TPE_FRACTIONS_PER_UNIT
+  - TPE_bodyGetKineticEnergy(body1)
+  - TPE_bodyGetKineticEnergy(body2);
 
-  tmp = TPE_vec3DotProduct(v2,collisionNormal);
-  int8_t v2Sign = tmp > 0 ? 1 : (tmp < 0 ? -1 : 0);
+printf("--- %d %d %d\n",a,b,c);
 
-  if (v1Sign == -1 && v2Sign != -1)
-    return; // opposite going velocities => not a real collision
+c = // discriminant
+  TPE_sqrt(b * b - 4 * a * c);
 
-  /* if the velocities are too small, weird behavior occurs, so we define a min
-    velocity for collisions and potentially modify the velocities: */
+b *= -1;
+a *= 2;
 
-  // TODO: something more elegant?
+TPE_Unit x1, x2;
 
-  #define MIN_V 5
+x1 = ((b - c) * TPE_FRACTIONS_PER_UNIT) / a;
 
-  if (v1.x != 0 || v1.y != 0 || v1.z != 0)
-    while (TPE_vec3LenTaxicab(v1) < MIN_V)
-    {
-      v1.x *= 2;
-      v1.y *= 2;
-      v1.z *= 2;
-    } 
+x2 = ((b + c) * TPE_FRACTIONS_PER_UNIT) / a;
 
-  if (v2.x != 0 || v2.y != 0 || v2.z != 0)
-    while (TPE_vec3LenTaxicab(v2) < MIN_V)
-    {
-      v2.x *= 2;
-      v2.y *= 2;
-      v2.z *= 2;
-    } 
+printf("%d %d\n",x1,x2);
 
-  #undef MIN_V 
+if (TPE_abs(x1) < TPE_abs(x2))
+  x1 = x2;
 
-  TPE_vec3Project(v1,collisionNormal,&v1);
-  TPE_vec3Project(v2,collisionNormal,&v2);
+collisionNormal = TPE_vec3Times(collisionNormal,x1);
 
-  TPE_Unit 
-    v1Scalar = TPE_vec3Len(v1) * v1Sign,
-    v2Scalar = TPE_vec3Len(v2) * v2Sign;
+TPE_PRINTF_VEC4(collisionNormal)
 
-  if ((v1Sign == 1 && v2Sign == 1 && (v2Scalar > v1Scalar)) ||
-    (v1Sign == -1 && v2Sign == -1 && (v1Scalar > v2Scalar)))
-    return; // not a valid collision
+TPE_bodyApplyImpulse(body2,p2,collisionNormal);
 
-  TPE_Unit
-    v1ScalarNew = v1Scalar,
-    v2ScalarNew = v2Scalar;
+TPE_vec3MultiplyPlain(collisionNormal,-1,&collisionNormal);
+TPE_PRINTF_VEC4(collisionNormal)
+printf("\n");
 
-  TPE_getVelocitiesAfterCollision(
-    &v1ScalarNew,
-    &v2ScalarNew,
-    body1->mass,
-    body2->mass,
-    512); // TODO: elasticity
-
-// TODO: ACTUALLY MAKE SURE MOMENTUM IS CONSERVED (rounding errors may add energy!)
-
-//TPE_vec3MultiplyPlain(collisionNormal,-1,&collisionNormal);
-
-  TPE_bodyApplyVelocity(body1,p1,
-//    TPE_vec3TimesAntiZero(collisionNormal,v1ScalarNew - v1Scalar));
-    TPE_vec3Times(collisionNormal,v1ScalarNew - v1Scalar));
-  
-  TPE_bodyApplyVelocity(body2,p2,
-//    TPE_vec3TimesAntiZero(collisionNormal,v2ScalarNew - v2Scalar));
-    TPE_vec3Times(collisionNormal,v2ScalarNew - v2Scalar));
+TPE_bodyApplyImpulse(body1,p1,collisionNormal);
 }
 
 TPE_Unit TPE_linearVelocityToAngular(TPE_Unit velocity, TPE_Unit distance)
