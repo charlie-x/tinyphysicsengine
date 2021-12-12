@@ -1219,11 +1219,27 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
 
 /*
   TODO:
-    - detect and reject false collisions (body going away from another)
+    - false coll. detection?
+    - coll with static
     - handle small values!!!
+    - handle big values
 */
 
-  TPE_Vec4 v1, v2, p1, p2;
+  if (body2->mass == TPE_INFINITY) // handle static bodies
+  {
+    if (body1->mass == TPE_INFINITY)
+      return; // static-static collision: do nothing
+
+    // switch the bodies so that the static body is always the first one:
+
+    TPE_Body *tmp = body1;
+    body1 = body2;
+    body2 = tmp;
+
+    TPE_vec3MultiplyPlain(collisionNormal,-1,&collisionNormal);
+  }
+
+  TPE_Vec4 p1, p2;
 
   p1 = TPE_vec3Minus(collisionPoint,body1->position);
   p2 = TPE_vec3Minus(collisionPoint,body2->position);
@@ -1231,82 +1247,96 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
   // separate the bodies:
 
   collisionPoint = collisionNormal; // reuse collisionPoint
-  TPE_vec3Multiply(collisionPoint,collisionDepth,&collisionPoint);
-  TPE_vec3Add(body2->position,collisionPoint,&body2->position);
-  TPE_vec3Substract(body1->position,collisionPoint,&body1->position);
 
-// solve the quadratic equation:
+  if (body1->mass != TPE_INFINITY)
+  {
+    TPE_vec3Multiply(collisionPoint,collisionDepth / 2,&collisionPoint);
+    TPE_vec3Add(body2->position,collisionPoint,&body2->position);
+    TPE_vec3Substract(body1->position,collisionPoint,&body1->position);
+  }
+  else
+  {
+    TPE_vec3Multiply(collisionPoint,collisionDepth,&collisionPoint);
+    TPE_vec3Add(body2->position,collisionPoint,&body2->position);
+  }
+  
+  if (TPE_vec3DotProduct(collisionNormal,(TPE_bodyGetPointVelocity(body1,p1))) <
+    TPE_vec3DotProduct(collisionNormal,(TPE_bodyGetPointVelocity(body2,p2))))
+    return; // invalid collision (bodies going away from each other)
 
-TPE_Unit r1 = TPE_bodyGetMaxExtent(body1);
-TPE_Unit w1 = ((((body1->mass * r1) / TPE_FRACTIONS_PER_UNIT) * r1) /
-  TPE_FRACTIONS_PER_UNIT) / 5;
-TPE_Unit q1 = (TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT * 2) / w1;
-TPE_Vec4 nxp1 = TPE_vec3Cross(collisionNormal,p1);
-TPE_Vec4 rot1 =
-  TPE_vec3Times(body1->rotation.axisVelocity,body1->rotation.axisVelocity.w);
+  // solve the quadratic equation (find impulse size that keeps kin. energy):
 
-TPE_Unit r2 = TPE_bodyGetMaxExtent(body2);
-TPE_Unit w2 = ((((body2->mass * r2) / TPE_FRACTIONS_PER_UNIT) * r2) /
-  TPE_FRACTIONS_PER_UNIT) / 5;
-TPE_Unit q2 = (TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT * 2) / w2;
-TPE_Vec4 nxp2 = TPE_vec3Cross(collisionNormal,p2);
-TPE_Vec4 rot2 =
-  TPE_vec3Times(body2->rotation.axisVelocity,body2->rotation.axisVelocity.w);
+  TPE_Unit r1 = TPE_bodyGetMaxExtent(body1);
+  TPE_Unit w1 = ((((body1->mass * r1) / TPE_FRACTIONS_PER_UNIT) * r1) /
+    TPE_FRACTIONS_PER_UNIT) / 5;
+  TPE_Unit q1 = (TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT * 2) / 
+    TPE_nonZero(w1);
+  TPE_Vec4 nxp1 = TPE_vec3Cross(collisionNormal,p1);
+  TPE_Vec4 rot1 =
+    TPE_vec3Times(body1->rotation.axisVelocity,body1->rotation.axisVelocity.w);
 
-TPE_Unit a =
-  (TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT) / body1->mass +
-  (TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT) / body2->mass +
-  (q1 * TPE_vec3DotProduct(nxp1,nxp1) + q2 * TPE_vec3DotProduct(nxp2,nxp2)) / 
-  (2 * TPE_FRACTIONS_PER_UNIT);
+  TPE_Unit r2 = TPE_bodyGetMaxExtent(body2);
+  TPE_Unit w2 = ((((body2->mass * r2) / TPE_FRACTIONS_PER_UNIT) * r2) /
+    TPE_FRACTIONS_PER_UNIT) / 5;
+  TPE_Unit q2 = (TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT * 2) / 
+    TPE_nonZero(w2);
+  TPE_Vec4 nxp2 = TPE_vec3Cross(collisionNormal,p2);
+  TPE_Vec4 rot2 =
+    TPE_vec3Times(body2->rotation.axisVelocity,body2->rotation.axisVelocity.w);
 
-TPE_Unit b =
-  TPE_vec3DotProduct(body2->velocity,collisionNormal) -
-  TPE_vec3DotProduct(body1->velocity,collisionNormal) +
-  TPE_vec3DotProduct(rot2,nxp2) -
-  TPE_vec3DotProduct(rot1,nxp1);
+uint8_t dynamic = body1->mass != TPE_INFINITY;
+
+  // quadratic eq. coefficients:
+
+  TPE_Unit a =
+    (dynamic * TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT) / body1->mass +
+    (TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT) / body2->mass +
+    (dynamic * q1 * TPE_vec3DotProduct(nxp1,nxp1) + q2 * TPE_vec3DotProduct(nxp2,nxp2)) / 
+    (2 * TPE_FRACTIONS_PER_UNIT);
+
+  TPE_Unit b =
+    TPE_vec3DotProduct(body2->velocity,collisionNormal) +
+    TPE_vec3DotProduct(rot2,nxp2) -
+    dynamic * (
+      dynamic * TPE_vec3DotProduct(body1->velocity,collisionNormal) +
+      dynamic * TPE_vec3DotProduct(rot1,nxp1));
  
-TPE_Unit c =
-  (
-    body1->mass * TPE_vec3DotProduct(body1->velocity,body1->velocity) +
-    body2->mass * TPE_vec3DotProduct(body2->velocity,body2->velocity)
-  ) / (2 * TPE_FRACTIONS_PER_UNIT) +
-  (
-    w1 * TPE_vec3DotProduct(rot1,rot1) +
-    w2 * TPE_vec3DotProduct(rot2,rot2)
-  ) / TPE_FRACTIONS_PER_UNIT
-  - TPE_bodyGetKineticEnergy(body1)
-  - TPE_bodyGetKineticEnergy(body2);
+  TPE_Unit c =
+    (
+      dynamic * body1->mass * TPE_vec3DotProduct(body1->velocity,body1->velocity) +
+      body2->mass * TPE_vec3DotProduct(body2->velocity,body2->velocity)
+    ) / (2 * TPE_FRACTIONS_PER_UNIT) +
+    (
+      dynamic * w1 * TPE_vec3DotProduct(rot1,rot1) +
+      w2 * TPE_vec3DotProduct(rot2,rot2)
+    ) / TPE_FRACTIONS_PER_UNIT
+    - dynamic * TPE_bodyGetKineticEnergy(body1)
+    - TPE_bodyGetKineticEnergy(body2);
 
-printf("--- %d %d %d\n",a,b,c);
+  c = TPE_sqrt(b * b - 4 * a * TPE_nonZero(c)); // discriminant
 
-c = // discriminant
-  TPE_sqrt(b * b - 4 * a * c);
+  b *= -1;
+  a *= 2;
 
-b *= -1;
-a *= 2;
+  // solutions:
 
-TPE_Unit x1, x2;
+  TPE_Unit x1, x2;
 
-x1 = ((b - c) * TPE_FRACTIONS_PER_UNIT) / a;
+  x1 = ((b - c) * TPE_FRACTIONS_PER_UNIT) / a;
+  x2 = ((b + c) * TPE_FRACTIONS_PER_UNIT) / a;
 
-x2 = ((b + c) * TPE_FRACTIONS_PER_UNIT) / a;
+  if (TPE_abs(x1) < TPE_abs(x2))
+    x1 = x2; // we take the non-0 solution
 
-printf("%d %d\n",x1,x2);
+  collisionNormal = TPE_vec3Times(collisionNormal,x1);
 
-if (TPE_abs(x1) < TPE_abs(x2))
-  x1 = x2;
+  TPE_bodyApplyImpulse(body2,p2,collisionNormal);
 
-collisionNormal = TPE_vec3Times(collisionNormal,x1);
-
-TPE_PRINTF_VEC4(collisionNormal)
-
-TPE_bodyApplyImpulse(body2,p2,collisionNormal);
-
-TPE_vec3MultiplyPlain(collisionNormal,-1,&collisionNormal);
-TPE_PRINTF_VEC4(collisionNormal)
-printf("\n");
-
-TPE_bodyApplyImpulse(body1,p1,collisionNormal);
+  if (body1->mass != TPE_INFINITY)
+  {
+    TPE_vec3MultiplyPlain(collisionNormal,-1,&collisionNormal);
+    TPE_bodyApplyImpulse(body1,p1,collisionNormal);
+  }
 }
 
 TPE_Unit TPE_linearVelocityToAngular(TPE_Unit velocity, TPE_Unit distance)

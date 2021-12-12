@@ -347,7 +347,9 @@ int main()
 //addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 
   addBody(TPE_SHAPE_CUBOID,1000,1000,1000);
-  addBody(TPE_SHAPE_CUBOID,800,1100,1200);
+  addBody(TPE_SHAPE_CUBOID,1000,3000,3000);
+
+bodies[1].body.mass = TPE_INFINITY;
 
   //-------
   S3L_Model3D models[bodyCount];
@@ -363,13 +365,10 @@ int main()
 
   TPE_Unit frame = 0;
 
-bodies[0].body.position.x = -900;
-bodies[1].body.position.x = 100;
-bodies[1].body.position.z = -100;
 
-bodies[0].body.position = TPE_vec4(900,-950,0,0);
-bodies[1].body.position = TPE_vec4(-925,-550,-100,0);
-bodies[0].body.velocity = TPE_vec4(-50,0,0,0);
+bodies[0].body.position = TPE_vec4(500,-950,0,0);
+bodies[1].body.position = TPE_vec4(-625,-550,-100,0);
+bodies[0].body.velocity = TPE_vec4(10,0,0,0);
 
 //TPE_bodyApplyImpulse(&(bodies[0].body),TPE_vec4(256,0,0,0),TPE_vec4(-1,-1,-1,0));
 
@@ -379,8 +378,8 @@ printf("%d\n",bodies[0].body.rotation.axisVelocity.w);
 
 //bodies[0].body.velocity = TPE_vec4(150,100,0,0);
 
-//TPE_bodySetRotation(&(bodies[0].body),TPE_vec4(0,128,0,0),10);
-//TPE_bodySetRotation( &(bodies[1].body),TPE_vec4(210,50,1,0),5);
+TPE_bodySetRotation(&(bodies[0].body),TPE_vec4(100,128,10,0),10);
+//TPE_bodySetRotation(&(bodies[1].body),TPE_vec4(210,50,1,0),5);
 /*
 TPE_Vec4 quat;
 TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),40,&quat);
@@ -391,7 +390,6 @@ int collided = 0;
 
   while (running)
   {
-
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
       pixels[i] = 0;
 
@@ -420,15 +418,17 @@ for (int i = 0; i < bodyCount; ++i)
     bodies[i].body.velocity.z *= -1;
 }
 
+
+/*
 printf("\nkin. energy: %d\n",
   TPE_bodyGetKineticEnergy(&bodies[0].body) +
   TPE_bodyGetKineticEnergy(&bodies[1].body));
+*/
 
     TPE_Unit collDepth = TPE_bodyCollides(&(bodies[1].body),&(bodies[0].body),&p,&n);
 
     if (collDepth)
     {
-
 
 //if (collided < 1)
 TPE_resolveCollision(&(bodies[1].body),&(bodies[0].body), 
