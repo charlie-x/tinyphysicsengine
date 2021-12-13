@@ -1,0 +1,1 @@
+- replace vec4 with vec3 and save space? is vec4 even needed anywhere lol?
