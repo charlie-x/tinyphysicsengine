@@ -346,10 +346,11 @@ int main()
 //  addBody(TPE_SHAPE_CAPSULE,256,0,0);
 //addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 
-  addBody(TPE_SHAPE_CUBOID,1000,1000,1000);
-  addBody(TPE_SHAPE_CUBOID,600,4000,4000);
+  addBody(TPE_SHAPE_CUBOID,1024,1024,1024);
+  addBody(TPE_SHAPE_CUBOID,1024,1200,1124);
 
-bodies[1].body.mass = TPE_INFINITY;
+bodies[0].body.mass = 3 * TPE_FRACTIONS_PER_UNIT;
+bodies[1].body.mass = 3 * TPE_FRACTIONS_PER_UNIT;//TPE_INFINITY;
 
   //-------
   S3L_Model3D models[bodyCount];
@@ -365,9 +366,9 @@ bodies[1].body.mass = TPE_INFINITY;
 
   TPE_Unit frame = 0;
 
-bodies[0].body.position = TPE_vec4(500,-950,0,0);
-bodies[1].body.position = TPE_vec4(-950,-550,-100,0);
-bodies[0].body.velocity = TPE_vec4(10,0,0,0);
+bodies[0].body.position = TPE_vec4(500,-0,0,0);
+bodies[1].body.position = TPE_vec4(-950,0,0,0);
+bodies[0].body.velocity = TPE_vec4(64,0,0,0);
 
 //TPE_bodyApplyImpulse(&(bodies[0].body),TPE_vec4(256,0,0,0),TPE_vec4(-1,-1,-1,0));
 
@@ -381,7 +382,7 @@ bodies[0].body.velocity = TPE_vec4(10,0,0,0);
 TPE_Vec4 qqq;
 TPE_rotationToQuaternion(TPE_vec4(100,300,50,0),400,&qqq);
 
-TPE_bodySetOrientation(&(bodies[0].body),qqq);
+//TPE_bodySetOrientation(&(bodies[0].body),qqq);
 
 /*
 TPE_Vec4 quat;
@@ -394,7 +395,7 @@ int collided = 0;
   while (running)
   {
 
-bodies[0].body.velocity.x -= 1;
+//bodies[0].body.velocity.x -= 1;
 
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
       pixels[i] = 0;
@@ -424,19 +425,25 @@ for (int i = 0; i < bodyCount; ++i)
     bodies[i].body.velocity.z *= -1;
 }
 
-
+/*
 printf("\nkin. energy: %d\n",
   TPE_bodyGetKineticEnergy(&bodies[0].body) +
   TPE_bodyGetKineticEnergy(&bodies[1].body));
-
+*/
     TPE_Unit collDepth = TPE_bodyCollides(&(bodies[1].body),&(bodies[0].body),&p,&n);
 
     if (collDepth)
     {
 
-//if (collided < 1)
+//if (collided < 3)
+{
 TPE_resolveCollision(&(bodies[1].body),&(bodies[0].body), 
   p,n,collDepth);
+
+printf("\nkin. energy: %d\n",
+  TPE_bodyGetKineticEnergy(&bodies[0].body) +
+  TPE_bodyGetKineticEnergy(&bodies[1].body));
+}
 
 collided++;
 

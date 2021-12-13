@@ -212,6 +212,10 @@ void TPE_bodyGetTransformMatrix(const TPE_Body *body, TPE_Unit matrix[4][4]);
 /** Gets the current orientation of a body as a quaternion. */
 TPE_Vec4 TPE_bodyGetOrientation(const TPE_Body *body);
 
+/** Multiplies the body's kinetic energy, i.e. changes its linear and angular
+  velocity. */
+void TPE_bodyMultiplyKineticEnergy(TPE_Body *body, TPE_Unit f);
+
 void TPE_bodySetOrientation(TPE_Body *body, TPE_Vec4 orientation);
 
 /** Updates the body position and rotation according to its current velocity
@@ -228,16 +232,10 @@ void TPE_bodySetRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity);
   around that axis. */
 void TPE_bodyAddRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity);
 
-/** Applies a velocity change to a body at a specific point (relative to the
-  body center), which will change its linear and/or angular velocity. This is
-  similar to an impulse but doesn't take mass into account, only velocity. */
-void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity);
-  // TODO: DELETE THIS SHIT ^
-
 /** Applies impulse (force in short time) to a body at a specified point
   (relative to its center), which will potentially change its linear and/or
   angular velocity. */
-  void TPE_bodyApplyImpulse(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 impulse);
+void TPE_bodyApplyImpulse(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 impulse);
 
 /** Computes and returns a body's bounding sphere radius, i.e. the maximum
   extent from its center point. */
@@ -594,40 +592,6 @@ void TPE_bodyApplyImpulse(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 impulse)
     impulse.z = (5 * impulse.z * TPE_FRACTIONS_PER_UNIT) / r;   
 
     TPE_bodyAddRotation(body,impulse,TPE_vec3Len(impulse));
-  }
-}
-
-void TPE_bodyApplyVelocity(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 velocity)
-{ 
-  TPE_Unit pointDistance = TPE_vec3Len(point);
-
-  if (pointDistance != 0)  
-  {
-    TPE_Vec4 angularVelocity, rotationAxis;
-  
-    TPE_vec3Add(body->velocity,velocity,&(body->velocity));
-
-    /* normalize the point, we don't use the function as we don't want to    
-       recompute the vector length */
-
-    point.x = (point.x * TPE_FRACTIONS_PER_UNIT) / pointDistance;
-    point.y = (point.y * TPE_FRACTIONS_PER_UNIT) / pointDistance;
-    point.z = (point.z * TPE_FRACTIONS_PER_UNIT) / pointDistance;
-
-    /* Now we take only a part of the applied velocity, the part projected
-       to a plane perpendicular to the point vector, and this part will
-       contribute to the body rotation. */
-
-    TPE_Vec4 tmp;
-
-    TPE_vec3Project(velocity,point,&tmp);
-
-    TPE_vec3Substract(velocity,tmp,&angularVelocity);
-    TPE_vec3CrossProduct(point,angularVelocity,&rotationAxis);
-
-//    TPE_bodyAddRotation(body,rotationAxis,
-//      TPE_linearVelocityToAngular(
-//        TPE_vec3Len(angularVelocity),-1 * pointDistance));
   }
 }
 
@@ -1219,6 +1183,16 @@ TPE_vec3MultiplyPlain(normal,-1,&normal); // TODO: think about WHY
   return TPE_vec3Plus(result,TPE_vec3Times(normal,velocity));
 }
 
+void TPE_bodyMultiplyKineticEnergy(TPE_Body *body, TPE_Unit f)
+{
+
+  f = TPE_sqrt(f * TPE_FRACTIONS_PER_UNIT);
+
+  TPE_vec3Multiply(body->velocity,f,&(body->velocity));
+  body->rotation.axisVelocity.w =
+    (body->rotation.axisVelocity.w * f) / TPE_FRACTIONS_PER_UNIT;
+}
+
 void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2, 
   TPE_Vec4 collisionPoint, TPE_Vec4 collisionNormal, TPE_Unit collisionDepth)
 {
@@ -1230,6 +1204,8 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
     - handle small values!!!
     - handle big values
 */
+
+TPE_Unit energyMultiplier = 512; // MOVE TO PARAM
 
   if (body2->mass == TPE_INFINITY) // handle static bodies
   {
@@ -1272,8 +1248,9 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
 
   // solve the quadratic equation (find impulse size that keeps kin. energy):
 
-  TPE_Unit r1 = TPE_bodyGetMaxExtent(body1);
-  TPE_Unit w1 = ((((body1->mass * r1) / TPE_FRACTIONS_PER_UNIT) * r1) /
+  TPE_Unit tmp = TPE_bodyGetMaxExtent(body1);
+
+  TPE_Unit w1 = ((((body1->mass * tmp) / TPE_FRACTIONS_PER_UNIT) * tmp) /
     TPE_FRACTIONS_PER_UNIT) / 5;
   TPE_Unit q1 = (TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT * 2) / 
     TPE_nonZero(w1);
@@ -1281,8 +1258,8 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
   TPE_Vec4 rot1 =
     TPE_vec3Times(body1->rotation.axisVelocity,body1->rotation.axisVelocity.w);
 
-  TPE_Unit r2 = TPE_bodyGetMaxExtent(body2);
-  TPE_Unit w2 = ((((body2->mass * r2) / TPE_FRACTIONS_PER_UNIT) * r2) /
+  tmp = TPE_bodyGetMaxExtent(body2);
+  TPE_Unit w2 = ((((body2->mass * tmp) / TPE_FRACTIONS_PER_UNIT) * tmp) /
     TPE_FRACTIONS_PER_UNIT) / 5;
   TPE_Unit q2 = (TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT * 2) / 
     TPE_nonZero(w2);
@@ -1292,11 +1269,13 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
 
 uint8_t dynamic = body1->mass != TPE_INFINITY;
 
+// TODO: static doesnt woooork, the equation doesnt converve kin. en!!!!
+
   // quadratic eq. coefficients:
 
   TPE_Unit a =
-    (dynamic * TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT) / body1->mass +
-    (TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT) / body2->mass +
+    ((dynamic * TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT) / body1->mass +
+    (TPE_FRACTIONS_PER_UNIT * TPE_FRACTIONS_PER_UNIT) / body2->mass) / 2 +
     (dynamic * q1 * TPE_vec3DotProduct(nxp1,nxp1) + q2 * TPE_vec3DotProduct(nxp2,nxp2)) / 
     (2 * TPE_FRACTIONS_PER_UNIT);
 
@@ -1304,9 +1283,13 @@ uint8_t dynamic = body1->mass != TPE_INFINITY;
     TPE_vec3DotProduct(body2->velocity,collisionNormal) +
     TPE_vec3DotProduct(rot2,nxp2) -
     dynamic * (
-      dynamic * TPE_vec3DotProduct(body1->velocity,collisionNormal) +
-      dynamic * TPE_vec3DotProduct(rot1,nxp1));
- 
+      TPE_vec3DotProduct(body1->velocity,collisionNormal) +
+      TPE_vec3DotProduct(rot1,nxp1));
+
+  TPE_Unit 
+    e1 = dynamic * TPE_bodyGetKineticEnergy(body1),
+    e2 = TPE_bodyGetKineticEnergy(body2);
+
   TPE_Unit c =
     (
       dynamic * body1->mass * TPE_vec3DotProduct(body1->velocity,body1->velocity) +
@@ -1316,10 +1299,9 @@ uint8_t dynamic = body1->mass != TPE_INFINITY;
       dynamic * w1 * TPE_vec3DotProduct(rot1,rot1) +
       w2 * TPE_vec3DotProduct(rot2,rot2)
     ) / TPE_FRACTIONS_PER_UNIT
-    - dynamic * TPE_bodyGetKineticEnergy(body1)
-    - TPE_bodyGetKineticEnergy(body2);
+    - e1 - e2;
 
-  c = TPE_sqrt(b * b - 4 * a * TPE_nonZero(c)); // discriminant
+  c = TPE_sqrt(b * b - 4 * a * c); // discriminant
 
   b *= -1;
   a *= 2;
@@ -1330,6 +1312,7 @@ uint8_t dynamic = body1->mass != TPE_INFINITY;
 
   x1 = ((b - c) * TPE_FRACTIONS_PER_UNIT) / a;
   x2 = ((b + c) * TPE_FRACTIONS_PER_UNIT) / a;
+printf("%d %d\n",x1,x2);
 
   if (TPE_abs(x1) < TPE_abs(x2))
     x1 = x2; // we take the non-0 solution
@@ -1342,6 +1325,21 @@ uint8_t dynamic = body1->mass != TPE_INFINITY;
   {
     TPE_vec3MultiplyPlain(collisionNormal,-1,&collisionNormal);
     TPE_bodyApplyImpulse(body1,p1,collisionNormal);
+  }
+
+  // we try to correct possible numerical errors:
+
+  e1 = ((TPE_bodyGetKineticEnergy(body1) + 
+    TPE_bodyGetKineticEnergy(body2)) * TPE_FRACTIONS_PER_UNIT) /
+    (e1 + e2);
+
+  energyMultiplier = (energyMultiplier * TPE_FRACTIONS_PER_UNIT) / e1;
+
+  if (energyMultiplier > TPE_FRACTIONS_PER_UNIT + 10 &&
+    energyMultiplier < TPE_FRACTIONS_PER_UNIT - 10)
+  {
+    TPE_bodyMultiplyKineticEnergy(body1,energyMultiplier);
+    TPE_bodyMultiplyKineticEnergy(body2,energyMultiplier);
   }
 }
 
