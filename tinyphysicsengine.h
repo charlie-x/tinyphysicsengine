@@ -265,7 +265,8 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
 TPE_Vec4 TPE_bodyGetPointVelocity(const TPE_Body *body, TPE_Vec4 point);
 
 void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2, 
-  TPE_Vec4 collisionPoint, TPE_Vec4 collisionNormal, TPE_Unit collisionDepth);
+  TPE_Vec4 collisionPoint, TPE_Vec4 collisionNormal, TPE_Unit collisionDepth,
+  TPE_Unit energyMultiplier);
 
 /** Gets a uint16_t integer type of collision depending on two shapes, the order
   of shapes doesn't matter. */
@@ -1194,7 +1195,8 @@ void TPE_bodyMultiplyKineticEnergy(TPE_Body *body, TPE_Unit f)
 }
 
 void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2, 
-  TPE_Vec4 collisionPoint, TPE_Vec4 collisionNormal, TPE_Unit collisionDepth)
+  TPE_Vec4 collisionPoint, TPE_Vec4 collisionNormal, TPE_Unit collisionDepth,
+  TPE_Unit energyMultiplier)
 {
 
 /*
@@ -1204,8 +1206,6 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
     - handle small values!!!
     - handle big values
 */
-
-TPE_Unit energyMultiplier = 512; // MOVE TO PARAM
 
   if (body2->mass == TPE_INFINITY) // handle static bodies
   {
@@ -1246,7 +1246,40 @@ TPE_Unit energyMultiplier = 512; // MOVE TO PARAM
     TPE_vec3DotProduct(collisionNormal,(TPE_bodyGetPointVelocity(body2,p2))))
     return; // invalid collision (bodies going away from each other)
 
-  // solve the quadratic equation (find impulse size that keeps kin. energy):
+  /* We now want to find an impulse I such that if we apply I to body2 and -I
+  to body1, we conserve kinetic energy (or keep as much of it as defined by
+  energyMultiplier). The direction of I is always the direction of
+  collisionNormal, we are only looking for the size of the impulse. We don't
+  have to worry about conserving momentum, it is automatically conserved by us
+  applying the same (but opposite) impulse to both bodies. The equation is
+  constructed as:
+
+  e_out1 + e_out2 - energyMultiplier * (e_in1 + e_in2) = 0
+
+  Where e_in1 (e_in2) is the current kin. energy of body1 (body2) and e_out1
+  (e_out2) is the energy of body1 (body2) AFTER applying impulse I. The
+  unknown (x) in the equation is the size of the impulse. Expanding all this,
+  considering moment of ineartia of a sphere (for simplicity), we get a
+  quadratic equation with coefficients:
+
+  a = 1/(2 * m1) + 1/(2 * m2) + 
+    q1/2 * dot(cross(normal,p1),cross(normal,p1)) +
+    q2/2 * dot(cross(normal,p2),cross(normal,p2))
+
+  b = dot(v2,normal) - dot(v1,normal) + 
+    dot(r2,cross(normal,p2) -
+    dot(r1,cross(normal,p1)
+
+  c = m1/2 * dot(v1,v1) + w1 * dot(r1,r1) +
+    m2/2 * dot(v2,v2) + w2 * dot(r2,r2) - energyMultiplier * (e_in1 + e_in2)
+
+  where
+
+  qn = 5 / (2 * mn * dn)
+  wn = (mn * dn) / 5
+  dn = maximum extent of body n 
+
+  The following code is solving this equation: */
 
   TPE_Unit tmp = TPE_bodyGetMaxExtent(body1);
 
@@ -1267,9 +1300,7 @@ TPE_Unit energyMultiplier = 512; // MOVE TO PARAM
   TPE_Vec4 rot2 =
     TPE_vec3Times(body2->rotation.axisVelocity,body2->rotation.axisVelocity.w);
 
-uint8_t dynamic = body1->mass != TPE_INFINITY;
-
-// TODO: static doesnt woooork, the equation doesnt converve kin. en!!!!
+  uint8_t dynamic = body1->mass != TPE_INFINITY;
 
   // quadratic eq. coefficients:
 
@@ -1299,7 +1330,7 @@ uint8_t dynamic = body1->mass != TPE_INFINITY;
       dynamic * w1 * TPE_vec3DotProduct(rot1,rot1) +
       w2 * TPE_vec3DotProduct(rot2,rot2)
     ) / TPE_FRACTIONS_PER_UNIT
-    - e1 - e2;
+  - (((e1 + e2) * energyMultiplier) / TPE_FRACTIONS_PER_UNIT);
 
   c = TPE_sqrt(b * b - 4 * a * c); // discriminant
 
@@ -1312,7 +1343,8 @@ uint8_t dynamic = body1->mass != TPE_INFINITY;
 
   x1 = ((b - c) * TPE_FRACTIONS_PER_UNIT) / a;
   x2 = ((b + c) * TPE_FRACTIONS_PER_UNIT) / a;
-printf("%d %d\n",x1,x2);
+
+  // here at least one solution (x1 or x2) should be 0 (or close)
 
   if (TPE_abs(x1) < TPE_abs(x2))
     x1 = x2; // we take the non-0 solution
@@ -1331,12 +1363,13 @@ printf("%d %d\n",x1,x2);
 
   e1 = ((TPE_bodyGetKineticEnergy(body1) + 
     TPE_bodyGetKineticEnergy(body2)) * TPE_FRACTIONS_PER_UNIT) /
-    (e1 + e2);
+    TPE_nonZero(e1 + e2);
 
-  energyMultiplier = (energyMultiplier * TPE_FRACTIONS_PER_UNIT) / e1;
+  energyMultiplier = 
+    (energyMultiplier * TPE_FRACTIONS_PER_UNIT) / TPE_nonZero(e1);
 
-  if (energyMultiplier > TPE_FRACTIONS_PER_UNIT + 10 &&
-    energyMultiplier < TPE_FRACTIONS_PER_UNIT - 10)
+  if (energyMultiplier > TPE_FRACTIONS_PER_UNIT + 2 || // TODO: magic const.
+    energyMultiplier < TPE_FRACTIONS_PER_UNIT - 2)
   {
     TPE_bodyMultiplyKineticEnergy(body1,energyMultiplier);
     TPE_bodyMultiplyKineticEnergy(body2,energyMultiplier);
