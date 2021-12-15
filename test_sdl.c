@@ -346,8 +346,8 @@ int main()
 //  addBody(TPE_SHAPE_CAPSULE,256,0,0);
 //addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 
-  addBody(TPE_SHAPE_CUBOID,1024,1024,1024);
-  addBody(TPE_SHAPE_CUBOID,512,3048,3048);
+  addBody(TPE_SHAPE_CUBOID,512,1224,1024);
+  addBody(TPE_SHAPE_CUBOID,4000,512,4000);
 
 bodies[0].body.mass = 3 * TPE_FRACTIONS_PER_UNIT;
 bodies[1].body.mass = TPE_INFINITY;
@@ -366,9 +366,9 @@ bodies[1].body.mass = TPE_INFINITY;
 
   TPE_Unit frame = 0;
 
-bodies[0].body.position = TPE_vec4(500,0,0,0);
-bodies[1].body.position = TPE_vec4(-950,0,0,0);
-bodies[0].body.velocity = TPE_vec4(50,0,0,0);
+bodies[0].body.position = TPE_vec4(0,1600,0,0);
+bodies[1].body.position = TPE_vec4(0,-1000,0,0);
+bodies[0].body.velocity = TPE_vec4(0,-30,0,0);
 
 //TPE_bodyApplyImpulse(&(bodies[0].body),TPE_vec4(256,0,0,0),TPE_vec4(-1,-1,-1,0));
 
@@ -380,7 +380,9 @@ bodies[0].body.velocity = TPE_vec4(50,0,0,0);
 //TPE_bodySetRotation(&(bodies[1].body),TPE_vec4(210,50,1,0),5);
 
 TPE_Vec4 qqq;
-TPE_rotationToQuaternion(TPE_vec4(130,300,50,0),400,&qqq);
+//TPE_rotationToQuaternion(TPE_vec4(80,90,93,0),243,&qqq);
+
+qqq = TPE_vec4(350,270,128,224);
 
 TPE_bodySetOrientation(&(bodies[0].body),qqq);
 
@@ -395,9 +397,8 @@ int collided = 0;
   while (running)
   {
 
-//bodies[0].body.velocity.x -= 1;
 
-bodies[0].body.velocity.x -= 1;
+bodies[0].body.velocity.y -= 1;
 
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
       pixels[i] = 0;
@@ -410,7 +411,7 @@ bodies[0].body.velocity.x -= 1;
 
     TPE_Vec4 p, n;
 
-#define BOUND 1000
+#define BOUND 2000
 
 for (int i = 0; i < bodyCount; ++i)
 {
@@ -432,19 +433,26 @@ printf("\nkin. energy: %d\n",
   TPE_bodyGetKineticEnergy(&bodies[0].body) +
   TPE_bodyGetKineticEnergy(&bodies[1].body));
 */
+/*
+qqq = TPE_bodyGetOrientation(&(bodies[0].body));
+TPE_PRINTF_VEC4(qqq)
+printf("\n");
+*/
     TPE_Unit collDepth = TPE_bodyCollides(&(bodies[1].body),&(bodies[0].body),&p,&n);
 
     if (collDepth)
     {
-
 //if (collided < 3)
 {
-TPE_resolveCollision(&(bodies[1].body),&(bodies[0].body), 
-  p,n,collDepth,512);
 
+TPE_resolveCollision(&(bodies[1].body),&(bodies[0].body), 
+  p,n,collDepth,340);
+
+/*
 printf("\nkin. energy: %d\n",
   TPE_bodyGetKineticEnergy(&bodies[0].body) +
   TPE_bodyGetKineticEnergy(&bodies[1].body));
+*/
 }
 
 collided++;
@@ -525,7 +533,7 @@ TPE_vec3Add
         scene.camera.transform.rotation.y -= SHIFT_STEP;
     }
 
-#define SHIFT_STEP 50
+#define SHIFT_STEP 10
 
     if (state[SDL_SCANCODE_L])
       bodies[1].body.position.x += SHIFT_STEP;

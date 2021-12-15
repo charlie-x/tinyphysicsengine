@@ -971,7 +971,7 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
           0x10, // -+- --- |
           0x34  // ++- +-- |
         };
- 
+
         for (uint8_t j = 0; j < 12; ++j) // for each edge
         {
           // we check the edge against all sides of the other cuboid
@@ -1092,67 +1092,62 @@ TPE_Unit TPE_bodyCollides(const TPE_Body *body1, const TPE_Body *body2,
         collisionPoint->y /= 2;
         collisionPoint->z /= 2;
         collisionPoint->w = 0;
+          
+        /* We'll find the "closest" side to collision point, compute the
+        penetration depth for both bodies (can't do just one) and return the
+        bigger one. */
 
-        // compute the coll. normal as the axis closest to the coll. point
+        TPE_Unit result = -TPE_INFINITY;
 
-        TPE_Vec4 bestAxis = TPE_vec4(1,0,0,0);
-        TPE_Unit bestDot = -1;
-        TPE_Unit currentDot;
+        for (int i = 0; i < 2; ++i) // for each body
+        {
+          TPE_Vec4 bestAxis = TPE_vec4(1,0,0,0);
+          TPE_Unit bestDot = -1;
+          TPE_Unit currentDot;
+                
+          collisionExtentMin = TPE_vec3Minus(*collisionPoint,
+            i == 0 ? body1->position : body2->position); // reuse
 
-        uint8_t currentBody = 0;
-        uint8_t bestBody = 0;
+          #define checkAxis(a) \
+            currentDot = (TPE_vec3DotProduct(a,collisionExtentMin) * TPE_FRACTIONS_PER_UNIT) / \
+              TPE_nonZero(TPE_vec3DotProduct(a,a)); \
+            if (currentDot > bestDot) \
+              { bestDot = currentDot; bestAxis = a; } \
+            else { \
+              currentDot *= -1; \
+              if (currentDot > bestDot) { \
+                bestDot = currentDot; bestAxis = a; \
+                TPE_vec3MultiplyPlain(bestAxis,-1,&bestAxis); } \
+            }
 
-        // TODO: optimize this shit? create array instead of aX1, aX2 etc.?
+          checkAxis(aX1)
+          checkAxis(aY1)
+          checkAxis(aZ1)
 
-        collisionExtentMin = TPE_vec3Minus(*collisionPoint,body1->position); // reuse
+          #undef checkAxis
+                
+          TPE_Unit len = TPE_nonZero(TPE_vec3Len(bestAxis));
 
-        #define checkAxis(a) \
-          currentDot = (TPE_vec3DotProduct(a,collisionExtentMin) * TPE_FRACTIONS_PER_UNIT) / \
-            TPE_nonZero(TPE_vec3DotProduct(a,a)); \
-          if (currentDot > bestDot) \
-            { bestDot = currentDot; bestAxis = a; bestBody = currentBody; } \
-          else { \
-            currentDot *= -1; \
-            if (currentDot > bestDot) { \
-              bestDot = currentDot; bestAxis = a; bestBody = currentBody; \
-              TPE_vec3MultiplyPlain(bestAxis,-1,&bestAxis); } \
+          len = len - TPE_vec3DotProductPlain(bestAxis,
+            TPE_vec3Minus(*collisionPoint,
+            i == 0 ? body1->position : body2->position)) / len;
+
+          if (len > result)
+          {
+            result = len;
+            *collisionNormal = bestAxis;
+            TPE_vec3Normalize(collisionNormal);
+
+            if (i == 0)
+              TPE_vec3MultiplyPlain(*collisionNormal,-1,collisionNormal); 
           }
 
-        checkAxis(aX1)
-        checkAxis(aY1)
-        checkAxis(aZ1)
+          aX1 = aX2; // check the second body's axes in next iteration
+          aY1 = aY2;
+          aZ1 = aZ2;
+        }
 
-        collisionExtentMin = TPE_vec3Minus(*collisionPoint,body2->position);
-
-        currentBody = 1;
-
-        checkAxis(aX2)
-        checkAxis(aY2)
-        checkAxis(aZ2)
-
-        #undef checkAxis
-
-// TODO: optimize/refactor this mess
-
-        *collisionNormal = bestAxis;
-
-        if (bestBody == 0)
-          TPE_vec3MultiplyPlain(*collisionNormal,-1,collisionNormal); 
-
-        TPE_vec3Normalize(collisionNormal);
-
-        TPE_Unit len = TPE_nonZero(TPE_vec3Len(bestAxis));
-
-        TPE_Unit result = len -
-          TPE_vec3DotProductPlain(bestAxis,
-          TPE_vec3Minus(*collisionPoint,
-            bestBody == 0 ? body1->position : body2->position)) / len;
-
-        /* TODO: for some reason negative result is sometimes computed and the
-           next line kind of fixes it, but I don't know why this happens --
-           FIGURE THIS OUT!!! */
-
-        return result >= 1 ? result : result * -1;
+        return result > 1 ? result : 1;
       }
 
       break;
