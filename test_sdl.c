@@ -368,7 +368,7 @@ bodies[1].body.mass = TPE_INFINITY;
 
 bodies[0].body.position = TPE_vec4(0,1600,0,0);
 bodies[1].body.position = TPE_vec4(0,-1000,0,0);
-bodies[0].body.velocity = TPE_vec4(0,-30,0,0);
+bodies[0].body.velocity = TPE_vec4(0,0,0,0);
 
 //TPE_bodyApplyImpulse(&(bodies[0].body),TPE_vec4(256,0,0,0),TPE_vec4(-1,-1,-1,0));
 
@@ -376,7 +376,7 @@ bodies[0].body.velocity = TPE_vec4(0,-30,0,0);
 
 //bodies[0].body.velocity = TPE_vec4(150,100,0,0);
 
-//TPE_bodySetRotation(&(bodies[0].body),TPE_vec4(100,128,10,0),10);
+//TPE_bodySetRotation(&(bodies[0].body),TPE_vec4(0,0,-512,0),1);
 //TPE_bodySetRotation(&(bodies[1].body),TPE_vec4(210,50,1,0),5);
 
 TPE_Vec4 qqq;
@@ -397,8 +397,7 @@ int collided = 0;
   while (running)
   {
 
-
-bodies[0].body.velocity.y -= 1;
+bodies[0].body.velocity.y -= 4;
 
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
       pixels[i] = 0;
@@ -464,7 +463,7 @@ collided++;
       project3DPointToScreen(p2,scene.camera,&scr);
       draw2DPoint(scr.x,scr.y,255,0,0);
 
-      TPE_vec3Multiply(n,collDepth,&n);
+//      TPE_vec3Multiply(n,collDepth,&n);
 
 
 /*

@@ -565,6 +565,10 @@ void TPE_bodyApplyImpulse(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 impulse)
 {
   TPE_Unit pointDistance = TPE_vec3Len(point);
 
+//printf("---\n");
+//TPE_PRINTF_VEC4(impulse)
+//TPE_PRINTF_VEC4(point)
+
   if (pointDistance != 0)  
   {
     impulse.x = (impulse.x * TPE_FRACTIONS_PER_UNIT) / body->mass;
@@ -583,6 +587,7 @@ void TPE_bodyApplyImpulse(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 impulse)
     /* for simplicity we'll suppose angular momentum of a sphere: */
 
     impulse = TPE_vec3Cross(impulse,point);
+//TPE_PRINTF_VEC4(impulse)
 
     TPE_Unit r = TPE_bodyGetMaxExtent(body);
 
@@ -593,7 +598,10 @@ void TPE_bodyApplyImpulse(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 impulse)
     impulse.z = (5 * impulse.z * TPE_FRACTIONS_PER_UNIT) / r;   
 
     TPE_bodyAddRotation(body,impulse,TPE_vec3Len(impulse));
+
+//TPE_PRINTF_VEC4(body->rotation.axisVelocity);
   }
+//printf("\n");
 }
 
 void _TPE_getShapes(const TPE_Body *b1, const TPE_Body *b2, uint8_t shape1,
@@ -1385,8 +1393,11 @@ TPE_Unit TPE_angularVelocityToLinear(TPE_Unit velocity, TPE_Unit distance)
 
 void TPE_bodyStep(TPE_Body *body)
 {
-  TPE_vec3Add(body->position,body->velocity,&(body->position));
-  body->rotation.currentAngle += body->rotation.axisVelocity.w;
+  if (body->mass != TPE_INFINITY)
+  {
+    TPE_vec3Add(body->position,body->velocity,&(body->position));
+    body->rotation.currentAngle += body->rotation.axisVelocity.w;
+  }
 }
 
 void TPE_bodySetRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity)
@@ -1415,6 +1426,8 @@ void TPE_bodyAddRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity)
      magnitude is the rotation speed, then we add these vectors and convert
      the final vector back to normalized rotation axis + scalar rotation 
      speed.*/
+  if (velocity == 0)
+    return;
 
   body->rotation.axisVelocity.x = 
     (body->rotation.axisVelocity.x * body->rotation.axisVelocity.w)
