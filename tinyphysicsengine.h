@@ -89,6 +89,7 @@ TPE_Unit TPE_sin(TPE_Unit x);
 TPE_Unit TPE_cos(TPE_Unit x);
 TPE_Unit TPE_asin(TPE_Unit x);
 TPE_Unit TPE_acos(TPE_Unit x);
+uint8_t TPE_sign(TPE_Unit x);
 
 typedef struct
 {
@@ -565,10 +566,6 @@ void TPE_bodyApplyImpulse(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 impulse)
 {
   TPE_Unit pointDistance = TPE_vec3Len(point);
 
-//printf("---\n");
-//TPE_PRINTF_VEC4(impulse)
-//TPE_PRINTF_VEC4(point)
-
   if (pointDistance != 0)  
   {
     impulse.x = (impulse.x * TPE_FRACTIONS_PER_UNIT) / body->mass;
@@ -587,21 +584,22 @@ void TPE_bodyApplyImpulse(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 impulse)
     /* for simplicity we'll suppose angular momentum of a sphere: */
 
     impulse = TPE_vec3Cross(impulse,point);
-//TPE_PRINTF_VEC4(impulse)
+
+   // impulse = TPE_vec3Cross(impulse,point);
 
     TPE_Unit r = TPE_bodyGetMaxExtent(body);
 
-    r = (2 * r * r) / TPE_FRACTIONS_PER_UNIT;
+    r = TPE_nonZero((2 * r * r) / TPE_FRACTIONS_PER_UNIT);
 
-    impulse.x = (5 * impulse.x * TPE_FRACTIONS_PER_UNIT) / r;   
-    impulse.y = (5 * impulse.y * TPE_FRACTIONS_PER_UNIT) / r;   
-    impulse.z = (5 * impulse.z * TPE_FRACTIONS_PER_UNIT) / r;   
+    impulse.x = (impulse.x * 5 * TPE_FRACTIONS_PER_UNIT) / r;   
+    impulse.y = (impulse.y * 5 * TPE_FRACTIONS_PER_UNIT) / r;   
+    impulse.z = (impulse.z * 5 * TPE_FRACTIONS_PER_UNIT) / r;   
+
+TPE_PRINTF_VEC4(impulse)
+printf("\n");
 
     TPE_bodyAddRotation(body,impulse,TPE_vec3Len(impulse));
-
-//TPE_PRINTF_VEC4(body->rotation.axisVelocity);
   }
-//printf("\n");
 }
 
 void _TPE_getShapes(const TPE_Body *b1, const TPE_Body *b2, uint8_t shape1,
@@ -1189,12 +1187,22 @@ TPE_vec3MultiplyPlain(normal,-1,&normal); // TODO: think about WHY
 
 void TPE_bodyMultiplyKineticEnergy(TPE_Body *body, TPE_Unit f)
 {
-
   f = TPE_sqrt(f * TPE_FRACTIONS_PER_UNIT);
 
   TPE_vec3Multiply(body->velocity,f,&(body->velocity));
+
+  int8_t sign =
+    TPE_sign(body->rotation.axisVelocity.w);
+
   body->rotation.axisVelocity.w =
     (body->rotation.axisVelocity.w * f) / TPE_FRACTIONS_PER_UNIT;
+
+  /* we try to prevent the angular welocity from falling to 0 as that causes
+    issues with gravity */
+
+  if (f > TPE_FRACTIONS_PER_UNIT / 2 &&
+    sign != 0 && body->rotation.axisVelocity.w == 0)
+    body->rotation.axisVelocity.w = sign;
 }
 
 void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2, 
@@ -1402,7 +1410,8 @@ void TPE_bodyStep(TPE_Body *body)
 
 void TPE_bodySetRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity)
 {
-  body->rotation.originalOrientation = TPE_bodyGetOrientation(body);
+  if (body->rotation.currentAngle != 0)
+    body->rotation.originalOrientation = TPE_bodyGetOrientation(body);
 
   if (velocity < 0)
   {
@@ -1991,6 +2000,11 @@ TPE_Unit TPE_timesAntiZero(TPE_Unit a, TPE_Unit b)
 
   return result >= TPE_FRACTIONS_PER_UNIT ?
     result / TPE_FRACTIONS_PER_UNIT : (result != 0 ? 1 : 0);
+}
+
+uint8_t TPE_sign(TPE_Unit x)
+{
+  return x > 0 ? 1 : (x < 0 ? -1 : 0);
 }
 
 #endif // guard

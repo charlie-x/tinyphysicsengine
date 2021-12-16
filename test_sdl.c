@@ -346,10 +346,10 @@ int main()
 //  addBody(TPE_SHAPE_CAPSULE,256,0,0);
 //addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 
-  addBody(TPE_SHAPE_CUBOID,512,1224,1024);
-  addBody(TPE_SHAPE_CUBOID,4000,512,4000);
+  addBody(TPE_SHAPE_CUBOID,2000,2000,2000);
+  addBody(TPE_SHAPE_CUBOID,5000,512,5000);
 
-bodies[0].body.mass = 3 * TPE_FRACTIONS_PER_UNIT;
+bodies[0].body.mass = 20 * TPE_FRACTIONS_PER_UNIT;
 bodies[1].body.mass = TPE_INFINITY;
 
   //-------
@@ -366,7 +366,7 @@ bodies[1].body.mass = TPE_INFINITY;
 
   TPE_Unit frame = 0;
 
-bodies[0].body.position = TPE_vec4(0,1600,0,0);
+bodies[0].body.position = TPE_vec4(0,3000,0,0);
 bodies[1].body.position = TPE_vec4(0,-1000,0,0);
 bodies[0].body.velocity = TPE_vec4(0,0,0,0);
 
@@ -380,9 +380,9 @@ bodies[0].body.velocity = TPE_vec4(0,0,0,0);
 //TPE_bodySetRotation(&(bodies[1].body),TPE_vec4(210,50,1,0),5);
 
 TPE_Vec4 qqq;
-//TPE_rotationToQuaternion(TPE_vec4(80,90,93,0),243,&qqq);
+TPE_rotationToQuaternion(TPE_vec4(80,90,113,0),243,&qqq);
 
-qqq = TPE_vec4(350,270,128,224);
+//qqq = TPE_vec4(350,270,100,224);
 
 TPE_bodySetOrientation(&(bodies[0].body),qqq);
 
@@ -410,7 +410,7 @@ bodies[0].body.velocity.y -= 4;
 
     TPE_Vec4 p, n;
 
-#define BOUND 2000
+#define BOUND 10000
 
 for (int i = 0; i < bodyCount; ++i)
 {
