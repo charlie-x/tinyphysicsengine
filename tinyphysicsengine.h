@@ -1397,7 +1397,8 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
     TPE_nonZero(e1 + e2);
 
   energyMultiplier = 
-    (energyMultiplier * TPE_FRACTIONS_PER_UNIT) / TPE_nonZero(e1);
+    e1 != 0 ?
+      (energyMultiplier * TPE_FRACTIONS_PER_UNIT) / e1 : TPE_FRACTIONS_PER_UNIT;
 
   if (energyMultiplier > TPE_FRACTIONS_PER_UNIT + 2 || // TODO: magic const.
     energyMultiplier < TPE_FRACTIONS_PER_UNIT - 2)

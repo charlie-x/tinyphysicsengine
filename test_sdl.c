@@ -349,7 +349,7 @@ int main()
   addBody(TPE_SHAPE_CUBOID,1500,1500,1500);
   addBody(TPE_SHAPE_CUBOID,5000,512,5000);
 
-bodies[0].body.mass = 10 * TPE_FRACTIONS_PER_UNIT;
+bodies[0].body.mass = TPE_FRACTIONS_PER_UNIT * 3;
 bodies[1].body.mass = TPE_INFINITY;
 
   //-------
@@ -368,7 +368,7 @@ bodies[1].body.mass = TPE_INFINITY;
 
 bodies[0].body.position = TPE_vec4(0,3000,0,0);
 bodies[1].body.position = TPE_vec4(0,-1000,0,0);
-bodies[0].body.velocity = TPE_vec4(0,0,0,0);
+bodies[0].body.velocity = TPE_vec4(0,100,0,0);
 
 //TPE_bodyApplyImpulse(&(bodies[0].body),TPE_vec4(256,0,0,0),TPE_vec4(-1,-1,-1,0));
 
@@ -380,7 +380,7 @@ bodies[0].body.velocity = TPE_vec4(0,0,0,0);
 //TPE_bodySetRotation(&(bodies[1].body),TPE_vec4(210,50,1,0),5);
 
 TPE_Vec4 qqq;
-TPE_rotationToQuaternion(TPE_vec4(80,500,113,0),60,&qqq);
+TPE_rotationToQuaternion(TPE_vec4(80,100,113,0),80,&qqq);
 
 //qqq = TPE_vec4(350,270,100,224);
 
