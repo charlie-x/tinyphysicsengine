@@ -89,7 +89,7 @@ TPE_Unit TPE_sin(TPE_Unit x);
 TPE_Unit TPE_cos(TPE_Unit x);
 TPE_Unit TPE_asin(TPE_Unit x);
 TPE_Unit TPE_acos(TPE_Unit x);
-uint8_t TPE_sign(TPE_Unit x);
+int8_t TPE_sign(TPE_Unit x);
 
 typedef struct
 {
@@ -585,18 +585,35 @@ void TPE_bodyApplyImpulse(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 impulse)
 
     impulse = TPE_vec3Cross(impulse,point);
 
-   // impulse = TPE_vec3Cross(impulse,point);
-
     TPE_Unit r = TPE_bodyGetMaxExtent(body);
 
     r = TPE_nonZero((2 * r * r) / TPE_FRACTIONS_PER_UNIT);
 
+TPE_Vec4 tmp = impulse;
+
+impulse.x = (impulse.x * 5 * TPE_FRACTIONS_PER_UNIT) / r;   
+impulse.y = (impulse.y * 5 * TPE_FRACTIONS_PER_UNIT) / r;   
+impulse.z = (impulse.z * 5 * TPE_FRACTIONS_PER_UNIT) / r;   
+
+if (impulse.x == 0 &&
+  impulse.y == 0 &&
+  impulse.z == 0 &&
+  (
+    tmp.x != 0 ||
+    tmp.y != 0 ||
+    tmp.z != 0
+  ))
+{
+  impulse.x = TPE_sign(tmp.x);
+  impulse.y = TPE_sign(tmp.y);
+  impulse.z = TPE_sign(tmp.z);
+}
+
+/*
     impulse.x = (impulse.x * 5 * TPE_FRACTIONS_PER_UNIT) / r;   
     impulse.y = (impulse.y * 5 * TPE_FRACTIONS_PER_UNIT) / r;   
     impulse.z = (impulse.z * 5 * TPE_FRACTIONS_PER_UNIT) / r;   
-
-TPE_PRINTF_VEC4(impulse)
-printf("\n");
+*/
 
     TPE_bodyAddRotation(body,impulse,TPE_vec3Len(impulse));
   }
@@ -1187,6 +1204,9 @@ TPE_vec3MultiplyPlain(normal,-1,&normal); // TODO: think about WHY
 
 void TPE_bodyMultiplyKineticEnergy(TPE_Body *body, TPE_Unit f)
 {
+  if (body->mass == TPE_INFINITY)
+    return;
+
   f = TPE_sqrt(f * TPE_FRACTIONS_PER_UNIT);
 
   TPE_vec3Multiply(body->velocity,f,&(body->velocity));
@@ -1198,9 +1218,9 @@ void TPE_bodyMultiplyKineticEnergy(TPE_Body *body, TPE_Unit f)
     (body->rotation.axisVelocity.w * f) / TPE_FRACTIONS_PER_UNIT;
 
   /* we try to prevent the angular welocity from falling to 0 as that causes
-    issues with gravity */
+    issues with gravity (bodies balancing on corners) */
 
-  if (f > TPE_FRACTIONS_PER_UNIT / 2 &&
+  if (f != 0 &&
     sign != 0 && body->rotation.axisVelocity.w == 0)
     body->rotation.axisVelocity.w = sign;
 }
@@ -2002,7 +2022,7 @@ TPE_Unit TPE_timesAntiZero(TPE_Unit a, TPE_Unit b)
     result / TPE_FRACTIONS_PER_UNIT : (result != 0 ? 1 : 0);
 }
 
-uint8_t TPE_sign(TPE_Unit x)
+int8_t TPE_sign(TPE_Unit x)
 {
   return x > 0 ? 1 : (x < 0 ? -1 : 0);
 }

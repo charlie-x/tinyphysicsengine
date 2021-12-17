@@ -346,10 +346,10 @@ int main()
 //  addBody(TPE_SHAPE_CAPSULE,256,0,0);
 //addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 
-  addBody(TPE_SHAPE_CUBOID,2000,2000,2000);
+  addBody(TPE_SHAPE_CUBOID,1500,1500,1500);
   addBody(TPE_SHAPE_CUBOID,5000,512,5000);
 
-bodies[0].body.mass = 20 * TPE_FRACTIONS_PER_UNIT;
+bodies[0].body.mass = 10 * TPE_FRACTIONS_PER_UNIT;
 bodies[1].body.mass = TPE_INFINITY;
 
   //-------
@@ -380,7 +380,7 @@ bodies[0].body.velocity = TPE_vec4(0,0,0,0);
 //TPE_bodySetRotation(&(bodies[1].body),TPE_vec4(210,50,1,0),5);
 
 TPE_Vec4 qqq;
-TPE_rotationToQuaternion(TPE_vec4(80,90,113,0),243,&qqq);
+TPE_rotationToQuaternion(TPE_vec4(80,500,113,0),60,&qqq);
 
 //qqq = TPE_vec4(350,270,100,224);
 
@@ -445,7 +445,7 @@ printf("\n");
 {
 
 TPE_resolveCollision(&(bodies[1].body),&(bodies[0].body), 
-  p,n,collDepth,340);
+  p,n,collDepth,300);
 
 /*
 printf("\nkin. energy: %d\n",
