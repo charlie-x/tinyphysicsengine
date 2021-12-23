@@ -70,6 +70,15 @@ typedef int32_t TPE_Unit;
 #define TPE_BODY_FLAG_DISABLED     0x00 ///< won't take part in simul. at all
 #define TPE_BODY_FLAG_NONCOLLIDING 0x01 ///< simulated but won't collide
 
+                                           // anti-vibration constants:
+#define TPE_VIBRATION_MAX_FRAMES     60   /**< after how many frames vibration
+                                             will be stopped */
+#define TPE_VIBRATION_IMPULSE_FRAMES 15   /**< for how long a micro-impulse will
+                                             last for detecting vibration */
+#define TPE_VIBRATION_DEPTH_CANCEL   100  /**< what penetration depth will
+                                             cancel anti-vibration */
+#define TPE_VIBRATION_IMPULSE_LIMIT  100  /**< size limit of a micro-impulse */
+
 TPE_Unit TPE_wrap(TPE_Unit value, TPE_Unit mod);
 TPE_Unit TPE_clamp(TPE_Unit v, TPE_Unit v1, TPE_Unit v2);
 static inline TPE_Unit TPE_abs(TPE_Unit x);
@@ -196,6 +205,10 @@ typedef struct
                                  from which current orientation can be
                                  inferred */
   TPE_Unit boundingSphereRadius;
+
+
+  uint8_t vibrationTime;
+  uint8_t vibrationCountDown;
 } TPE_Body;
 
 /** Initializes a physical body, this should be called on all TPE_Body objects
@@ -518,6 +531,9 @@ void TPE_bodyInit(TPE_Body *body)
   body->mass = TPE_FRACTIONS_PER_UNIT;
 
   body->boundingSphereRadius = 0;
+
+body->vibrationTime = 0;
+body->vibrationCountDown = 0;
 }
 
 void TPE_bodySetOrientation(TPE_Body *body, TPE_Vec4 orientation)
@@ -1273,6 +1289,12 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
     TPE_vec3Add(body2->position,collisionPoint,&body2->position);
   }
 
+  if (collisionDepth >= TPE_VIBRATION_DEPTH_CANCEL)
+  {
+    body1->vibrationCountDown = 0;
+    body2->vibrationCountDown = 0;
+  }
+
   if (TPE_vec3DotProduct(collisionNormal,(TPE_bodyGetPointVelocity(body1,p1))) <
     TPE_vec3DotProduct(collisionNormal,(TPE_bodyGetPointVelocity(body2,p2))))
     return; // invalid collision (bodies going away from each other)
@@ -1382,12 +1404,37 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
 
   collisionNormal = TPE_vec3Times(collisionNormal,x1);
 
-  TPE_bodyApplyImpulse(body2,p2,collisionNormal);
+  if (
+    TPE_abs(collisionNormal.x) < TPE_VIBRATION_IMPULSE_LIMIT &&
+    TPE_abs(collisionNormal.y) < TPE_VIBRATION_IMPULSE_LIMIT &&
+    TPE_abs(collisionNormal.z) < TPE_VIBRATION_IMPULSE_LIMIT)
+  {
+    body1->vibrationCountDown = TPE_VIBRATION_IMPULSE_FRAMES;
+    body2->vibrationCountDown = TPE_VIBRATION_IMPULSE_FRAMES;
+  }
+
+  if (body2->vibrationTime <= TPE_VIBRATION_MAX_FRAMES)
+  {
+    TPE_bodyApplyImpulse(body2,p2,collisionNormal);
+  }
+  else
+  {
+    TPE_bodyMultiplyKineticEnergy(body2,0);
+    body2->vibrationCountDown = TPE_VIBRATION_IMPULSE_FRAMES;
+  }
 
   if (body1->mass != TPE_INFINITY)
   {
-    TPE_vec3MultiplyPlain(collisionNormal,-1,&collisionNormal);
-    TPE_bodyApplyImpulse(body1,p1,collisionNormal);
+    if (body1->vibrationTime <= TPE_VIBRATION_MAX_FRAMES)
+    {
+      TPE_vec3MultiplyPlain(collisionNormal,-1,&collisionNormal);
+      TPE_bodyApplyImpulse(body1,p1,collisionNormal);
+    }
+    else
+    {
+      TPE_bodyMultiplyKineticEnergy(body1,0);
+      body1->vibrationCountDown = TPE_VIBRATION_IMPULSE_FRAMES;
+    }
   }
 
   // we try to correct possible numerical errors:
@@ -1426,6 +1473,16 @@ void TPE_bodyStep(TPE_Body *body)
   {
     TPE_vec3Add(body->position,body->velocity,&(body->position));
     body->rotation.currentAngle += body->rotation.axisVelocity.w;
+  }
+
+  if (body->vibrationCountDown == 0)
+    body->vibrationTime = 0;
+  else
+  {
+    body->vibrationCountDown--;
+
+    if (body->vibrationTime < 255)
+      body->vibrationTime++;
   }
 }
 

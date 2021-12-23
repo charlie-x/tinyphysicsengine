@@ -13,6 +13,9 @@
 #define S3L_STENCIL_BUFFER 0
 #define S3L_Z_BUFFER 1
 
+#define FPS 30
+#define MSPF (1000 / (FPS))
+
 #include "small3dlib.h"
 
 #include "tinyphysicsengine.h"
@@ -368,7 +371,7 @@ bodies[1].body.mass = TPE_INFINITY;
 
 bodies[0].body.position = TPE_vec4(0,3000,0,0);
 bodies[1].body.position = TPE_vec4(0,-1000,0,0);
-bodies[0].body.velocity = TPE_vec4(0,100,0,0);
+bodies[0].body.velocity = TPE_vec4(0,0,0,0);
 
 //TPE_bodyApplyImpulse(&(bodies[0].body),TPE_vec4(256,0,0,0),TPE_vec4(-1,-1,-1,0));
 
@@ -396,6 +399,8 @@ int collided = 0;
 
   while (running)
   {
+
+int time = SDL_GetTicks();
 
 bodies[0].body.velocity.y -= 4;
 
@@ -558,7 +563,10 @@ TPE_vec3Add
     SDL_RenderCopy(renderer,textureSDL,NULL,NULL);
     SDL_RenderPresent(renderer);
 
-    usleep(10000);
+    time = time + MSPF - SDL_GetTicks();
+
+    if (time > 1)
+      usleep(time * 1000);
 
     frame++;
   }
