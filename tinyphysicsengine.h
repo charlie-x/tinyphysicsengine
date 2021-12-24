@@ -70,14 +70,16 @@ typedef int32_t TPE_Unit;
 #define TPE_BODY_FLAG_DISABLED     0x00 ///< won't take part in simul. at all
 #define TPE_BODY_FLAG_NONCOLLIDING 0x01 ///< simulated but won't collide
 
-                                           // anti-vibration constants:
-#define TPE_VIBRATION_MAX_FRAMES     60   /**< after how many frames vibration
+                                          // anti-vibration constants:
+#define TPE_ANTIVIBRATION 1               ///< whether to allow anti vibration
+#define TPE_VIBRATION_MAX_FRAMES     50   /**< after how many frames vibration
                                              will be stopped */
-#define TPE_VIBRATION_IMPULSE_FRAMES 15   /**< for how long a micro-impulse will
+#define TPE_VIBRATION_IMPULSE_FRAMES 10   /**< for how long a micro-impulse will
                                              last for detecting vibration */
 #define TPE_VIBRATION_DEPTH_CANCEL   100  /**< what penetration depth will
                                              cancel anti-vibration */
-#define TPE_VIBRATION_IMPULSE_LIMIT  100  /**< size limit of a micro-impulse */
+#define TPE_VIBRATION_VELOCITY_LIMIT 30   /**< velocity threshold of a
+                                             micro-collision*/
 
 TPE_Unit TPE_wrap(TPE_Unit value, TPE_Unit mod);
 TPE_Unit TPE_clamp(TPE_Unit v, TPE_Unit v1, TPE_Unit v2);
@@ -1295,9 +1297,21 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
     body2->vibrationCountDown = 0;
   }
 
-  if (TPE_vec3DotProduct(collisionNormal,(TPE_bodyGetPointVelocity(body1,p1))) <
-    TPE_vec3DotProduct(collisionNormal,(TPE_bodyGetPointVelocity(body2,p2))))
-    return; // invalid collision (bodies going away from each other)
+  uint8_t microCollision;
+
+  {
+    TPE_Vec4 vel1, vel2;
+
+    vel1 = TPE_bodyGetPointVelocity(body1,p1);
+    vel2 = TPE_bodyGetPointVelocity(body2,p2); 
+
+    microCollision = TPE_vec3Len(TPE_vec3Minus(vel1,vel2)) <= 
+      TPE_VIBRATION_VELOCITY_LIMIT;
+
+    if (TPE_vec3DotProduct(collisionNormal,vel1) <
+      TPE_vec3DotProduct(collisionNormal,vel2))
+      return; // invalid collision (bodies going away from each other)
+  }
 
   /* We now want to find an impulse I such that if we apply I to body2 and -I
   to body1, we conserve kinetic energy (or keep as much of it as defined by
@@ -1404,14 +1418,13 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
 
   collisionNormal = TPE_vec3Times(collisionNormal,x1);
 
-  if (
-    TPE_abs(collisionNormal.x) < TPE_VIBRATION_IMPULSE_LIMIT &&
-    TPE_abs(collisionNormal.y) < TPE_VIBRATION_IMPULSE_LIMIT &&
-    TPE_abs(collisionNormal.z) < TPE_VIBRATION_IMPULSE_LIMIT)
+#if TPE_ANTIVIBRATION
+  if (microCollision)
   {
     body1->vibrationCountDown = TPE_VIBRATION_IMPULSE_FRAMES;
     body2->vibrationCountDown = TPE_VIBRATION_IMPULSE_FRAMES;
   }
+#endif
 
   if (body2->vibrationTime <= TPE_VIBRATION_MAX_FRAMES)
   {
