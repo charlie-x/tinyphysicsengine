@@ -71,7 +71,7 @@ typedef int32_t TPE_Unit;
 #define TPE_BODY_FLAG_NONCOLLIDING 0x01 ///< simulated but won't collide
 
                                           // anti-vibration constants:
-#define TPE_ANTIVIBRATION 1               ///< whether to allow anti vibration
+#define TPE_ANTIVIBRATION 0               ///< whether to allow anti vibration
 #define TPE_VIBRATION_MAX_FRAMES     50   /**< after how many frames vibration
                                              will be stopped */
 #define TPE_VIBRATION_IMPULSE_FRAMES 10   /**< for how long a micro-impulse will
