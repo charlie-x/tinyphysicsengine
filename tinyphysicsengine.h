@@ -677,15 +677,22 @@ void _TPE_getCapsuleCyllinderEndpoints(const TPE_Body *body,
 void _TPE_cutLineSegmentByPlanes(TPE_Vec4 center, TPE_Vec4 sideOffset, 
   TPE_Vec4 lineStart, TPE_Vec4 lineDir, TPE_Unit *t1, TPE_Unit *t2)
 {
+  // we shift the center to [0,0,0] to simplify and prevent overflows
+
+  lineStart = TPE_vec3Minus(lineStart,center);
+
+//center = TPE_vec4(0,0,0,0);
+
+
   TPE_Unit da = TPE_vec3DotProductPlain(sideOffset,lineStart);
 
   TPE_Vec4 dc;
 
   dc.z = 0;
 
-  // TODO: dor(d,dc) could be cached for all sides between calls to save recomputing
+  // TODO: dot(d,dc) could be cached for all sides between calls to save recomputing
 
-  dc = TPE_vec3Plus(center,sideOffset);
+  dc = sideOffset;
 
   TPE_Unit denom = TPE_nonZero(TPE_vec3DotProductPlain(sideOffset,lineDir));
 
@@ -696,7 +703,7 @@ void _TPE_cutLineSegmentByPlanes(TPE_Vec4 center, TPE_Vec4 sideOffset,
 
   tAntiOverflow(tA)  
 
-  dc = TPE_vec3Minus(center,sideOffset);
+  TPE_vec3MultiplyPlain(sideOffset,-1,&dc);
 
   tAntiOverflow(tB)
 

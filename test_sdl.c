@@ -349,8 +349,8 @@ int main()
 //  addBody(TPE_SHAPE_CAPSULE,256,0,0);
 //addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 
-  addBody(TPE_SHAPE_CUBOID,500,1500,500);
-  addBody(TPE_SHAPE_CUBOID,5000,512,5000);
+  addBody(TPE_SHAPE_CUBOID,3000,3000,3000);
+  addBody(TPE_SHAPE_CUBOID,15000,512,15000);
 
 bodies[0].body.mass = TPE_FRACTIONS_PER_UNIT * 3;
 bodies[1].body.mass = TPE_INFINITY;
@@ -537,7 +537,7 @@ TPE_vec3Add
         scene.camera.transform.rotation.y -= SHIFT_STEP;
     }
 
-#define SHIFT_STEP 10
+#define SHIFT_STEP 50
 
     if (state[SDL_SCANCODE_L])
       bodies[1].body.position.x += SHIFT_STEP;
