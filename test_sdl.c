@@ -389,11 +389,9 @@ TPE_rotationToQuaternion(TPE_vec4(80,100,113,0),80,&qqq);
 
 TPE_bodySetOrientation(&(bodies[0].body),qqq);
 
-/*
 TPE_Vec4 quat;
 TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),40,&quat);
 TPE_bodySetOrientation(&(bodies[0].body),quat);
-*/
 
 int collided = 0;
 
