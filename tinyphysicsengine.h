@@ -71,14 +71,14 @@ typedef int32_t TPE_Unit;
 #define TPE_BODY_FLAG_NONCOLLIDING 0x01 ///< simulated but won't collide
 
                                           // anti-vibration constants:
-#define TPE_ANTIVIBRATION 0               ///< whether to allow anti vibration
-#define TPE_VIBRATION_MAX_FRAMES     50   /**< after how many frames vibration
+#define TPE_ANTIVIBRATION 1               ///< whether to allow anti vibration
+#define TPE_VIBRATION_MAX_FRAMES     60   /**< after how many frames vibration
                                              will be stopped */
-#define TPE_VIBRATION_IMPULSE_FRAMES 10   /**< for how long a micro-impulse will
+#define TPE_VIBRATION_IMPULSE_FRAMES 5    /**< for how long a micro-impulse will
                                              last for detecting vibration */
 #define TPE_VIBRATION_DEPTH_CANCEL   100  /**< what penetration depth will
                                              cancel anti-vibration */
-#define TPE_VIBRATION_VELOCITY_LIMIT 30   /**< velocity threshold of a
+#define TPE_VIBRATION_VELOCITY_LIMIT 40   /**< velocity threshold of a
                                              micro-collision*/
 
 TPE_Unit TPE_wrap(TPE_Unit value, TPE_Unit mod);
@@ -262,6 +262,12 @@ TPE_Unit TPE_bodyGetMaxExtent(const TPE_Body *body);
   accurate as, for simplicity, we operate with the moment of inertia of sphere
   for all bodies (when in reality moment of inertia depends on shape). */
 TPE_Unit TPE_bodyGetKineticEnergy(const TPE_Body *body);
+
+/** Attempts to correct rounding errors in the total energy of a system of two
+  bodies after collision, given the initial energy and desired restitution
+  (fraction of energy that should remain after the collision). */
+void TPE_correctEnergies(TPE_Body *body1, TPE_Body *body2,
+  TPE_Unit previousEnergy, TPE_Unit restitution);
 
 /** Collision detection: checks if two bodies are colliding. The return value is
   the collision depth along the collision normal (0 if the bodies are not
@@ -1232,6 +1238,7 @@ void TPE_bodyMultiplyKineticEnergy(TPE_Body *body, TPE_Unit f)
   if (body->mass == TPE_INFINITY)
     return;
 
+  TPE_vec3Multiply(body->velocity,f,&(body->velocity));
   f = TPE_sqrt(f * TPE_FRACTIONS_PER_UNIT);
 
   TPE_vec3Multiply(body->velocity,f,&(body->velocity));
@@ -1248,6 +1255,40 @@ void TPE_bodyMultiplyKineticEnergy(TPE_Body *body, TPE_Unit f)
   if (f != 0 &&
     sign != 0 && body->rotation.axisVelocity.w == 0)
     body->rotation.axisVelocity.w = sign;
+}
+
+void TPE_correctEnergies(TPE_Body *body1, TPE_Body *body2,
+  TPE_Unit previousEnergy, TPE_Unit restitution)
+{
+  if (previousEnergy == 0)
+    return;
+
+  int8_t r = restitution > TPE_FRACTIONS_PER_UNIT ?
+    1 : (restitution < TPE_FRACTIONS_PER_UNIT ? -1 : 0);
+
+  TPE_Unit newEnergy = TPE_bodyGetKineticEnergy(body1) + 
+      TPE_bodyGetKineticEnergy(body2);
+
+  TPE_Unit f = (newEnergy * TPE_FRACTIONS_PER_UNIT) /
+    previousEnergy;
+
+  restitution = (f != 0) ?
+    (restitution * TPE_FRACTIONS_PER_UNIT) / f : 
+    TPE_FRACTIONS_PER_UNIT;
+
+  if (restitution > TPE_FRACTIONS_PER_UNIT + 2 || // TODO: magic const.
+      restitution < TPE_FRACTIONS_PER_UNIT -2)
+  {
+    f = (previousEnergy * restitution) / TPE_FRACTIONS_PER_UNIT;
+
+    if ((r < 0 && f < previousEnergy) ||
+        (r == 0 && f == previousEnergy) ||
+        (r > 0 && f > previousEnergy))
+    {
+      TPE_bodyMultiplyKineticEnergy(body1,restitution);
+      TPE_bodyMultiplyKineticEnergy(body2,restitution);
+    } 
+  }
 }
 
 void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2, 
@@ -1459,20 +1500,7 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
 
   // we try to correct possible numerical errors:
 
-  e1 = ((TPE_bodyGetKineticEnergy(body1) + 
-    TPE_bodyGetKineticEnergy(body2)) * TPE_FRACTIONS_PER_UNIT) /
-    TPE_nonZero(e1 + e2);
-
-  energyMultiplier = 
-    e1 != 0 ?
-      (energyMultiplier * TPE_FRACTIONS_PER_UNIT) / e1 : TPE_FRACTIONS_PER_UNIT;
-
-  if (energyMultiplier > TPE_FRACTIONS_PER_UNIT + 2 || // TODO: magic const.
-    energyMultiplier < TPE_FRACTIONS_PER_UNIT - 2)
-  {
-    TPE_bodyMultiplyKineticEnergy(body1,energyMultiplier);
-    TPE_bodyMultiplyKineticEnergy(body2,energyMultiplier);
-  }
+  TPE_correctEnergies(body1,body2,e1 + e2,energyMultiplier);
 }
 
 TPE_Unit TPE_linearVelocityToAngular(TPE_Unit velocity, TPE_Unit distance)

@@ -349,7 +349,7 @@ int main()
 //  addBody(TPE_SHAPE_CAPSULE,256,0,0);
 //addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 
-  addBody(TPE_SHAPE_CUBOID,3000,3000,3000);
+  addBody(TPE_SHAPE_CUBOID,3000,2000,1000);
   addBody(TPE_SHAPE_CUBOID,15000,512,15000);
 
 bodies[0].body.mass = TPE_FRACTIONS_PER_UNIT * 3;
@@ -415,7 +415,7 @@ bodies[0].body.velocity.y -= 4;
 
     TPE_Vec4 p, n;
 
-#define BOUND 10000
+#define BOUND 100000
 
 for (int i = 0; i < bodyCount; ++i)
 {
@@ -437,6 +437,7 @@ printf("\nkin. energy: %d\n",
   TPE_bodyGetKineticEnergy(&bodies[0].body) +
   TPE_bodyGetKineticEnergy(&bodies[1].body));
 */
+
 /*
 qqq = TPE_bodyGetOrientation(&(bodies[0].body));
 TPE_PRINTF_VEC4(qqq)
@@ -510,9 +511,10 @@ TPE_vec3Add
 
     S3L_Vec4 camF, camR;
  
-    S3L_rotationToDirections(scene.camera.transform.rotation,20,&camF,&camR,0);
+#define SHIFT_STEP 50
+#define ROT_STEP 5
 
-#define SHIFT_STEP 5
+    S3L_rotationToDirections(scene.camera.transform.rotation,SHIFT_STEP,&camF,&camR,0);
 
     if (state[SDL_SCANCODE_LSHIFT])
     {
@@ -528,13 +530,13 @@ TPE_vec3Add
     else
     {
       if (state[SDL_SCANCODE_UP])
-        scene.camera.transform.rotation.x += SHIFT_STEP;
+        scene.camera.transform.rotation.x += ROT_STEP;
       else if (state[SDL_SCANCODE_DOWN])
-        scene.camera.transform.rotation.x -= SHIFT_STEP;
+        scene.camera.transform.rotation.x -= ROT_STEP;
       else if (state[SDL_SCANCODE_LEFT])
-        scene.camera.transform.rotation.y += SHIFT_STEP;
+        scene.camera.transform.rotation.y += ROT_STEP;
       else if (state[SDL_SCANCODE_RIGHT])
-        scene.camera.transform.rotation.y -= SHIFT_STEP;
+        scene.camera.transform.rotation.y -= ROT_STEP;
     }
 
 #define SHIFT_STEP 50
