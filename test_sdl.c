@@ -349,7 +349,7 @@ int main()
 //  addBody(TPE_SHAPE_CAPSULE,256,0,0);
 //addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 
-  addBody(TPE_SHAPE_CUBOID,3000,2000,1000);
+  addBody(TPE_SHAPE_CUBOID,2000,2000,2000);
   addBody(TPE_SHAPE_CUBOID,15000,512,15000);
 
 bodies[0].body.mass = TPE_FRACTIONS_PER_UNIT * 3;
@@ -383,15 +383,17 @@ bodies[0].body.velocity = TPE_vec4(0,0,0,0);
 //TPE_bodySetRotation(&(bodies[1].body),TPE_vec4(210,50,1,0),5);
 
 TPE_Vec4 qqq;
-TPE_rotationToQuaternion(TPE_vec4(80,100,113,0),80,&qqq);
+TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),64,&qqq);
 
 //qqq = TPE_vec4(350,270,100,224);
 
 TPE_bodySetOrientation(&(bodies[0].body),qqq);
 
+/*
 TPE_Vec4 quat;
-TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),40,&quat);
-TPE_bodySetOrientation(&(bodies[0].body),quat);
+TPE_rotationToQuaternion(TPE_vec4(0,0,255,0),255,&quat);
+TPE_bodySetOrientation(&(bodies[1].body),quat);
+*/
 
 int collided = 0;
 
