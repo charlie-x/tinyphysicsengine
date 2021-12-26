@@ -72,8 +72,8 @@ typedef int32_t TPE_Unit;
 
                                           // anti-vibration constants:
 #define TPE_ANTI_VIBRATION_MAX_FRAMES     100
-#define TPE_ANTI_VIBRATION_INCREMENT      10
-#define TPE_ANTI_VIBRATION_VELOCITY_BREAK 50 
+#define TPE_ANTI_VIBRATION_INCREMENT      20
+#define TPE_ANTI_VIBRATION_VELOCITY_BREAK 60 
 
 TPE_Unit TPE_wrap(TPE_Unit value, TPE_Unit mod);
 TPE_Unit TPE_clamp(TPE_Unit v, TPE_Unit v1, TPE_Unit v2);
