@@ -352,7 +352,7 @@ int main()
   addBody(TPE_SHAPE_CUBOID,2000,2000,2000);
   addBody(TPE_SHAPE_CUBOID,15000,512,15000);
 
-bodies[0].body.mass = TPE_FRACTIONS_PER_UNIT * 3;
+bodies[0].body.mass = TPE_FRACTIONS_PER_UNIT * 10;
 bodies[1].body.mass = TPE_INFINITY;
 
   //-------
