@@ -1,1 +1,8 @@
-- replace vec4 with vec3 and save space? is vec4 even needed anywhere lol?
+- Would be nice if we could typefef TPE_Vec4 as TPE_Unit[4] and TPE_Vec3 as
+  TPE_Unit[3] to save the space (many operations just use vec4 as vec3 and waste
+  space with the unused w component) -- and we can, but function then can't
+  return these types :((( THINK ABOUT THIS
+- BETTER VIBRATION HANDLING: there are issues, e.g. body stabilizes on a platform,
+  then the platform moves underneath it and it doesn't fall over the edge, or a
+  quickly moving body micro-colliding with floor will be stopped (create an
+  energy threshold)
