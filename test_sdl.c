@@ -253,33 +253,39 @@ const S3L_Index sphereTriangleIndices[SPHERE_TRIANGLE_COUNT * 3] = {
 
 typedef struct
 {
-  TPE_Body body;
-  S3L_Model3D model;
   S3L_Mat4 matrix;
   S3L_Mat4 scaleMatrix;
-} GraphicalBody;
+} BodyModelExtra;
 
 int bodyCount = 0;
-GraphicalBody bodies[1024];
 
 S3L_Scene scene;
+S3L_Model3D models[1024];
 
-void addBody(uint8_t shape, TPE_Unit param1, TPE_Unit param2, TPE_Unit param3)
+TPE_World world;
+TPE_Body bodies[1024];
+
+BodyModelExtra extra[1024];
+
+void addBody(uint8_t shape, TPE_Unit mass, TPE_Unit param1, TPE_Unit param2, TPE_Unit param3)
 {
-  GraphicalBody *b = &(bodies[bodyCount]);
-  bodyCount++;
+  BodyModelExtra e;
+  TPE_Body b;
+  S3L_Model3D m;
 
-  TPE_bodyInit(&(b->body));
+  TPE_bodyInit(&b);
 
-  b->body.shape = shape;
-  b->body.shapeParams[0] = param1;
-  b->body.shapeParams[1] = param2;
-  b->body.shapeParams[2] = param3;
+  b.shape = shape;
+  b.mass = mass;
+  b.shapeParams[0] = param1;
+  b.shapeParams[1] = param2;
+  b.shapeParams[2] = param3;
 
-  TPE_bodyRecomputeBounds(&b->body);
+  TPE_bodyRecomputeBounds(&b);
 
   const S3L_Unit *v;
   const S3L_Index *t;
+
   S3L_Index vc, tc;
   S3L_Unit sx = S3L_FRACTIONS_PER_UNIT, sy = S3L_FRACTIONS_PER_UNIT, sz = S3L_FRACTIONS_PER_UNIT;
 
@@ -312,26 +318,36 @@ void addBody(uint8_t shape, TPE_Unit param1, TPE_Unit param2, TPE_Unit param3)
       break;
   }
 
-  S3L_initModel3D(v,vc,t,tc,&(b->model));
-  S3L_makeScaleMatrix(sx,sy,sz,b->scaleMatrix);
+  S3L_initModel3D(v,vc,t,tc,&m);
+  S3L_makeScaleMatrix(sx,sy,sz,e.scaleMatrix);
 
-  S3L_initMat4(b->matrix);
-  b->model.customTransformMatrix = &(b->matrix);
+  S3L_initMat4(e.matrix);
+  extra[bodyCount] = e;
+
+  m.customTransformMatrix = &(extra[bodyCount].matrix);
+
+  bodies[bodyCount] = b;
+  models[bodyCount] = m;
+
+  scene.modelCount++;
+  world.bodyCount++;
+
+  bodyCount++;
 }
 
 void updateBodies()
 {
   for (int i = 0; i < bodyCount; ++i)
   {
-    GraphicalBody *b = &(bodies[i]);
+    BodyModelExtra *e = &(extra[i]);
 
-    TPE_bodyStep(&(b->body));
+    TPE_bodyStep(&(bodies[i]));
     
     S3L_Mat4 m;
 
-    TPE_bodyGetTransformMatrix(&(b->body),m);
-    S3L_copyMat4(b->scaleMatrix,b->matrix);
-    S3L_mat4Xmat4(b->matrix,m);
+    TPE_bodyGetTransformMatrix(&(bodies[i]),m);
+    S3L_copyMat4(e->scaleMatrix,e->matrix);
+    S3L_mat4Xmat4(e->matrix,m);
   }
 }
 
@@ -349,29 +365,23 @@ int main()
 //  addBody(TPE_SHAPE_CAPSULE,256,0,0);
 //addBody(TPE_SHAPE_CAPSULE,300,1024,0);
 
-  addBody(TPE_SHAPE_CUBOID,500,3000,3000);
-  addBody(TPE_SHAPE_CUBOID,15000,512,15000);
-
-bodies[0].body.mass = TPE_FRACTIONS_PER_UNIT;
-bodies[1].body.mass = TPE_INFINITY;
-
   //-------
-  S3L_Model3D models[bodyCount];
 
-  for (int i = 0; i < bodyCount; ++i)
-    models[i] = bodies[i].model;
-
-  S3L_Scene scene;
-  S3L_initScene(models,bodyCount,&scene);
+  S3L_initScene(models,0,&scene);
+  TPE_worldInit(&world);
+  world.bodies = bodies;
   
+  addBody(TPE_SHAPE_CUBOID,1024,100,2000,3000);
+  addBody(TPE_SHAPE_CUBOID,TPE_INFINITY,15000,1000,15000);
+ 
   scene.camera.transform.translation.z = -8 * S3L_FRACTIONS_PER_UNIT;
   //-------
 
   TPE_Unit frame = 0;
 
-bodies[0].body.position = TPE_vec4(0,3000,0,0);
-bodies[1].body.position = TPE_vec4(0,-1000,0,0);
-bodies[0].body.velocity = TPE_vec4(0,0,0,0);
+bodies[0].position = TPE_vec4(0,3000,0,0);
+bodies[1].position = TPE_vec4(0,-1000,0,0);
+bodies[0].velocity = TPE_vec4(0,0,0,0);
 
 //TPE_bodyApplyImpulse(&(bodies[0].body),TPE_vec4(256,0,0,0),TPE_vec4(-1,-1,-1,0));
 
@@ -383,11 +393,11 @@ bodies[0].body.velocity = TPE_vec4(0,0,0,0);
 //TPE_bodySetRotation(&(bodies[1].body),TPE_vec4(210,50,1,0),5);
 
 TPE_Vec4 qqq;
-TPE_rotationToQuaternion(TPE_vec4(0,100,255,0),64,&qqq);
+TPE_rotationToQuaternion(TPE_vec4(0,100,255,0),50,&qqq);
 
 //qqq = TPE_vec4(350,270,100,224);
 
-TPE_bodySetOrientation(&(bodies[0].body),qqq);
+TPE_bodySetOrientation(&(bodies[0]),qqq);
 
 /*
 TPE_Vec4 quat;
@@ -402,7 +412,7 @@ int collided = 0;
 
 int time = SDL_GetTicks();
 
-bodies[0].body.velocity.y -= 4;
+bodies[0].velocity.y -= 4;
 
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
       pixels[i] = 0;
@@ -419,6 +429,7 @@ bodies[0].body.velocity.y -= 4;
 
 for (int i = 0; i < bodyCount; ++i)
 {
+/*
   if (bodies[i].body.position.x > BOUND ||
     bodies[i].body.position.x < -BOUND)
     bodies[i].body.velocity.x *= -1;
@@ -430,6 +441,7 @@ for (int i = 0; i < bodyCount; ++i)
   if (bodies[i].body.position.z > BOUND ||
     bodies[i].body.position.z < -BOUND)
     bodies[i].body.velocity.z *= -1;
+*/
 }
 
 /*
@@ -443,14 +455,14 @@ qqq = TPE_bodyGetOrientation(&(bodies[0].body));
 TPE_PRINTF_VEC4(qqq)
 printf("\n");
 */
-    TPE_Unit collDepth = TPE_bodyCollides(&(bodies[1].body),&(bodies[0].body),&p,&n);
+    TPE_Unit collDepth = TPE_bodyCollides(&(bodies[1]),&(bodies[0]),&p,&n);
 
     if (collDepth)
     {
 //if (collided < 3)
 {
 
-TPE_resolveCollision(&(bodies[1].body),&(bodies[0].body), 
+TPE_resolveCollision(&(bodies[1]),&(bodies[0]), 
   p,n,collDepth,300);
 
 /*
@@ -542,17 +554,17 @@ TPE_vec3Add
 #define SHIFT_STEP 50
 
     if (state[SDL_SCANCODE_L])
-      bodies[1].body.position.x += SHIFT_STEP;
+      bodies[1].position.x += SHIFT_STEP;
     else if (state[SDL_SCANCODE_J])
-      bodies[1].body.position.x -= SHIFT_STEP;
+      bodies[1].position.x -= SHIFT_STEP;
     else if (state[SDL_SCANCODE_I])
-      bodies[1].body.position.z += SHIFT_STEP;
+      bodies[1].position.z += SHIFT_STEP;
     else if (state[SDL_SCANCODE_K])
-      bodies[1].body.position.z -= SHIFT_STEP;
+      bodies[1].position.z -= SHIFT_STEP;
     else if (state[SDL_SCANCODE_N])
-      bodies[1].body.position.y += SHIFT_STEP;
+      bodies[1].position.y += SHIFT_STEP;
     else if (state[SDL_SCANCODE_M])
-      bodies[1].body.position.y -= SHIFT_STEP;
+      bodies[1].position.y -= SHIFT_STEP;
   
     if (state[SDL_SCANCODE_P])
       scene.camera.transform.translation.y += SHIFT_STEP;

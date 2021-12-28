@@ -179,6 +179,8 @@ typedef struct
                                    orientation)  */
 } TPE_RotationState;
 
+/** Represents a physical rigid body that has certain attributes such as a
+  specific shape or mass. */
 typedef struct
 {
   uint8_t shape;
@@ -289,11 +291,14 @@ void TPE_resolveCollision(TPE_Body *body1 ,TPE_Body *body2,
   (((uint16_t) (shape1)) << 8) | (shape2) : \
   (((uint16_t) (shape2)) << 8) | (shape1))
 
+/** Represents a world consisting of physics bodies. */
 typedef struct
 {
-  uint16_t bodyCount;
-  TPE_Body *bodies;
-} TPE_PhysicsWorld;
+  TPE_Body *bodies;    ///< array of bodies
+  uint16_t bodyCount;  ///< length of the body array
+} TPE_World;
+
+TPE_worldInit(TPE_World *world);
 
 /** Multiplies two quaternions which can be seen as chaining two rotations
   represented by them. This is not commutative (a*b != b*a)! Rotations a is
@@ -1267,8 +1272,8 @@ void TPE_correctEnergies(TPE_Body *body1, TPE_Body *body2,
     (restitution * TPE_FRACTIONS_PER_UNIT) / f : 
     TPE_FRACTIONS_PER_UNIT;
 
-  if (restitution > TPE_FRACTIONS_PER_UNIT + 2 || // TODO: magic const.
-      restitution < TPE_FRACTIONS_PER_UNIT -2)
+  if (restitution > TPE_FRACTIONS_PER_UNIT + 10 || // TODO: magic const.
+      restitution < TPE_FRACTIONS_PER_UNIT -10)
   {
     f = (previousEnergy * restitution) / TPE_FRACTIONS_PER_UNIT;
 
@@ -2120,6 +2125,11 @@ TPE_Unit TPE_timesAntiZero(TPE_Unit a, TPE_Unit b)
 int8_t TPE_sign(TPE_Unit x)
 {
   return x > 0 ? 1 : (x < 0 ? -1 : 0);
+}
+
+TPE_worldInit(TPE_World *world)
+{
+  world->bodyCount = 0;
 }
 
 #endif // guard
