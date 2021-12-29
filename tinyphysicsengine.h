@@ -247,6 +247,8 @@ void TPE_bodyAddRotation(TPE_Body *body, TPE_Vec4 axis, TPE_Unit velocity);
   angular velocity. */
 void TPE_bodyApplyImpulse(TPE_Body *body, TPE_Vec4 point, TPE_Vec4 impulse);
 
+void TPE_attractBodies(TPE_Body *body1, TPE_Body *body2, TPE_Unit acceleration);
+
 /** Computes and returns a body's bounding sphere radius, i.e. the maximum
   extent from its center point. */
 TPE_Unit TPE_bodyGetMaxExtent(const TPE_Body *body);
@@ -301,6 +303,7 @@ typedef struct
 TPE_worldInit(TPE_World *world);
 TPE_worldStepBodies(TPE_World *world);
 TPE_worldApplyGravityDown(TPE_World *world, TPE_Unit g);
+TPE_worldApplyGravityCenter(TPE_World *world, TPE_Vec4 center, TPE_Unit g);
 TPE_worldResolveCollisionNaive(TPE_World *world);
 
 /** Multiplies two quaternions which can be seen as chaining two rotations
@@ -330,6 +333,9 @@ TPE_Vec4 TPE_quaternionConjugate(TPE_Vec4 quaternion);
 void TPE_quaternionToRotationMatrix(TPE_Vec4 quaternion, TPE_Unit matrix[4][4]);
 
 void TPE_rotatePoint(TPE_Vec4 *point, TPE_Vec4 quaternion);
+
+TPE_Vec4 TPE_createVecFromTo(TPE_Vec4 pointFrom, TPE_Vec4 pointTo, 
+  TPE_Unit size);
 
 void TPE_getVelocitiesAfterCollision(
   TPE_Unit *v1,
@@ -2141,6 +2147,13 @@ TPE_worldStepBodies(TPE_World *world)
     TPE_bodyStep(&(world->bodies[i]));
 }
 
+TPE_Vec4 TPE_createVecFromTo(TPE_Vec4 pointFrom, TPE_Vec4 pointTo, 
+  TPE_Unit size)
+{
+  return TPE_vec3Times(TPE_vec3Normalized(
+    TPE_vec3Minus(pointTo,pointFrom)),size);
+}
+
 TPE_worldApplyGravityDown(TPE_World *world, TPE_Unit g)
 {
   TPE_Body *b = world->bodies;
@@ -2149,6 +2162,20 @@ TPE_worldApplyGravityDown(TPE_World *world, TPE_Unit g)
   {
     if (b->mass != TPE_INFINITY)
       b->velocity.y -= g;
+
+    b++;
+  }
+}
+
+TPE_worldApplyGravityCenter(TPE_World *world, TPE_Vec4 center, TPE_Unit g)
+{
+  TPE_Body *b = world->bodies;
+
+  for (uint16_t i = 0; i < world->bodyCount; ++i)
+  {
+    if (b->mass != TPE_INFINITY)
+      b->velocity = TPE_vec3Plus(b->velocity,TPE_createVecFromTo(
+        b->position,center,g));
 
     b++;
   }
@@ -2166,17 +2193,28 @@ TPE_worldResolveCollisionNaive(TPE_World *world)
 
     for (uint16_t j = i + 1; j < world->bodyCount; ++j)
     {
-      if (b1->mass == TPE_INFINITY && b2->mass == TPE_INFINITY)
-        continue;
+      if (b1->mass != TPE_INFINITY || b2->mass != TPE_INFINITY)
+      {
+        TPE_Unit d = TPE_bodyCollides(b1,b2,&p,&n);
 
-      TPE_Unit d = TPE_bodyCollides(b1,b2,&p,&n);
+        if (d)
+          TPE_resolveCollision(b1,b2,p,n,d,300);
+      }
 
-      if (d)
-        TPE_resolveCollision(b1,b2,p,n,d,300);
+      b2++;
     }
 
     b1++;
   }
+}
+
+void TPE_attractBodies(TPE_Body *body1, TPE_Body *body2, TPE_Unit acceleration)
+{
+  TPE_Vec4 direction = TPE_createVecFromTo(body2->position,body1->position,
+    acceleration);
+
+  body2->velocity = TPE_vec3Plus(body2->velocity,direction);
+  body1->velocity = TPE_vec3Minus(body1->velocity,direction);
 }
 
 #endif // guard

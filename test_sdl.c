@@ -369,8 +369,9 @@ int main()
   TPE_worldInit(&world);
   world.bodies = bodies;
   
-  addBody(TPE_SHAPE_CUBOID,1024,100,2000,3000);
-  addBody(TPE_SHAPE_CUBOID,TPE_INFINITY,15000,1000,15000);
+  addBody(TPE_SHAPE_CUBOID,1024,1000,2000,3000);
+  addBody(TPE_SHAPE_CUBOID,1024,1500,1000,1500);
+  addBody(TPE_SHAPE_CUBOID,1024,1000,1000,1500);
  
   scene.camera.transform.translation.z = -8 * S3L_FRACTIONS_PER_UNIT;
   //-------
@@ -380,6 +381,7 @@ int main()
 bodies[0].position = TPE_vec4(0,3000,0,0);
 bodies[1].position = TPE_vec4(0,-1000,0,0);
 bodies[0].velocity = TPE_vec4(0,0,0,0);
+bodies[2].position.x = 2000;
 
 //TPE_bodyApplyImpulse(&(bodies[0].body),TPE_vec4(256,0,0,0),TPE_vec4(-1,-1,-1,0));
 
@@ -411,7 +413,10 @@ int time;
 
 time = SDL_GetTicks();
 
-    TPE_worldApplyGravityDown(&world,4);
+
+//TPE_attractBodies(&bodies[0],&bodies[1],4);
+//    TPE_worldApplyGravityDown(&world,4);
+    TPE_worldApplyGravityCenter(&world,TPE_vec4(0,0,0,0),4);
 
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
       pixels[i] = 0;
