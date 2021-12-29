@@ -299,6 +299,9 @@ typedef struct
 } TPE_World;
 
 TPE_worldInit(TPE_World *world);
+TPE_worldStepBodies(TPE_World *world);
+TPE_worldApplyGravityDown(TPE_World *world, TPE_Unit g);
+TPE_worldResolveCollisionNaive(TPE_World *world);
 
 /** Multiplies two quaternions which can be seen as chaining two rotations
   represented by them. This is not commutative (a*b != b*a)! Rotations a is
@@ -2130,6 +2133,50 @@ int8_t TPE_sign(TPE_Unit x)
 TPE_worldInit(TPE_World *world)
 {
   world->bodyCount = 0;
+}
+
+TPE_worldStepBodies(TPE_World *world)
+{
+  for (uint16_t i = 0; i < world->bodyCount; ++i)
+    TPE_bodyStep(&(world->bodies[i]));
+}
+
+TPE_worldApplyGravityDown(TPE_World *world, TPE_Unit g)
+{
+  TPE_Body *b = world->bodies;
+
+  for (uint16_t i = 0; i < world->bodyCount; ++i)
+  {
+    if (b->mass != TPE_INFINITY)
+      b->velocity.y -= g;
+
+    b++;
+  }
+}
+
+TPE_worldResolveCollisionNaive(TPE_World *world)
+{
+  TPE_Body *b1 = world->bodies;
+
+  for (uint16_t i = 0; i < world->bodyCount - 1; ++i)
+  {
+    TPE_Body *b2 = &(world->bodies[i + 1]);
+
+    TPE_Vec4 p, n;
+
+    for (uint16_t j = i + 1; j < world->bodyCount; ++j)
+    {
+      if (b1->mass == TPE_INFINITY && b2->mass == TPE_INFINITY)
+        continue;
+
+      TPE_Unit d = TPE_bodyCollides(b1,b2,&p,&n);
+
+      if (d)
+        TPE_resolveCollision(b1,b2,p,n,d,300);
+    }
+
+    b1++;
+  }
 }
 
 #endif // guard

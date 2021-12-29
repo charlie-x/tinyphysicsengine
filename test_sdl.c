@@ -341,8 +341,6 @@ void updateBodies()
   {
     BodyModelExtra *e = &(extra[i]);
 
-    TPE_bodyStep(&(bodies[i]));
-    
     S3L_Mat4 m;
 
     TPE_bodyGetTransformMatrix(&(bodies[i]),m);
@@ -406,18 +404,21 @@ TPE_bodySetOrientation(&(bodies[1].body),quat);
 */
 
 int collided = 0;
+int time;
 
   while (running)
   {
 
-int time = SDL_GetTicks();
+time = SDL_GetTicks();
 
-bodies[0].velocity.y -= 4;
+    TPE_worldApplyGravityDown(&world,4);
 
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
       pixels[i] = 0;
 
     S3L_newFrame();
+
+    TPE_worldStepBodies(&world);
 
     updateBodies();
 
@@ -455,6 +456,9 @@ qqq = TPE_bodyGetOrientation(&(bodies[0].body));
 TPE_PRINTF_VEC4(qqq)
 printf("\n");
 */
+TPE_worldResolveCollisionNaive(&world);
+
+#if 0
     TPE_Unit collDepth = TPE_bodyCollides(&(bodies[1]),&(bodies[0]),&p,&n);
 
     if (collDepth)
@@ -465,12 +469,12 @@ printf("\n");
 TPE_resolveCollision(&(bodies[1]),&(bodies[0]), 
   p,n,collDepth,300);
 
-/*
 printf("\nkin. energy: %d\n",
   TPE_bodyGetKineticEnergy(&bodies[0].body) +
   TPE_bodyGetKineticEnergy(&bodies[1].body));
-*/
 }
+*/
+
 
 collided++;
 
@@ -505,6 +509,8 @@ TPE_vec3Add
       project3DPointToScreen(p2,scene.camera,&scr);
       draw2DPoint(scr.x,scr.y,255,255,255);
     }
+#endif
+
 
     SDL_UpdateTexture(textureSDL,NULL,pixels,S3L_RESOLUTION_X * sizeof(uint32_t));
 
