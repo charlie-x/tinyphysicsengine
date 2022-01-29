@@ -300,11 +300,11 @@ typedef struct
   uint16_t bodyCount;  ///< length of the body array
 } TPE_World;
 
-TPE_worldInit(TPE_World *world);
-TPE_worldStepBodies(TPE_World *world);
-TPE_worldApplyGravityDown(TPE_World *world, TPE_Unit g);
-TPE_worldApplyGravityCenter(TPE_World *world, TPE_Vec4 center, TPE_Unit g);
-TPE_worldResolveCollisionNaive(TPE_World *world);
+void TPE_worldInit(TPE_World *world);
+void TPE_worldStepBodies(TPE_World *world);
+void TPE_worldApplyGravityDown(TPE_World *world, TPE_Unit g);
+void TPE_worldApplyGravityCenter(TPE_World *world, TPE_Vec4 center, TPE_Unit g);
+void TPE_worldResolveCollisionNaive(TPE_World *world);
 
 /** Multiplies two quaternions which can be seen as chaining two rotations
   represented by them. This is not commutative (a*b != b*a)! Rotations a is
@@ -1296,6 +1296,7 @@ void TPE_correctEnergies(TPE_Body *body1, TPE_Body *body2,
   }
 }
 
+/** Return 0 if the body is vibrating. */
 uint8_t _TPE_bodyUpdateAntivibration(TPE_Body *body)
 {
   uint8_t tmp = body->antiVibration & 0x7f;
@@ -2136,12 +2137,12 @@ int8_t TPE_sign(TPE_Unit x)
   return x > 0 ? 1 : (x < 0 ? -1 : 0);
 }
 
-TPE_worldInit(TPE_World *world)
+void TPE_worldInit(TPE_World *world)
 {
   world->bodyCount = 0;
 }
 
-TPE_worldStepBodies(TPE_World *world)
+void TPE_worldStepBodies(TPE_World *world)
 {
   for (uint16_t i = 0; i < world->bodyCount; ++i)
     TPE_bodyStep(&(world->bodies[i]));
@@ -2154,7 +2155,7 @@ TPE_Vec4 TPE_createVecFromTo(TPE_Vec4 pointFrom, TPE_Vec4 pointTo,
     TPE_vec3Minus(pointTo,pointFrom)),size);
 }
 
-TPE_worldApplyGravityDown(TPE_World *world, TPE_Unit g)
+void TPE_worldApplyGravityDown(TPE_World *world, TPE_Unit g)
 {
   TPE_Body *b = world->bodies;
 
@@ -2167,7 +2168,7 @@ TPE_worldApplyGravityDown(TPE_World *world, TPE_Unit g)
   }
 }
 
-TPE_worldApplyGravityCenter(TPE_World *world, TPE_Vec4 center, TPE_Unit g)
+void TPE_worldApplyGravityCenter(TPE_World *world, TPE_Vec4 center, TPE_Unit g)
 {
   TPE_Body *b = world->bodies;
 
@@ -2181,7 +2182,7 @@ TPE_worldApplyGravityCenter(TPE_World *world, TPE_Vec4 center, TPE_Unit g)
   }
 }
 
-TPE_worldResolveCollisionNaive(TPE_World *world)
+void TPE_worldResolveCollisionNaive(TPE_World *world)
 {
   TPE_Body *b1 = world->bodies;
 
