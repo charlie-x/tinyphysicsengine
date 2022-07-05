@@ -1,6 +1,15 @@
 #ifndef _TINYPHYSICSENGINE_H
 #define _TINYPHYSICSENGINE_H
 
+/**
+
+  Orientations/rotations are in extrinsic Euler angles in the ZXY order (by Z,
+  then by X, then by Y).
+
+  Where it matters (e.g. rotations about axes) we consider a left-handed coord.
+  system (x right, y up, z forward).
+*/
+
 #include <stdint.h>
 
 typedef int32_t TPE_Unit;
@@ -113,6 +122,11 @@ TPE_Vec3 TPE_vec3Times(TPE_Vec3 v, TPE_Unit units);
 TPE_Vec3 TPE_vec3TimesNonNormalized(TPE_Vec3 v, TPE_Unit q);
 TPE_Vec3 TPE_vec3Normalized(TPE_Vec3 v);
 
+/* Computes orientation/rotation (see docs for orientation format) from two
+  vectors (which should be at least a close to being perpensicular and do NOT
+  need to be normalized). */
+TPE_Vec3 TPE_orientationFromVecs(TPE_Vec3 forward, TPE_Vec3 right);
+
 TPE_Unit TPE_vec3Dot(TPE_Vec3 v1, TPE_Vec3 v2);
 
 TPE_Unit TPE_sqrt(TPE_Unit value);
@@ -204,8 +218,14 @@ void TPE_bodyRotate(TPE_Body *body, TPE_Vec3 rotation);
 /** Compute the center of mass of a soft body. */
 TPE_Vec3 TPE_bodyGetCenter(const TPE_Body *body);
 
-TPE_Unit TPE_cos(TPE_Unit x);
+/** Compute sine, TPE_FRACTIONS_PER_UNIT as argument corresponds to 2 * PI
+  radians. Returns a number from -TPE_FRACTIONS_PER_UNIT to
+  TPE_FRACTIONS_PER_UNIT. */
 TPE_Unit TPE_sin(TPE_Unit x);
+
+TPE_Unit TPE_cos(TPE_Unit x);
+
+TPE_Unit TPE_atan(TPE_Unit x);
 
 //------------------------------------------------------------------------------
 
@@ -1108,6 +1128,101 @@ TPE_Vec3 TPE_vec3Normalized(TPE_Vec3 v)
 {
   TPE_vec3Normalize(&v);
   return v;
+}
+
+TPE_Unit TPE_atan(TPE_Unit x)
+{
+  /* atan approximation by polynomial 
+     WARNING: this will break with different value of TPE_FRACTIONS_PER_UNIT */
+
+  TPE_Unit sign = 1, x2 = x * x;
+
+  if (x < 0)
+  {
+    x *= -1;
+    sign = -1;
+  }
+
+  return sign *
+    (307 * x + x2) / ((267026 + 633 * x + x2) / 128);
+}
+
+void _TPE_vec2Rotate(TPE_Unit *x, TPE_Unit *y, TPE_Unit angle)
+{
+  TPE_Unit tmp = *x;
+
+  TPE_Unit s = TPE_sin(angle);
+  TPE_Unit c = TPE_cos(angle);
+
+  *x = (c * *x - s * *y) / TPE_FRACTIONS_PER_UNIT;
+  *y = (s * tmp + c * *y) / TPE_FRACTIONS_PER_UNIT;
+}
+
+TPE_Unit _TPE_vec2Angle(TPE_Unit x, TPE_Unit y)
+{
+  TPE_Unit r = 0;
+
+  if (x != 0)
+  {
+    r = TPE_atan((y * TPE_FRACTIONS_PER_UNIT) / x);
+
+    if (x < 0)
+      r += TPE_FRACTIONS_PER_UNIT / 2;
+    else if (r < 0)
+      r = TPE_FRACTIONS_PER_UNIT + r;
+  }
+  else
+  {
+    if (y < 0)
+      r = (3 * TPE_FRACTIONS_PER_UNIT) / 4;
+    else if (y > 0)
+      r = TPE_FRACTIONS_PER_UNIT / 4;
+    // else (y == 0) r stays 0
+  }
+
+  return r;
+}
+
+TPE_Vec3 TPE_orientationFromVecs(TPE_Vec3 forward, TPE_Vec3 right)
+{
+  TPE_Vec3 result;
+
+  // get rotation around Y:
+
+  result.y = 
+    (TPE_FRACTIONS_PER_UNIT - _TPE_vec2Angle(forward.z,forward.x)) %
+    TPE_FRACTIONS_PER_UNIT;
+
+  // now rotate back by this angle to align with x = 0 plane:
+
+  _TPE_vec2Rotate(&forward.z,&forward.x,result.y);
+  _TPE_vec2Rotate(&right.z,&right.x,result.y);
+
+  // now do the same for the second axis:
+
+  result.x = 
+    (TPE_FRACTIONS_PER_UNIT - _TPE_vec2Angle(forward.z,forward.y)) %
+    TPE_FRACTIONS_PER_UNIT;
+
+_TPE_vec2Rotate(&forward.z,&forward.y,result.x);
+
+
+printf("aaa:");
+TPE_PRINTF_VEC3(forward);
+TPE_PRINTF_VEC3(right);
+printf("\n");
+
+  _TPE_vec2Rotate(&right.z,&right.y,result.x);
+
+
+  result.z = 
+    (TPE_FRACTIONS_PER_UNIT - _TPE_vec2Angle(right.x,right.y)) %
+    TPE_FRACTIONS_PER_UNIT;
+
+
+
+  return result;
+
 }
 
 #endif // guard

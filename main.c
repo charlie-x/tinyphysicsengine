@@ -2,6 +2,7 @@
 
 #include "tinyphysicsengine.h"
 #include <SDL2/SDL.h>
+#include <math.h>
 
 #define S3L_RESOLUTION_X 640
 #define S3L_RESOLUTION_Y 480
@@ -317,6 +318,23 @@ const S3L_Index sphereTriangleIndices[SPHERE_TRIANGLE_COUNT * 3] = {
 
 int main(void)
 {
+
+/*
+TPE_Vec3 rrr = 
+TPE_orientationFromVecs(
+
+  TPE_vec3(0,0,100),
+  TPE_vec3(100,100,0)
+
+);
+
+printf("result:\n");
+TPE_PRINTF_VEC3(rrr);
+
+
+return 0;
+*/
+
   SDL_Window *window = SDL_CreateWindow("test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, S3L_RESOLUTION_X, S3L_RESOLUTION_Y, SDL_WINDOW_SHOWN); 
   SDL_Renderer *renderer = SDL_CreateRenderer(window,-1,0);
   SDL_Texture *textureSDL = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBX8888, SDL_TEXTUREACCESS_STATIC, S3L_RESOLUTION_X, S3L_RESOLUTION_Y);
@@ -462,6 +480,14 @@ for (int i = 0; i < world.bodyCount; ++i)
 
     S3L_rotationToDirections(sphereScene.camera.transform.rotation,SHIFT_STEP,&camF,&camR,0);
 
+TPE_Vec3 rrr = TPE_orientationFromVecs(
+  TPE_vec3(camF.x,camF.y,camF.z),
+  TPE_vec3(camR.x,camR.y,camR.z)
+);
+
+TPE_PRINTF_VEC3(rrr);
+putchar('\n');
+
     if (state[SDL_SCANCODE_LSHIFT])
     {
       if (state[SDL_SCANCODE_UP])
@@ -483,6 +509,10 @@ for (int i = 0; i < world.bodyCount; ++i)
         sphereScene.camera.transform.rotation.y += ROT_STEP;
       else if (state[SDL_SCANCODE_RIGHT])
         sphereScene.camera.transform.rotation.y -= ROT_STEP;
+      else if (state[SDL_SCANCODE_K])
+        sphereScene.camera.transform.rotation.z += ROT_STEP;
+      else if (state[SDL_SCANCODE_L])
+        sphereScene.camera.transform.rotation.z -= ROT_STEP;
     }
 
 if (state[SDL_SCANCODE_M])
