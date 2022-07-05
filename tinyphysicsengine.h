@@ -436,9 +436,9 @@ void TPE_makeBox(TPE_Joint joints[8], TPE_Connection connections[16],
   for (uint8_t i = 0; i < 8; ++i)
     joints[i] = TPE_joint( 
       TPE_vec3(  
-        (i % 2) ? -1 * width : width,
-        ((i >> 1) % 2) ? -1 * height : height,
-        ((i >> 2) % 2) ? -1 * depth : depth),
+        (i % 2) ? width : (-1 * width),
+        ((i >> 2) % 2) ? height : (-1 * height),
+        ((i >> 1) % 2) ? depth : (-1 * depth)),
       jointSize);
 
   C(0, 0,1) C(1, 1,3) C(2, 3,2) C(3, 2,0)  // top
@@ -1143,6 +1143,9 @@ TPE_Unit TPE_atan(TPE_Unit x)
     sign = -1;
   }
 
+  if (x > 30000) // anti overflow
+    return sign * (TPE_FRACTIONS_PER_UNIT / 4);
+
   return sign *
     (307 * x + x2) / ((267026 + 633 * x + x2) / 128);
 }
@@ -1169,7 +1172,7 @@ TPE_Unit _TPE_vec2Angle(TPE_Unit x, TPE_Unit y)
     if (x < 0)
       r += TPE_FRACTIONS_PER_UNIT / 2;
     else if (r < 0)
-      r = TPE_FRACTIONS_PER_UNIT + r;
+      r += TPE_FRACTIONS_PER_UNIT;
   }
   else
   {
@@ -1189,9 +1192,7 @@ TPE_Vec3 TPE_orientationFromVecs(TPE_Vec3 forward, TPE_Vec3 right)
 
   // get rotation around Y:
 
-  result.y = 
-    (TPE_FRACTIONS_PER_UNIT - _TPE_vec2Angle(forward.z,forward.x)) %
-    TPE_FRACTIONS_PER_UNIT;
+  result.y = _TPE_vec2Angle(forward.z,-1 * forward.x);
 
   // now rotate back by this angle to align with x = 0 plane:
 
@@ -1201,28 +1202,13 @@ TPE_Vec3 TPE_orientationFromVecs(TPE_Vec3 forward, TPE_Vec3 right)
   // now do the same for the second axis:
 
   result.x = 
-    (TPE_FRACTIONS_PER_UNIT - _TPE_vec2Angle(forward.z,forward.y)) %
-    TPE_FRACTIONS_PER_UNIT;
+    _TPE_vec2Angle(forward.z,forward.y);
 
-_TPE_vec2Rotate(&forward.z,&forward.y,result.x);
+  _TPE_vec2Rotate(&right.z,&right.y,-1 * result.x);
 
-
-printf("aaa:");
-TPE_PRINTF_VEC3(forward);
-TPE_PRINTF_VEC3(right);
-printf("\n");
-
-  _TPE_vec2Rotate(&right.z,&right.y,result.x);
-
-
-  result.z = 
-    (TPE_FRACTIONS_PER_UNIT - _TPE_vec2Angle(right.x,right.y)) %
-    TPE_FRACTIONS_PER_UNIT;
-
-
+  result.z = _TPE_vec2Angle(right.x,-1 * right.y);
 
   return result;
-
 }
 
 #endif // guard

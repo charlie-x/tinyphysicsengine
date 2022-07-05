@@ -19,6 +19,10 @@
 TPE_World world;
 TPE_Body bodies[128];
 
+S3L_Unit cubeVertices[] = { S3L_CUBE_VERTICES(1600) };  
+S3L_Index cubeTriangles[] = { S3L_CUBE_TRIANGLES };
+S3L_Model3D cube;
+
 uint8_t pixels[PIXELS_SIZE];
 
 uint8_t red = 100;
@@ -106,6 +110,20 @@ void drawLine(int x1, int y1, int x2, int y2, int r, int g, int b)
 }
 
 S3L_Scene sphereScene;
+
+void draw3DLine(int x1, int y1, int z1, int x2, int y2, int z2)
+{
+  S3L_Vec4 p1, p2, r1, r2;
+
+  S3L_vec4Set(&p1,x1,y1,z1,0);
+  S3L_vec4Set(&p2,x2,y2,z2,0);
+
+  S3L_project3DPointToScreen(p1,sphereScene.camera,&r1);
+  S3L_project3DPointToScreen(p2,sphereScene.camera,&r2);
+
+  if (r1.z > 0 && r2.z > 0)
+    drawLine(r1.x,r1.y,r2.x,r2.y,200,100,200);
+}
 
 void drawSphere(S3L_Unit x, S3L_Unit y, S3L_Unit z, S3L_Unit r)
 {
@@ -318,23 +336,6 @@ const S3L_Index sphereTriangleIndices[SPHERE_TRIANGLE_COUNT * 3] = {
 
 int main(void)
 {
-
-/*
-TPE_Vec3 rrr = 
-TPE_orientationFromVecs(
-
-  TPE_vec3(0,0,100),
-  TPE_vec3(100,100,0)
-
-);
-
-printf("result:\n");
-TPE_PRINTF_VEC3(rrr);
-
-
-return 0;
-*/
-
   SDL_Window *window = SDL_CreateWindow("test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, S3L_RESOLUTION_X, S3L_RESOLUTION_Y, SDL_WINDOW_SHOWN); 
   SDL_Renderer *renderer = SDL_CreateRenderer(window,-1,0);
   SDL_Texture *textureSDL = SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBX8888, SDL_TEXTUREACCESS_STATIC, S3L_RESOLUTION_X, S3L_RESOLUTION_Y);
@@ -347,6 +348,9 @@ return 0;
 
   S3L_model3DInit(sphereVertices,SPHERE_VERTEX_COUNT,sphereTriangleIndices,
     SPHERE_TRIANGLE_COUNT,&sphereModel);
+
+  S3L_model3DInit(cubeVertices,S3L_CUBE_VERTEX_COUNT,cubeTriangles,
+    S3L_CUBE_TRIANGLE_COUNT,&cube);
 
   S3L_sceneInit(&sphereModel,1,&sphereScene);
   
@@ -400,13 +404,13 @@ switch (3)
 TPE_worldInit(&world,bodies,1,environmentDistance);
 
 
-TPE_bodyMove(world.bodies,TPE_vec3(-400,-100,0));
+TPE_bodyMove(world.bodies,TPE_vec3(-800,-300,0));
 TPE_bodyMove(&world.bodies[1],TPE_vec3(400,100,1));
 
 TPE_bodyStop(world.bodies);
 TPE_bodyStop(world.bodies + 1);
 
-TPE_bodyRotate(world.bodies,TPE_vec3(0,0,200));
+//TPE_bodyRotate(world.bodies,TPE_vec3(0,0,200));
 
 
 
@@ -451,14 +455,6 @@ m /= 16;
 
 
 
-drawEnv(TPE_vec3(-100,-100,-100),100,5);
-
-for (int i = 0; i < world.bodyCount; ++i)
-  drawBody(&(world.bodies[i]),100 * i);
-
-
-
-    SDL_UpdateTexture(textureSDL,NULL,pixels,S3L_RESOLUTION_X * sizeof(uint32_t));
 
     while (SDL_PollEvent(&event))
     {
@@ -478,15 +474,46 @@ for (int i = 0; i < world.bodyCount; ++i)
 #define SHIFT_STEP 50
 #define ROT_STEP 5
 
-    S3L_rotationToDirections(sphereScene.camera.transform.rotation,SHIFT_STEP,&camF,&camR,0);
+   S3L_rotationToDirections(sphereScene.camera.transform.rotation,SHIFT_STEP,&camF,&camR,0);
 
-TPE_Vec3 rrr = TPE_orientationFromVecs(
-  TPE_vec3(camF.x,camF.y,camF.z),
-  TPE_vec3(camR.x,camR.y,camR.z)
-);
+TPE_Vec3 forw = TPE_vec3Minus( 
+  bodies[0].joints[2].position,
+  bodies[0].joints[0].position);
 
-TPE_PRINTF_VEC3(rrr);
-putchar('\n');
+TPE_Vec3 righ = TPE_vec3Minus( 
+  bodies[0].joints[0].position,
+  bodies[0].joints[1].position);
+
+TPE_Vec3 rrrr = TPE_orientationFromVecs(forw,righ);
+
+cube.transform.rotation.x = rrrr.x;
+cube.transform.rotation.y = rrrr.y;
+cube.transform.rotation.z = rrrr.z;
+
+TPE_Vec3 ppp = TPE_bodyGetCenter(&bodies[0]);
+
+cube.transform.translation.x = ppp.x;
+cube.transform.translation.y = ppp.y;
+cube.transform.translation.z = ppp.z;
+
+
+drawEnv(TPE_vec3(-100,-100,-100),100,5);
+
+for (int i = 0; i < world.bodyCount; ++i)
+  drawBody(&(world.bodies[i]),100 * i);
+
+
+sphereScene.models = &cube;
+S3L_newFrame();
+S3L_drawScene(sphereScene);
+sphereScene.models = &sphereModel;
+
+draw3DLine(0,0,0,forw.x,forw.y,forw.z);
+draw3DLine(0,0,0,righ.x,righ.y,righ.z);
+
+    SDL_UpdateTexture(textureSDL,NULL,pixels,S3L_RESOLUTION_X * sizeof(uint32_t));
+
+
 
     if (state[SDL_SCANCODE_LSHIFT])
     {
@@ -519,7 +546,7 @@ if (state[SDL_SCANCODE_M])
 {
   TPE_bodyWake(world.bodies);
 
-  TPE_bodySpin(bodies,TPE_vec3(100,400,20));
+  TPE_bodySpin(bodies,TPE_vec3(50,40,100));
 
   TPE_bodyAccelerate(bodies,TPE_vec3(
    500,
