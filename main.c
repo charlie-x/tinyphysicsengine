@@ -19,7 +19,7 @@
 TPE_World world;
 TPE_Body bodies[128];
 
-S3L_Unit cubeVertices[] = { S3L_CUBE_VERTICES(1600) };  
+S3L_Unit cubeVertices[] = { S3L_CUBE_VERTICES(1024) };  
 S3L_Index cubeTriangles[] = { S3L_CUBE_TRIANGLES };
 S3L_Model3D cube;
 
@@ -27,15 +27,8 @@ uint8_t pixels[PIXELS_SIZE];
 
 uint8_t red = 100;
 
-TPE_Vec3 environmentDistance(TPE_Vec3 p)
+TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit d)
 {
-/*
-TODO: This function should have another parameter "distance", if the closest
-point should be further away than this distance, it won't matter and in that
-case the function may return any arbitrary point further away than "distance",
-this can speed up detections in vast empty areas.
-*/
-
 #define WWW 3000
 
   if (p.x < -WWW || p.x > WWW || p.y < -WWW || p.y > WWW ||
@@ -94,6 +87,11 @@ void draw2DPoint(int x, int y, int r, int g, int b)
   d
 
   #undef d
+}
+
+void debugDrawPixel(uint16_t x, uint16_t y, uint8_t color)
+{
+  draw2DPoint(x,y,255 - color * 64,color * 128,color * 64);
 }
 
 void drawLine(int x1, int y1, int x2, int y2, int r, int g, int b)
@@ -183,7 +181,7 @@ void drawEnv(TPE_Vec3 p, int stepLength, int steps)
 
       for (int i = 0; i < steps; ++i)
       {
-        TPE_Vec3 p3 = environmentDistance(p2);
+        TPE_Vec3 p3 = environmentDistance(p2,10000000);
 
         S3L_Vec4 p4, p5;
         p4.x = p3.x;
@@ -354,7 +352,7 @@ int main(void)
 
   S3L_sceneInit(&sphereModel,1,&sphereScene);
   
-  sphereScene.camera.transform.translation.z = -3000;
+  sphereScene.camera.transform.translation.z = -512 -512 -512;
 
   int frame = 0;
 
@@ -369,7 +367,7 @@ switch (3)
     break;
 
   case 1:
-    TPE_makeBox(joints,connections,1300,2000,3000,512);
+    TPE_makeBox(joints,connections,1000,1000,1000,200);
     TPE_bodyInit(bodies,joints,8,connections,16,100);
     break;
 
@@ -403,9 +401,10 @@ switch (3)
 
 TPE_worldInit(&world,bodies,1,environmentDistance);
 
-
+/*
 TPE_bodyMove(world.bodies,TPE_vec3(-800,-300,0));
 TPE_bodyMove(&world.bodies[1],TPE_vec3(400,100,1));
+*/
 
 TPE_bodyStop(world.bodies);
 TPE_bodyStop(world.bodies + 1);
@@ -429,12 +428,9 @@ TPE_bodyStop(world.bodies + 1);
 
     S3L_newFrame();
 
-TPE_Unit m = TPE_bodyAverageSpeed(world.bodies); //TPE_bodyNetSpeed(world.bodies);
-
-printf("%d\n",m);
-
 
 //TPE_bodiesResolveCollision(world.bodies,world.bodies + 1);
+
 
 
 for (int i = 0; i < world.bodyCount; ++i)
@@ -450,10 +446,6 @@ TPE_vec3(0,-6,0));
 }
 
 TPE_worldStep(&world);
-
-m /= 16;
-
-
 
 
     while (SDL_PollEvent(&event))
@@ -484,6 +476,18 @@ TPE_Vec3 righ = TPE_vec3Minus(
   bodies[0].joints[0].position,
   bodies[0].joints[1].position);
 
+forw = TPE_vec3Plus(forw,
+  TPE_vec3Minus(
+  bodies[0].joints[6].position,
+  bodies[0].joints[4].position)
+  );
+
+righ = TPE_vec3Plus(righ,
+  TPE_vec3Minus(
+  bodies[0].joints[4].position,
+  bodies[0].joints[5].position)
+  );
+
 TPE_Vec3 rrrr = TPE_orientationFromVecs(forw,righ);
 
 cube.transform.rotation.x = rrrr.x;
@@ -497,10 +501,19 @@ cube.transform.translation.y = ppp.y;
 cube.transform.translation.z = ppp.z;
 
 
-drawEnv(TPE_vec3(-100,-100,-100),100,5);
+TPE_Vec3 camPos = TPE_vec3(
+  sphereScene.camera.transform.translation.x,
+  sphereScene.camera.transform.translation.y,
+  sphereScene.camera.transform.translation.z);
+TPE_Vec3 camRot = TPE_vec3(
+  sphereScene.camera.transform.rotation.x,
+  sphereScene.camera.transform.rotation.y,
+  sphereScene.camera.transform.rotation.z);
 
-for (int i = 0; i < world.bodyCount; ++i)
-  drawBody(&(world.bodies[i]),100 * i);
+//drawEnv(TPE_vec3(-100,-100,-100),100,5);
+
+//for (int i = 0; i < world.bodyCount; ++i)
+//  drawBody(&(world.bodies[i]),100 * i);
 
 
 sphereScene.models = &cube;
@@ -508,8 +521,14 @@ S3L_newFrame();
 S3L_drawScene(sphereScene);
 sphereScene.models = &sphereModel;
 
+TPE_worldDebugDraw(&world,debugDrawPixel,
+camPos,camRot,TPE_vec3(S3L_RESOLUTION_X,S3L_RESOLUTION_Y,sphereScene.camera.focalLength));
+
+
+/*
 draw3DLine(0,0,0,forw.x,forw.y,forw.z);
 draw3DLine(0,0,0,righ.x,righ.y,righ.z);
+*/
 
     SDL_UpdateTexture(textureSDL,NULL,pixels,S3L_RESOLUTION_X * sizeof(uint32_t));
 

@@ -75,7 +75,19 @@ typedef struct
 #define TPE_BODY_FLAG_SOFT 4         /**< Soft connections, effort won't be made
                                           to keep the body's shape. */
 
-typedef TPE_Vec3 (*TPE_ClosestPointFunction)(TPE_Vec3);
+/** Function used for defining static environment, working similarly to an SDF
+(signed distance function). The parameters are: 3D point P, max distance D.
+The function should behave like this: if P is inside the solid environment
+volume, P will be returned; otherwise closest point (by Euclidean distance) to
+the solid environment volume from P will be returned, except for a case when
+this closest point would be further away than D, in which case any arbitrary
+point further away than D may be returned (this allows for potentially 
+potentially faster implementation). */
+typedef TPE_Vec3 (*TPE_ClosestPointFunction)(TPE_Vec3, TPE_Unit);
+
+/** Function used by the debug drawing functions to draw individual pixels to
+  the screen. The parameters are following: pixel x, pixel y, pixel color. */
+typedef void (*TPE_DebugDrawFunction)(uint16_t, uint16_t, uint8_t);
 
 typedef struct
 {
@@ -114,8 +126,8 @@ void TPE_getVelocitiesAfterCollision(
   TPE_Unit elasticity);
 
 TPE_Vec3 TPE_vec3(TPE_Unit x, TPE_Unit y, TPE_Unit z);
-TPE_Vec3 TPE_vec3Plus(TPE_Vec3 v1, TPE_Vec3 v2);
 TPE_Vec3 TPE_vec3Minus(TPE_Vec3 v1, TPE_Vec3 v2);
+TPE_Vec3 TPE_vec3Plus(TPE_Vec3 v1, TPE_Vec3 v2);
 TPE_Vec3 TPE_vec3Cross(TPE_Vec3 v1, TPE_Vec3 v2);
 TPE_Vec3 TPE_vec3Project(TPE_Vec3 v, TPE_Vec3 base);
 TPE_Vec3 TPE_vec3Times(TPE_Vec3 v, TPE_Unit units);
@@ -226,6 +238,13 @@ TPE_Unit TPE_sin(TPE_Unit x);
 TPE_Unit TPE_cos(TPE_Unit x);
 
 TPE_Unit TPE_atan(TPE_Unit x);
+
+void TPE_worldDebugDraw(
+TPE_World *world, 
+TPE_DebugDrawFunction drawFunc,
+TPE_Vec3 camPos,
+TPE_Vec3 camRot,
+TPE_Vec3 camView);
 
 //------------------------------------------------------------------------------
 
@@ -461,7 +480,6 @@ void TPE_makeCenterBox(TPE_Joint joints[9], TPE_Connection connections[18],
 
 void TPE_worldStep(TPE_World *world)
 {
-
   for (uint16_t i = 0; i < world->bodyCount; ++i)
   {
     TPE_Body *body = world->bodies + i;   
@@ -554,19 +572,17 @@ joint2->velocity[2] -= dir.z;
       {
         TPE_bodyReshape(body,world->environmentFunction);
         TPE_bodyReshape(body,world->environmentFunction);
-        TPE_bodyReshape(body,world->environmentFunction);
-        TPE_bodyReshape(body,world->environmentFunction);
+//        TPE_bodyReshape(body,world->environmentFunction);
+//        TPE_bodyReshape(body,world->environmentFunction);
       }
     }
-
-   printf("%d\n",body->disableCount); 
 
 if (body->disableCount >= 64)
     {
       body->disableCount = 0;
       body->flags |= TPE_BODY_FLAG_DEACTIVATED;
     }
-    else if (TPE_bodyAverageSpeed(body) <= 25) // TODO: magic + optimize
+    else if (TPE_bodyAverageSpeed(body) <= 30) // TODO: magic + optimize
     {
       body->disableCount++;
     }
@@ -635,6 +651,7 @@ for (uint8_t i = 0; i < 16; ++i)
   
   TPE_bodyMultiplyNetSpeed(body,fraction);
 }
+
 }
 
 void TPE_bodyReshape(TPE_Body *body, 
@@ -668,7 +685,7 @@ TPE_Vec3 positionBackup = j1->position;
     j1->position.z = middle.z - dir.z / 2;
 
 if (environmentFunction != 0 &&
-  TPE_LENGTH(TPE_vec3Minus(j1->position,environmentFunction(j1->position)))
+  TPE_LENGTH(TPE_vec3Minus(j1->position,environmentFunction(j1->position,TPE_JOINT_SIZE(*j1))))
   < TPE_JOINT_SIZE(*j1))
   j1->position = positionBackup;
   
@@ -679,7 +696,7 @@ positionBackup = j2->position;
     j2->position.z = j1->position.z + dir.z; 
 
 if (environmentFunction != 0 &&
-  TPE_LENGTH(TPE_vec3Minus(j2->position,environmentFunction(j2->position)))
+  TPE_LENGTH(TPE_vec3Minus(j2->position,environmentFunction(j2->position,TPE_JOINT_SIZE(*j2))))
   < TPE_JOINT_SIZE(*j2))
   j2->position = positionBackup;
   }
@@ -1016,7 +1033,7 @@ void TPE_getVelocitiesAfterCollision(
 void TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elasticity,
   TPE_Unit friction, TPE_ClosestPointFunction env)
 {
-  TPE_Vec3 toJoint = TPE_vec3Minus(joint->position,env(joint->position));
+  TPE_Vec3 toJoint = TPE_vec3Minus(joint->position,env(joint->position,TPE_JOINT_SIZE(*joint)));
 
   TPE_Unit len = TPE_LENGTH(toJoint);
 
@@ -1042,7 +1059,7 @@ void TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elasticity,
           
         joint->position = TPE_vec3Plus(joint->position,shift);
   
-        toJoint = TPE_vec3Minus(joint->position,env(joint->position));
+        toJoint = TPE_vec3Minus(joint->position,env(joint->position,TPE_JOINT_SIZE(*joint)));
 
         len = TPE_LENGTH(toJoint); // still colliding?
 
@@ -1066,7 +1083,7 @@ void TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elasticity,
       {
         joint->position = TPE_vec3Plus(joint->position,shift);
 
-        toJoint = TPE_vec3Minus(joint->position,env(joint->position));
+        toJoint = TPE_vec3Minus(joint->position,env(joint->position,TPE_JOINT_SIZE(*joint)));
 
         len = TPE_LENGTH(toJoint); // still colliding?
 
@@ -1209,6 +1226,107 @@ TPE_Vec3 TPE_orientationFromVecs(TPE_Vec3 forward, TPE_Vec3 right)
   result.z = _TPE_vec2Angle(right.x,-1 * right.y);
 
   return result;
+}
+
+TPE_Vec3 _TPE_project3DPoint(TPE_Vec3 p, TPE_Vec3 camPos, TPE_Vec3 camRot,
+  TPE_Vec3 camView)
+{
+  // transform to camera space:
+
+  p = TPE_vec3Minus(p,camPos);
+
+  _TPE_vec2Rotate(&p.z,&p.x,camRot.y);
+  _TPE_vec2Rotate(&p.z,&p.y,-1 * camRot.x);
+  _TPE_vec2Rotate(&p.y,&p.x,-1 * camRot.z);
+
+  if (p.z <= 0)
+    return p;
+
+  p.x = (p.x * camView.z) / p.z;
+  p.y = (p.y * camView.z) / p.z;
+
+  p.x = camView.x / 2 + (p.x * camView.x) / (2 * TPE_FRACTIONS_PER_UNIT);
+  p.y = camView.y / 2 - (p.y * camView.x) / (2 * TPE_FRACTIONS_PER_UNIT);
+                                    // ^ x here intentional
+  return p;
+}
+
+void _TPE_drawDebugPixel(
+  TPE_Unit x, TPE_Unit y, TPE_Unit w, TPE_Unit h, uint8_t c,
+  TPE_DebugDrawFunction f)
+{
+  if (x >= 0 && x < w && y >= 0 && y < h)
+    f(x,y,c);
+}
+
+void TPE_worldDebugDraw(
+TPE_World *world, 
+TPE_DebugDrawFunction drawFunc,
+TPE_Vec3 camPos,
+TPE_Vec3 camRot,
+TPE_Vec3 camView)
+{
+  TPE_Vec3 p = _TPE_project3DPoint(TPE_vec3(-512,0,-512),
+    camPos,camRot,camView);
+
+  for (uint16_t i = 0; i < world->bodyCount; ++i)
+  {
+    for (uint16_t j = 0; j < world->bodies[i].connectionCount; ++j)
+    {
+      TPE_Vec3
+        p1 = world->bodies[i].joints[world->bodies[i].connections[j].joint1].position,
+        p2 = world->bodies[i].joints[world->bodies[i].connections[j].joint2].position;
+
+      p1 = _TPE_project3DPoint(p1,camPos,camRot,camView);
+      p2 = _TPE_project3DPoint(p2,camPos,camRot,camView);
+
+      TPE_Vec3 diff = TPE_vec3Minus(p2,p1);
+
+#define SEGS 16
+      for (uint16_t k = 0; k < SEGS; ++k)
+      {
+        p2.x = p1.x + (diff.x * k) / SEGS;
+        p2.y = p1.y + (diff.y * k) / SEGS;
+        p2.z = p1.z + (diff.z * k) / SEGS;
+
+        if (p2.z > 0)
+          _TPE_drawDebugPixel(p2.x,p2.y,camView.x,camView.y,0,drawFunc);
+      }
+#undef SEGS
+    }
+
+    for (uint16_t j = 0; j < world->bodies[i].jointCount; ++j)
+    {
+      TPE_Vec3 p = _TPE_project3DPoint(world->bodies[i].joints[j].position,
+        camPos,camRot,camView);
+
+      if (p.z > 0)
+      {
+        _TPE_drawDebugPixel(p.x,p.y,camView.x,camView.y,1,drawFunc);
+
+        TPE_Unit size = TPE_JOINT_SIZE(world->bodies[i].joints[j]) / 2;
+        size = (size * camView.x) / TPE_FRACTIONS_PER_UNIT;
+        size = (size * camView.z) / p.z;
+
+#define SEGS 2
+        for (uint8_t k = 0; k < SEGS + 1; ++k)
+        {
+          TPE_Unit 
+            dx = (TPE_sin(TPE_FRACTIONS_PER_UNIT * k / (8 * SEGS)) * size)
+              / TPE_FRACTIONS_PER_UNIT,
+            dy = (TPE_cos(TPE_FRACTIONS_PER_UNIT * k / (8 * SEGS)) * size)
+              / TPE_FRACTIONS_PER_UNIT;
+
+#define dp(a,b,c,d) \
+  _TPE_drawDebugPixel(p.x a b,p.y c d,camView.x,camView.y,1,drawFunc);
+          dp(+,dx,+,dy) dp(+,dx,-,dy) dp(-,dx,+,dy) dp(-,dx,-,dy)
+          dp(+,dy,+,dx) dp(+,dy,-,dx) dp(-,dy,+,dx) dp(-,dy,-,dx)
+#undef dp
+#undef SEGS
+        }
+      }
+    }
+  }
 }
 
 #endif // guard
