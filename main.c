@@ -36,7 +36,7 @@ TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit distLim)
   r = c; if (p.x == r.x && p.y == r.y && p.z == r.z) return p; \
   d = TPE_DISTANCE(p,r); if (d < dMin) { dMin = d; rMin = r; }
 
-  testShape( TPE_envAABoxInside(p,TPE_vec3(0,0,0),TPE_vec3(8000,6000,8000)) )
+  testShape( TPE_envAABoxInside(p,TPE_vec3(0,0,0),TPE_vec3(16000,6000,16000)) )
   testShape( TPE_envSphere(p,TPE_vec3(2000,-3500,2000),2000) )
   testShape( TPE_envSphere(p,TPE_vec3(-2000,-3500,0),2000) )
 
@@ -151,41 +151,6 @@ void drawBody(TPE_Body *body, uint8_t color)
 
     if (r1.z > 0 && r2.z > 0)
       drawLine(r1.x,r1.y,r2.x,r2.y,100,200,300);  
-  }
-}
-
-void drawEnv(TPE_Vec3 p, int stepLength, int steps)
-{
-  TPE_Vec3 p2 = p;
-
-  for (int k = 0; k < steps; ++k)
-  {
-    p2.y = p.y;
-
-    for (int j = 0; j < steps; ++j)
-    {
-      p2.x = p.x;
-
-      for (int i = 0; i < steps; ++i)
-      {
-        TPE_Vec3 p3 = environmentDistance(p2,10000000);
-
-        S3L_Vec4 p4, p5;
-        p4.x = p3.x;
-        p4.y = p3.y;
-        p4.z = p3.z;
-
-        S3L_project3DPointToScreen(p4,sphereScene.camera,&p5);
-
-        draw2DPoint(p5.x,p5.y,100,200,255);
-
-        p2.x += stepLength;
-      }
-
-      p2.y += stepLength;
-    }
-
-    p2.z += stepLength;
   }
 }
 
@@ -346,33 +311,35 @@ int main(void)
 TPE_Joint joints[100];
 TPE_Connection connections[100];
 
+#define MASS 200
+
 switch (1)
 {
   case 0:
     TPE_make2Line(joints,connections,1500,512);
-    TPE_bodyInit(bodies,joints,2,connections,1,100);
+    TPE_bodyInit(bodies,joints,2,connections,1,MASS);
     break;
 
   case 1:
     TPE_makeBox(joints,connections,1000,1000,1000,200);
-    TPE_bodyInit(bodies,joints,8,connections,16,100);
+    TPE_bodyInit(bodies,joints,8,connections,16,MASS);
     break;
 
   case 2:
     TPE_makeCenterRect(joints,connections,1300,1000,512);
-    TPE_bodyInit(bodies,joints,5,connections,8,100);
+    TPE_bodyInit(bodies,joints,5,connections,8,MASS);
     break;
 
   case 3:
     TPE_makeCenterBox(joints,connections,1000,1000,1000,512);
     joints[8].sizeDivided *= 3;
     joints[8].sizeDivided /= 2;
-    TPE_bodyInit(bodies,joints,9,connections,18,100);
+    TPE_bodyInit(bodies,joints,9,connections,18,MASS);
     break;
 
   case 4:
     TPE_makeTriangle(joints,connections,2000,512);
-    TPE_bodyInit(bodies,joints,3,connections,3,100);
+    TPE_bodyInit(bodies,joints,3,connections,3,MASS);
     break;
 
   default: break;
@@ -570,7 +537,6 @@ if (state[SDL_SCANCODE_Y])
   TPE_bodyAccelerate(bodies,TPE_vec3(0,0,10));
 else if (state[SDL_SCANCODE_H])
   TPE_bodyAccelerate(bodies,TPE_vec3(0,0,-10));
-
 
 #define SHIFT_STEP 50
 

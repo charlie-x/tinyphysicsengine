@@ -41,6 +41,48 @@ typedef int32_t TPE_Unit;
   #define TPE_LOG(s) ;
 #endif
 
+
+
+#ifndef TPE_LOW_SPEED
+/** Speed, in TPE_Units per ticks, that is considered low (used e.g. for auto
+disabling bodies). */
+  #define TPE_LOW_SPEED 30
+#endif
+
+#ifndef TPE_RESHAPE_TENSION_LIMIT
+/** Tension limit, in TPE_Units, after which a non-soft body will be reshaped.
+Smaller number will keep more stable shapes but will cost more performance. */
+  #define TPE_RESHAPE_TENSION_LIMIT 20
+#endif
+
+#ifndef TPE_RESHAPE_ITERATIONS
+/** How many iterations of reshaping will be performed by the step function if
+the body's shape needs to be reshaped. Greater number will keep shapes more
+stable but will cost some performance. */
+  #define TPE_RESHAPE_ITERATIONS 3
+#endif
+
+#ifndef TPE_DISABLE_AFTER
+/** After how many ticks of low speed should a body be disabled. This mustn't
+be greater than 255. */
+  #define TPE_DISABLE_AFTER 64
+#endif
+
+#ifndef TPE_TENSION_ACCELERATION_DIVIDER
+/** Number by which the base acceleration (TPE_FRACTIONS_PER_UNIT per tick
+squared) caused by the connection tension will be divided. This should be power
+of 2. */
+  #define TPE_TENSION_ACCELERATION_DIVIDER 32
+#endif
+
+#ifndef TPE_TENSION_ACCELERATION_THRESHOLD
+/** Limit within which acceleration caused by connection tension won't be
+  applied. */
+  #define TPE_TENSION_ACCELERATION_THRESHOLD 5
+#endif
+
+
+
 #define TPE_PRINTF_VEC3(v) printf("[%d %d %d]",(v).x,(v).y,(v).z);
 
 typedef struct
@@ -524,46 +566,32 @@ void TPE_worldStep(TPE_World *world)
       len = (len * TPE_FRACTIONS_PER_UNIT) /
         connection->length - TPE_FRACTIONS_PER_UNIT;
 
-bodyTension += len > 0 ? len : -len;
+      bodyTension += len > 0 ? len : -len;
 
-
-      if (  len > 5 || len < -5   ) //len != 0) // TODO: magic
+      if (
+        len > TPE_TENSION_ACCELERATION_THRESHOLD || 
+        len < -1 * TPE_TENSION_ACCELERATION_THRESHOLD)
       {
 
-TPE_vec3Normalize(&dir);
+        TPE_vec3Normalize(&dir);
 
-dir.x /= 32;
-dir.y /= 32;
-dir.z /= 32;
+        dir.x /= TPE_TENSION_ACCELERATION_DIVIDER;
+        dir.y /= TPE_TENSION_ACCELERATION_DIVIDER;
+        dir.z /= TPE_TENSION_ACCELERATION_DIVIDER;
 
-if (len < 0)
-{
-  dir.x *= -1;
-  dir.y *= -1;
-  dir.z *= -1;
-}
-
-joint->velocity[0] += dir.x;
-joint->velocity[1] += dir.y;
-joint->velocity[2] += dir.z;
-joint2->velocity[0] -= dir.x;
-joint2->velocity[1] -= dir.y;
-joint2->velocity[2] -= dir.z;
-
-
-/*
-        dir.x = (dir.x * len) / (2 * TPE_FRACTIONS_PER_UNIT);
-        dir.y = (dir.y * len) / (2 * TPE_FRACTIONS_PER_UNIT);
-        dir.z = (dir.z * len) / (2 * TPE_FRACTIONS_PER_UNIT);
+        if (len < 0)
+        {
+          dir.x *= -1;
+          dir.y *= -1;
+          dir.z *= -1;
+        }
 
         joint->velocity[0] += dir.x;
         joint->velocity[1] += dir.y;
         joint->velocity[2] += dir.z;
-
         joint2->velocity[0] -= dir.x;
         joint2->velocity[1] -= dir.y;
         joint2->velocity[2] -= dir.z;
-*/
       }
 
       connection++;
@@ -575,27 +603,21 @@ joint2->velocity[2] -= dir.z;
 
       bodyTension /= body->connectionCount;
     
-      if (bodyTension > 20)
-      {
-        TPE_bodyReshape(body,world->environmentFunction);
-        TPE_bodyReshape(body,world->environmentFunction);
-//        TPE_bodyReshape(body,world->environmentFunction);
-//        TPE_bodyReshape(body,world->environmentFunction);
-      }
+      if (bodyTension > TPE_RESHAPE_TENSION_LIMIT)
+        for (uint8_t k = 0; k < TPE_RESHAPE_ITERATIONS; ++k) 
+          TPE_bodyReshape(body,world->environmentFunction);
     }
 
-if (body->disableCount >= 64)
+    if (body->disableCount >= TPE_DISABLE_AFTER)
     {
+      TPE_bodyStop(body);
       body->disableCount = 0;
       body->flags |= TPE_BODY_FLAG_DEACTIVATED;
     }
-    else if (TPE_bodyAverageSpeed(body) <= 30) // TODO: magic + optimize
-    {
+    else if (TPE_bodyAverageSpeed(body) <= TPE_LOW_SPEED) // TODO: optimize
       body->disableCount++;
-    }
     else
       body->disableCount = 0;
-
   }
 }
 
