@@ -27,9 +27,22 @@ uint8_t pixels[PIXELS_SIZE];
 
 uint8_t red = 100;
 
-TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit d)
+TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit distLim)
 {
-  return TPE_envAABoxInside(p,TPE_vec3(0,0,0),TPE_vec3(6000,6000,6000));
+  TPE_Vec3 r, rMin = p;
+  TPE_Unit d, dMin = 10000000;
+
+#define testShape(c) \
+  r = c; if (p.x == r.x && p.y == r.y && p.z == r.z) return p; \
+  d = TPE_DISTANCE(p,r); if (d < dMin) { dMin = d; rMin = r; }
+
+  testShape( TPE_envAABoxInside(p,TPE_vec3(0,0,0),TPE_vec3(8000,6000,8000)) )
+  testShape( TPE_envSphere(p,TPE_vec3(2000,-3500,2000),2000) )
+  testShape( TPE_envSphere(p,TPE_vec3(-2000,-3500,0),2000) )
+
+#undef testShape
+
+  return rMin;
 }
 
 void drawPixel(S3L_PixelInfo *p)
@@ -547,6 +560,17 @@ if (state[SDL_SCANCODE_M])
    500,
    30));
 }
+
+if (state[SDL_SCANCODE_J])
+  TPE_bodyAccelerate(bodies,TPE_vec3(10,0,0));
+else if (state[SDL_SCANCODE_G])
+  TPE_bodyAccelerate(bodies,TPE_vec3(-10,0,0));
+
+if (state[SDL_SCANCODE_Y])
+  TPE_bodyAccelerate(bodies,TPE_vec3(0,0,10));
+else if (state[SDL_SCANCODE_H])
+  TPE_bodyAccelerate(bodies,TPE_vec3(0,0,-10));
+
 
 #define SHIFT_STEP 50
 

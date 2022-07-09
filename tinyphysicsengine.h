@@ -189,6 +189,7 @@ void TPE_make2Line(TPE_Joint joints[2], TPE_Connection connections[1],
 // environment functions:
 
 TPE_Vec3 TPE_envAABoxInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 size);
+TPE_Vec3 TPE_envSphere(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
 
 //---------------------------
 
@@ -1326,7 +1327,6 @@ void TPE_worldDebugDraw(
 
       testPoint.y += D;
     }
-printf("----\n");
 
 #undef N
 #undef D
@@ -1443,6 +1443,24 @@ TPE_Vec3 TPE_envAABoxInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 size)
   }
 
   return point;
+}
+
+TPE_Vec3 TPE_envSphere(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius)
+{
+  // TODO: optim?
+
+  TPE_Vec3 dir = TPE_vec3Minus(point,center);
+
+  TPE_Unit l = TPE_LENGTH(dir);
+
+  if (l <= radius)
+    return point;
+
+  dir.x = (dir.x * radius) / l;
+  dir.y = (dir.y * radius) / l;
+  dir.z = (dir.z * radius) / l;
+
+  return TPE_vec3Plus(center,dir);
 }
 
 #endif // guard
