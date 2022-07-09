@@ -29,33 +29,7 @@ uint8_t red = 100;
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit d)
 {
-#define WWW 3000
-
-  if (p.x < -WWW || p.x > WWW || p.y < -WWW || p.y > WWW ||
-      p.z < -WWW || p.z > WWW)
-    return p; 
-
-  int xx = p.x * p.x;  
-  int yy = p.y * p.y;  
-  int zz = p.z * p.z;
-
-  if (xx > yy)
-  {
-    if (xx > zz)
-      p.x = p.x > 0 ? WWW : -WWW;
-    else
-      p.z = p.z > 0 ? WWW : -WWW;
-  }
-  else
-  {
-    if (yy > zz)
-      p.y = p.y > 0 ? WWW : -WWW;
-    else
-      p.z = p.z > 0 ? WWW : -WWW;
-  }
-
-#undef WWW
-  return p;
+  return TPE_envAABoxInside(p,TPE_vec3(0,0,0),TPE_vec3(6000,6000,6000));
 }
 
 void drawPixel(S3L_PixelInfo *p)
@@ -359,7 +333,7 @@ int main(void)
 TPE_Joint joints[100];
 TPE_Connection connections[100];
 
-switch (3)
+switch (1)
 {
   case 0:
     TPE_make2Line(joints,connections,1500,512);
@@ -401,10 +375,8 @@ switch (3)
 
 TPE_worldInit(&world,bodies,1,environmentDistance);
 
-/*
-TPE_bodyMove(world.bodies,TPE_vec3(-800,-300,0));
-TPE_bodyMove(&world.bodies[1],TPE_vec3(400,100,1));
-*/
+TPE_bodyMove(world.bodies,TPE_vec3(-800,1000,0));
+//TPE_bodyMove(&world.bodies[1],TPE_vec3(400,100,1));
 
 TPE_bodyStop(world.bodies);
 TPE_bodyStop(world.bodies + 1);
@@ -420,7 +392,6 @@ TPE_bodyStop(world.bodies + 1);
 
   while (running)
   {
-
     time = SDL_GetTicks();
 
     for (uint32_t i = 0; i < PIXELS_SIZE; ++i)
@@ -493,6 +464,10 @@ TPE_Vec3 rrrr = TPE_orientationFromVecs(forw,righ);
 cube.transform.rotation.x = rrrr.x;
 cube.transform.rotation.y = rrrr.y;
 cube.transform.rotation.z = rrrr.z;
+
+cube.transform.scale.x = 800;
+cube.transform.scale.y = cube.transform.scale.x;
+cube.transform.scale.z = cube.transform.scale.x;
 
 TPE_Vec3 ppp = TPE_bodyGetCenter(&bodies[0]);
 

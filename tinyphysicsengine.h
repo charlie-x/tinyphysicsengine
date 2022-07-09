@@ -164,6 +164,7 @@ void TPE_bodyEnvironmentResolveCollision(TPE_Body *body, TPE_Unit elasticity,
 
 void TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2);
 
+// -----------------------------------------------------------------------------
 // body generation functions:
 
 void TPE_makeBox(TPE_Joint joints[8], TPE_Connection connections[16],
@@ -183,6 +184,11 @@ void TPE_makeCenterRect(TPE_Joint joints[5], TPE_Connection connections[8],
 
 void TPE_make2Line(TPE_Joint joints[2], TPE_Connection connections[1],
   TPE_Unit length, TPE_Unit jointSize);
+
+//------------------------------------------------------------------------------
+// environment functions:
+
+TPE_Vec3 TPE_envAABoxInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 size);
 
 //---------------------------
 
@@ -240,11 +246,11 @@ TPE_Unit TPE_cos(TPE_Unit x);
 TPE_Unit TPE_atan(TPE_Unit x);
 
 void TPE_worldDebugDraw(
-TPE_World *world, 
-TPE_DebugDrawFunction drawFunc,
-TPE_Vec3 camPos,
-TPE_Vec3 camRot,
-TPE_Vec3 camView);
+  TPE_World *world, 
+  TPE_DebugDrawFunction drawFunc,
+  TPE_Vec3 camPos,
+  TPE_Vec3 camRot,
+  TPE_Vec3 camView);
 
 //------------------------------------------------------------------------------
 
@@ -1260,17 +1266,72 @@ void _TPE_drawDebugPixel(
 }
 
 void TPE_worldDebugDraw(
-TPE_World *world, 
-TPE_DebugDrawFunction drawFunc,
-TPE_Vec3 camPos,
-TPE_Vec3 camRot,
-TPE_Vec3 camView)
+  TPE_World *world, 
+  TPE_DebugDrawFunction drawFunc,
+  TPE_Vec3 camPos,
+  TPE_Vec3 camRot,
+  TPE_Vec3 camView)
 {
   TPE_Vec3 p = _TPE_project3DPoint(TPE_vec3(-512,0,-512),
     camPos,camRot,camView);
 
   for (uint16_t i = 0; i < world->bodyCount; ++i)
   {
+    // environment:
+    TPE_Vec3 testPoint;
+
+#define D 256
+#define N 16
+
+    TPE_Vec3 center = TPE_vec3(0,TPE_sin(camRot.x),TPE_cos(camRot.x));
+
+    _TPE_vec2Rotate(&center.x,&center.z,camRot.y);
+
+    center = TPE_vec3Times(center,(D * N) / 2);
+    center = TPE_vec3Plus(camPos,center);
+
+    center.x = (center.x / D) * D;
+    center.y = (center.y / D) * D;
+    center.z = (center.z / D) * D;
+
+    testPoint.y = center.y - (D * N) / 2; //(camPos.y / D) * D  - (D * N) / 2;
+
+    for (uint8_t j = 0; j < N; ++j)
+    {
+      testPoint.x = center.x - (D * N) / 2;//(camPos.x / D) * D - (D * N) / 2;
+
+      for (uint8_t k = 0; k < N; ++k)
+      {
+        testPoint.z = center.z - (D * N) / 2; //(camPos.z / D) * D - (D * N) / 2;
+
+        for (uint8_t l = 0; l < N; ++l)
+        {
+          TPE_Vec3 r = world->environmentFunction(testPoint,D);
+
+          if ((r.x != testPoint.x || r.y != testPoint.y || r.z != testPoint.z)
+        ) //   && TPE_DISTANCE(testPoint,r) < D)
+          {
+// TODO: accel. by testing cheb dist first?
+            r = _TPE_project3DPoint(r,camPos,camRot,camView);
+        
+            if (r.z > 0)
+              _TPE_drawDebugPixel(r.x,r.y,camView.x,camView.y,2,drawFunc);
+          }
+
+          testPoint.z += D;
+        }
+
+        testPoint.x += D;
+      }
+
+      testPoint.y += D;
+    }
+printf("----\n");
+
+#undef N
+#undef D
+
+    // connections:
     for (uint16_t j = 0; j < world->bodies[i].connectionCount; ++j)
     {
       TPE_Vec3
@@ -1280,6 +1341,9 @@ TPE_Vec3 camView)
       p1 = _TPE_project3DPoint(p1,camPos,camRot,camView);
       p2 = _TPE_project3DPoint(p2,camPos,camRot,camView);
 
+      if (p1.z <= 0 || p2.z <= 0)
+        continue;
+
       TPE_Vec3 diff = TPE_vec3Minus(p2,p1);
 
 #define SEGS 16
@@ -1287,7 +1351,6 @@ TPE_Vec3 camView)
       {
         p2.x = p1.x + (diff.x * k) / SEGS;
         p2.y = p1.y + (diff.y * k) / SEGS;
-        p2.z = p1.z + (diff.z * k) / SEGS;
 
         if (p2.z > 0)
           _TPE_drawDebugPixel(p2.x,p2.y,camView.x,camView.y,0,drawFunc);
@@ -1295,6 +1358,7 @@ TPE_Vec3 camView)
 #undef SEGS
     }
 
+    // joints:
     for (uint16_t j = 0; j < world->bodies[i].jointCount; ++j)
     {
       TPE_Vec3 p = _TPE_project3DPoint(world->bodies[i].joints[j].position,
@@ -1308,7 +1372,7 @@ TPE_Vec3 camView)
         size = (size * camView.x) / TPE_FRACTIONS_PER_UNIT;
         size = (size * camView.z) / p.z;
 
-#define SEGS 2
+#define SEGS 4
         for (uint8_t k = 0; k < SEGS + 1; ++k)
         {
           TPE_Unit 
@@ -1327,6 +1391,58 @@ TPE_Vec3 camView)
       }
     }
   }
+}
+
+TPE_Vec3 TPE_envAABoxInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 size)
+{
+  size.x /= 2;
+  size.y /= 2;
+  size.z /= 2;
+
+  TPE_Vec3 shifted = TPE_vec3Minus(point,center);
+
+  TPE_Vec3 a = TPE_vec3Minus(size,shifted),
+           b = TPE_vec3Plus(shifted,size);
+
+  int8_t sx = 1, sy = 1, sz = 1;
+
+  if (b.x < a.x)
+  {
+    a.x = b.x;
+    sx = -1;
+  }
+
+  if (b.y < a.y)
+  {
+    a.y = b.y;
+    sy = -1;
+  }
+
+  if (b.z < a.z)
+  {
+    a.z = b.z;
+    sz = -1;
+  }
+
+  if (a.x < 0 || a.y < 0 || a.z < 0)
+    return point;
+
+  if (a.x < a.y)
+  {
+    if (a.x < a.z)
+      point.x = center.x + sx * size.x;
+    else
+      point.z = center.z + sz * size.z;
+  }
+  else
+  {
+    if (a.y < a.z)
+      point.y = center.y + sy * size.y;
+    else
+      point.z = center.z + sz * size.z;
+  }
+
+  return point;
 }
 
 #endif // guard
