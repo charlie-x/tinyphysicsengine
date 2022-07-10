@@ -3,16 +3,39 @@
 
 /**
 
+  Conventions and formats are the same or similar to those of small3dlib so as
+  to make them easily integrate with each other.
+
   Orientations/rotations are in extrinsic Euler angles in the ZXY order (by Z,
   then by X, then by Y).
 
   Where it matters (e.g. rotations about axes) we consider a left-handed coord.
   system (x right, y up, z forward).
+
+  --------------------
+
+  This work's goal is to never be encumbered by any exclusive intellectual
+  property rights. The work is therefore provided under CC0 1.0 + additional
+  WAIVER OF ALL INTELLECTUAL PROPERTY RIGHTS that waives the rest of
+  intellectual property rights not already waived by CC0 1.0. The WAIVER OF ALL
+  INTELLECTUAL PROPERTY RGHTS is as follows:
+
+  Each contributor to this work agrees that they waive any exclusive rights,
+  including but not limited to copyright, patents, trademark, trade dress,
+  industrial design, plant varieties and trade secrets, to any and all ideas,
+  concepts, processes, discoveries, improvements and inventions conceived,
+  discovered, made, designed, researched or developed by the contributor either
+  solely or jointly with others, which relate to this work or result from this
+  work. Should any waiver of such right be judged legally invalid or
+  ineffective under applicable law, the contributor hereby grants to each
+  affected person a royalty-free, non transferable, non sublicensable, non
+  exclusive, irrevocable and unconditional license to this right.
 */
 
 #include <stdint.h>
 
 typedef int32_t TPE_Unit;
+typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
 
 #define TPE_FRACTIONS_PER_UNIT 512
 
@@ -81,6 +104,16 @@ of 2. */
   #define TPE_TENSION_ACCELERATION_THRESHOLD 5
 #endif
 
+#ifndef TPE_COLLISION_RESOLUTION_ITERATIONS
+/** Maximum number of iterations to try to uncollide two colliding bodies. */
+  #define TPE_COLLISION_RESOLUTION_ITERATIONS 3
+#endif
+
+#ifndef TPE_COLLISION_RESOLUTION_MARGIN
+/** Margin, in TPE_Units, by which a body will be shifted back to get out of
+  collision. */
+  #define TPE_COLLISION_RESOLUTION_MARGIN (TPE_FRACTIONS_PER_UNIT / 64)
+#endif
 
 
 #define TPE_PRINTF_VEC3(v) printf("[%d %d %d]",(v).x,(v).y,(v).z);
@@ -137,7 +170,9 @@ typedef struct
   uint8_t jointCount;
   TPE_Connection *connections;
   uint8_t connectionCount;
-  uint16_t jointMass;
+  TPE_UnitReduced jointMass;
+  TPE_UnitReduced friction;
+  TPE_UnitReduced elasticity;
   uint8_t flags;
   uint8_t disableCount;
 } TPE_Body;
@@ -195,14 +230,14 @@ static inline TPE_Unit TPE_distApprox(TPE_Vec3 p1, TPE_Vec3 p2);
 
 TPE_Joint TPE_joint(TPE_Vec3 position, TPE_Unit size);
 
-void TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
+uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
   TPE_Unit mass1, TPE_Unit mass2, TPE_Unit elasticity);
 
-void TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elasticity,
+uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elasticity,
   TPE_Unit friction, TPE_ClosestPointFunction env);
 
-void TPE_bodyEnvironmentResolveCollision(TPE_Body *body, TPE_Unit elasticity, 
-  TPE_Unit friction, TPE_ClosestPointFunction env);
+uint8_t TPE_bodyEnvironmentResolveCollision(TPE_Body *body, 
+  TPE_ClosestPointFunction env);
 
 void TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2);
 
@@ -240,7 +275,7 @@ void TPE_worldStep(TPE_World *world);
 TPE_Unit TPE_bodyNetSpeed(const TPE_Body *body);
 TPE_Unit TPE_bodyAverageSpeed(const TPE_Body *body);
 
-void TPE_bodyLimitNetSpeed(TPE_Body *body, TPE_Unit speedMin,
+void TPE_bodyLimitAverageSpeed(TPE_Body *body, TPE_Unit speedMin,
   TPE_Unit speedMax);
 
 void TPE_bodyMultiplyNetSpeed(TPE_Body *body, TPE_Unit factor);
@@ -412,6 +447,8 @@ void TPE_bodyInit(TPE_Body *body,
   body->connections = connections;
   body->connectionCount = connectionCount;
   body->disableCount = 0;
+  body->friction = TPE_FRACTIONS_PER_UNIT / 2;
+  body->elasticity = TPE_FRACTIONS_PER_UNIT / 2;
 
   body->flags = 0;
 
@@ -549,7 +586,7 @@ void TPE_worldStep(TPE_World *world)
 
     TPE_Connection *connection = body->connections;
   
-    TPE_bodyEnvironmentResolveCollision(body,256,256,
+    TPE_bodyEnvironmentResolveCollision(body,
       world->environmentFunction);
 
     TPE_Unit bodyTension = 0;
@@ -589,6 +626,7 @@ void TPE_worldStep(TPE_World *world)
         joint->velocity[0] += dir.x;
         joint->velocity[1] += dir.y;
         joint->velocity[2] += dir.z;
+
         joint2->velocity[0] -= dir.x;
         joint2->velocity[1] -= dir.y;
         joint2->velocity[2] -= dir.z;
@@ -664,23 +702,22 @@ void TPE_bodyMultiplyNetSpeed(TPE_Body *body, TPE_Unit factor)
   }
 }
 
-void TPE_bodyLimitNetSpeed(TPE_Body *body, TPE_Unit speedMin,
+void TPE_bodyLimitAverageSpeed(TPE_Body *body, TPE_Unit speedMin,
   TPE_Unit speedMax)
 {
-for (uint8_t i = 0; i < 16; ++i)
-{
-  TPE_Unit speed = TPE_bodyNetSpeed(body);
+  for (uint8_t i = 0; i < 16; ++i)
+  {
+    TPE_Unit speed = TPE_bodyAverageSpeed(body);
 
-  if (speed >= speedMin && speed <= speedMax)
-    return;
+    if (speed >= speedMin && speed <= speedMax)
+      return;
 
-  TPE_Unit fraction =
-    (((speedMax + speedMin) / 2) * TPE_FRACTIONS_PER_UNIT) /
-    TPE_nonZero(speed);
-  
-  TPE_bodyMultiplyNetSpeed(body,fraction);
-}
-
+    TPE_Unit fraction =
+      (((speedMax + speedMin) / 2) * TPE_FRACTIONS_PER_UNIT) /
+      TPE_nonZero(speed);
+    
+    TPE_bodyMultiplyNetSpeed(body,fraction);
+  }
 }
 
 void TPE_bodyReshape(TPE_Body *body, 
@@ -948,7 +985,7 @@ b2->jointMass,
     }
 }
 
-void TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
+uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
   TPE_Unit mass1, TPE_Unit mass2, TPE_Unit elasticity)
 {
   TPE_Vec3 dir = TPE_vec3Minus(j2->position,j1->position);
@@ -1015,7 +1052,11 @@ void TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
     j2->velocity[0] = j2->velocity[0] + vel.x;
     j2->velocity[1] = j2->velocity[1] + vel.y;
     j2->velocity[2] = j2->velocity[2] + vel.z;
+
+    return 1;
   }
+
+  return 0;
 }
 
 TPE_Vec3 TPE_vec3Times(TPE_Vec3 v, TPE_Unit units)
@@ -1059,32 +1100,34 @@ void TPE_getVelocitiesAfterCollision(
     + m1v1Pm2v2) / m1Pm2;
 }
 
-void TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elasticity,
+uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elasticity,
   TPE_Unit friction, TPE_ClosestPointFunction env)
 {
   TPE_Vec3 toJoint = TPE_vec3Minus(joint->position,env(joint->position,TPE_JOINT_SIZE(*joint)));
 
   TPE_Unit len = TPE_LENGTH(toJoint);
 
-  if (len < TPE_JOINT_SIZE(*joint))
+  if (len <= TPE_JOINT_SIZE(*joint))
   {
     // colliding
 
     TPE_Vec3 positionBackup = joint->position, shift;
     uint8_t success = 0;
 
-    if (len > 3) // TODO: magic constants
+    if (len > 0)
     {
       /* Joint center is still outside the geometry so we can determine the
          normal and use it to shift it outside. This can still leave the joint
          colliding though, so try to repeat it a few times. */
 
-      for (int i = 0; i < 3; ++i)
+      for (int i = 0; i < TPE_COLLISION_RESOLUTION_ITERATIONS; ++i)
       {
         shift = toJoint;
+
         TPE_vec3Normalize(&shift); 
+
         shift = TPE_vec3Times(shift,TPE_JOINT_SIZE(*joint) - len + 
-          TPE_FRACTIONS_PER_UNIT / 64); // TODO: 128, magic val;
+          TPE_FRACTIONS_PER_UNIT / TPE_COLLISION_RESOLUTION_MARGIN);
           
         joint->position = TPE_vec3Plus(joint->position,shift);
   
@@ -1108,7 +1151,7 @@ void TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elasticity,
       shift = TPE_vec3(-1 * joint->velocity[0],-1 * joint->velocity[1],
         -1 * joint->velocity[2]);
       
-      for (int i = 0; i < 3; ++i)
+      for (int i = 0; i < TPE_COLLISION_RESOLUTION_ITERATIONS; ++i)
       {
         joint->position = TPE_vec3Plus(joint->position,shift);
 
@@ -1122,9 +1165,9 @@ void TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elasticity,
           break;
         }
 
-        shift.x /= 8;
-        shift.y /= 8;
-        shift.z /= 8;
+        shift.x /= 2; // decrease the step a bit
+        shift.y /= 2;
+        shift.z /= 2;
       }
     }
     if (success)
@@ -1157,17 +1200,24 @@ vel2 = TPE_vec3Times(vel2,friction);
       joint->velocity[1] = 0;
       joint->velocity[2] = 0;
     }
+
+    return 1;
   }
+
+  return 0;
 }
 
-void TPE_bodyEnvironmentResolveCollision(TPE_Body *body, TPE_Unit elasticity, 
-  TPE_Unit friction, TPE_ClosestPointFunction env)
+uint8_t TPE_bodyEnvironmentResolveCollision(TPE_Body *body, 
+  TPE_ClosestPointFunction env)
 {
 // TODO: bounding sphere
+  uint8_t collision = 0;
 
   for (uint16_t i = 0; i < body->jointCount; ++i)
-    TPE_jointEnvironmentResolveCollision(
-      body->joints + i,elasticity,friction,env);
+    collision |= TPE_jointEnvironmentResolveCollision(
+      body->joints + i,body->elasticity,body->friction,env);
+
+  return collision;
 }
 
 TPE_Vec3 TPE_vec3Normalized(TPE_Vec3 v)

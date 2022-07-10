@@ -321,7 +321,7 @@ switch (1)
     break;
 
   case 1:
-    TPE_makeBox(joints,connections,1000,1000,1000,200);
+    TPE_makeBox(joints,connections,1000,1000,1000,100);
     TPE_bodyInit(bodies,joints,8,connections,16,MASS);
     break;
 
@@ -351,6 +351,7 @@ switch (1)
 
 //bodies[0].flags |= TPE_BODY_FLAG_SOFT;
 
+bodies[0].elasticity = 256;
 
 
 TPE_worldInit(&world,bodies,1,environmentDistance);
@@ -389,10 +390,8 @@ for (int i = 0; i < world.bodyCount; ++i)
 
 
 
-
 TPE_bodyAccelerate(world.bodies + i,
 TPE_vec3(0,-6,0));
-
 
 }
 
@@ -426,7 +425,7 @@ TPE_Vec3 forw = TPE_vec3Minus(
 TPE_Vec3 righ = TPE_vec3Minus( 
   bodies[0].joints[0].position,
   bodies[0].joints[1].position);
-
+/*
 forw = TPE_vec3Plus(forw,
   TPE_vec3Minus(
   bodies[0].joints[6].position,
@@ -438,14 +437,14 @@ righ = TPE_vec3Plus(righ,
   bodies[0].joints[4].position,
   bodies[0].joints[5].position)
   );
-
+*/
 TPE_Vec3 rrrr = TPE_orientationFromVecs(forw,righ);
 
 cube.transform.rotation.x = rrrr.x;
 cube.transform.rotation.y = rrrr.y;
 cube.transform.rotation.z = rrrr.z;
 
-cube.transform.scale.x = 800;
+cube.transform.scale.x = 600;
 cube.transform.scale.y = cube.transform.scale.x;
 cube.transform.scale.z = cube.transform.scale.x;
 
@@ -454,7 +453,6 @@ TPE_Vec3 ppp = TPE_bodyGetCenter(&bodies[0]);
 cube.transform.translation.x = ppp.x;
 cube.transform.translation.y = ppp.y;
 cube.transform.translation.z = ppp.z;
-
 
 TPE_Vec3 camPos = TPE_vec3(
   sphereScene.camera.transform.translation.x,
