@@ -115,7 +115,6 @@ of 2. */
   #define TPE_COLLISION_RESOLUTION_MARGIN (TPE_FRACTIONS_PER_UNIT / 64)
 #endif
 
-
 #define TPE_PRINTF_VEC3(v) printf("[%d %d %d]",(v).x,(v).y,(v).z);
 
 typedef struct
@@ -128,7 +127,7 @@ typedef struct
 typedef struct
 {
   TPE_Vec3 position;
-  int16_t velocity[3]; ///< for saving space only uses int16
+  TPE_UnitReduced velocity[3];
   uint8_t sizeDivided; /**< size (radius, ...), for saving space divided by 
                             TPE_JOINT_SIZE_MULTIPLIER */
 } TPE_Joint;
@@ -231,7 +230,7 @@ static inline TPE_Unit TPE_distApprox(TPE_Vec3 p1, TPE_Vec3 p2);
 TPE_Joint TPE_joint(TPE_Vec3 position, TPE_Unit size);
 
 uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
-  TPE_Unit mass1, TPE_Unit mass2, TPE_Unit elasticity);
+  TPE_Unit mass1, TPE_Unit mass2, TPE_Unit elasticity, TPE_Unit friction);
 
 uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elasticity,
   TPE_Unit friction, TPE_ClosestPointFunction env);
@@ -239,7 +238,7 @@ uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elastici
 uint8_t TPE_bodyEnvironmentResolveCollision(TPE_Body *body, 
   TPE_ClosestPointFunction env);
 
-void TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2);
+uint8_t TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2);
 
 // -----------------------------------------------------------------------------
 // body generation functions:
@@ -267,6 +266,7 @@ void TPE_make2Line(TPE_Joint joints[2], TPE_Connection connections[1],
 
 TPE_Vec3 TPE_envAABoxInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 size);
 TPE_Vec3 TPE_envSphere(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
+TPE_Vec3 TPE_envHalfPlane(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 normal);
 
 //---------------------------
 
@@ -585,7 +585,17 @@ void TPE_worldStep(TPE_World *world)
     }
 
     TPE_Connection *connection = body->connections;
-  
+ 
+for (uint16_t j = i + 1; j < world->bodyCount; ++j)
+{
+if (TPE_bodiesResolveCollision(body,world->bodies + j))
+{
+  TPE_bodyWake(body);
+  TPE_bodyWake(world->bodies + j);
+}
+
+}
+ 
     TPE_bodyEnvironmentResolveCollision(body,
       world->environmentFunction);
 
@@ -635,7 +645,7 @@ void TPE_worldStep(TPE_World *world)
       connection++;
     }
 
-    if (!(body->flags & TPE_BODY_FLAG_SOFT))
+    if (body->connectionCount > 0 && !(body->flags & TPE_BODY_FLAG_SOFT))
     {
       TPE_bodyReshape(body,world->environmentFunction);
 
@@ -661,8 +671,13 @@ void TPE_worldStep(TPE_World *world)
 
 void TPE_bodyWake(TPE_Body *body)
 {
-  TPE_bodyStop(body);
-  body->flags &= ~TPE_BODY_FLAG_DEACTIVATED;
+  // the if check has to be here, don't remove it
+
+  if (body->flags & TPE_BODY_FLAG_DISABLED)
+  {
+    TPE_bodyStop(body);
+    body->flags &= ~TPE_BODY_FLAG_DEACTIVATED;
+  }
 }
 
 TPE_Unit TPE_bodyNetSpeed(const TPE_Body *body)
@@ -912,6 +927,8 @@ void TPE_bodyMove(TPE_Body *body, TPE_Vec3 offset)
 
 void TPE_bodyAccelerate(TPE_Body *body, TPE_Vec3 velocity)
 {
+  TPE_bodyWake(body);
+
   for (uint16_t i = 0; i < body->jointCount; ++i)
   {
     body->joints[i].velocity[0] += velocity.x;
@@ -968,25 +985,29 @@ TPE_Unit TPE_sin(TPE_Unit x)
   #undef _PI2
 }
 
-void TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2)
+uint8_t TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2)
 {
 // TODO: bounding sphere (or AABB? maybe ifdef)
+  uint8_t r = 0;
 
   for (uint16_t i = 0; i < b1->jointCount; ++i)
     for (uint16_t j = 0; j < b2->jointCount; ++j)
     {
-      TPE_jointsResolveCollision( 
+      r |= TPE_jointsResolveCollision( 
 &(b1->joints[i]),
 &(b2->joints[j]),
 b1->jointMass,
 b2->jointMass,
-512
+512,
+(b1->friction + b2->friction) / 2
  );
     }
+
+  return r;
 }
 
 uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
-  TPE_Unit mass1, TPE_Unit mass2, TPE_Unit elasticity)
+  TPE_Unit mass1, TPE_Unit mass2, TPE_Unit elasticity, TPE_Unit friction)
 {
   TPE_Vec3 dir = TPE_vec3Minus(j2->position,j1->position);
 
@@ -996,7 +1017,7 @@ uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
   {
     // separate bodies, the shift distance will depend on the weight ratio:
 
-    d *= -1;
+    d = -1 * d + TPE_COLLISION_RESOLUTION_MARGIN;
 
     TPE_vec3Normalize(&dir);
 
@@ -1027,6 +1048,15 @@ uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
     j1->velocity[1] = j1->velocity[1] - vel.y;
     j1->velocity[2] = j1->velocity[2] - vel.z;
 
+    /* friction explanation: Not physically correct (doesn't depend on load), 
+    friction basically means we weighted average the velocities of the bodies
+    in the direction perpendicular to the hit normal, in the ratio of their
+    masses, friction coefficient just says how much of this effect we apply
+    (it multiplies the friction vectors we are subtracting) */
+
+    TPE_Vec3 frictionVec =
+      TPE_vec3(j1->velocity[0],j1->velocity[1],j1->velocity[2]);
+
     v1 = TPE_vec3Dot(vel,dir);
 
     vel = TPE_vec3(j2->velocity[0],j2->velocity[1],j2->velocity[2]);
@@ -1037,21 +1067,33 @@ uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
     j2->velocity[1] = j2->velocity[1] - vel.y;
     j2->velocity[2] = j2->velocity[2] - vel.z;
 
+    frictionVec = TPE_vec3Minus(
+      TPE_vec3(j2->velocity[0],j2->velocity[1],j2->velocity[2]),
+      frictionVec);
+
     v2 = TPE_vec3Dot(vel,dir);
 
     TPE_getVelocitiesAfterCollision(&v1,&v2,mass1,mass2,elasticity);
 
     vel = TPE_vec3Times(dir,v1);
 
-    j1->velocity[0] = j1->velocity[0] + vel.x;
-    j1->velocity[1] = j1->velocity[1] + vel.y;
-    j1->velocity[2] = j1->velocity[2] + vel.z;
+#define assignVec(j,i,d,o) \
+  j->velocity[i] = j->velocity[i] + vel.d o (((frictionVec.d * ratio) / \
+    TPE_FRACTIONS_PER_UNIT) * friction) / TPE_FRACTIONS_PER_UNIT;
+
+    assignVec(j1,0,x,+)
+    assignVec(j1,1,y,+)
+    assignVec(j1,2,z,+)
 
     vel = TPE_vec3Times(dir,v2);
 
-    j2->velocity[0] = j2->velocity[0] + vel.x;
-    j2->velocity[1] = j2->velocity[1] + vel.y;
-    j2->velocity[2] = j2->velocity[2] + vel.z;
+    ratio = TPE_FRACTIONS_PER_UNIT - ratio;
+
+    assignVec(j2,0,x,-)
+    assignVec(j2,1,y,-)
+    assignVec(j2,2,z,-)
+
+#undef assignVec
 
     return 1;
   }
@@ -1533,6 +1575,27 @@ TPE_Vec3 TPE_envSphere(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius)
   dir.z = (dir.z * radius) / l;
 
   return TPE_vec3Plus(center,dir);
+}
+
+TPE_Vec3 TPE_envHalfPlane(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 normal)
+{
+  TPE_Vec3 point2 = TPE_vec3Minus(point,center);
+
+  TPE_Unit tmp = point2.x * normal.x + point2.y * normal.y + point2.z * normal.z;
+
+  if (tmp < 0)
+    return point;
+
+  TPE_Unit l = TPE_LENGTH(normal);
+
+  tmp /= l;
+
+  normal.x = (normal.x * TPE_FRACTIONS_PER_UNIT) / l;
+  normal.y = (normal.y * TPE_FRACTIONS_PER_UNIT) / l;
+  normal.z = (normal.z * TPE_FRACTIONS_PER_UNIT) / l;
+
+  return TPE_vec3Minus(point,
+    TPE_vec3Times(normal,tmp));
 }
 
 #endif // guard

@@ -29,6 +29,8 @@ uint8_t red = 100;
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit distLim)
 {
+
+
   TPE_Vec3 r, rMin = p;
   TPE_Unit d, dMin = 10000000;
 
@@ -36,6 +38,10 @@ TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit distLim)
   r = c; if (p.x == r.x && p.y == r.y && p.z == r.z) return p; \
   d = TPE_DISTANCE(p,r); if (d < dMin) { dMin = d; rMin = r; }
 
+/*
+testShape( TPE_envHalfPlane(p,TPE_vec3(-1000,0,0),TPE_vec3(20,20,0)) )
+testShape( TPE_envHalfPlane(p,TPE_vec3(+1000,0,0),TPE_vec3(-20,20,0)) )
+*/
   testShape( TPE_envAABoxInside(p,TPE_vec3(0,0,0),TPE_vec3(16000,6000,16000)) )
   testShape( TPE_envSphere(p,TPE_vec3(2000,-3500,2000),2000) )
   testShape( TPE_envSphere(p,TPE_vec3(-2000,-3500,0),2000) )
@@ -321,7 +327,7 @@ switch (1)
     break;
 
   case 1:
-    TPE_makeBox(joints,connections,1000,1000,1000,100);
+    TPE_makeBox(joints,connections,1000,1000,1000,500);
     TPE_bodyInit(bodies,joints,8,connections,16,MASS);
     break;
 
@@ -342,25 +348,42 @@ switch (1)
     TPE_bodyInit(bodies,joints,3,connections,3,MASS);
     break;
 
+  case 5:
+    TPE_make2Line(joints,connections,1500,200);
+    TPE_bodyInit(bodies,joints,1,connections,0,MASS);
+    break;
+
   default: break;
 }
 
-//TPE_makeBox(joints + 20,connections + 20,300,128);
+//TPE_make2Line(joints + 20,connections + 20,1000,200);
+//TPE_bodyInit(bodies + 1,joints + 20,1,connections + 20,0,MASS);
 
-//TPE_bodyInit(bodies,joints,1,connections,0,100);
+TPE_makeBox(joints + 20,connections + 20,1000,1000,1000,500);
+TPE_bodyInit(bodies + 1,joints + 20,8,connections + 20,16,100);
 
 //bodies[0].flags |= TPE_BODY_FLAG_SOFT;
 
-bodies[0].elasticity = 256;
+//bodies[0].elasticity = 256;
 
 
-TPE_worldInit(&world,bodies,1,environmentDistance);
 
-TPE_bodyMove(world.bodies,TPE_vec3(-800,1000,0));
-//TPE_bodyMove(&world.bodies[1],TPE_vec3(400,100,1));
+
+TPE_worldInit(&world,bodies,2,environmentDistance);
+
+#define FR 256
+world.bodies[0].friction = FR;
+world.bodies[1].friction = FR;
+
+TPE_bodyMove(world.bodies,TPE_vec3(500,-200,400));
+TPE_bodyMove(&world.bodies[1],TPE_vec3(-500,800,400));
+
 
 TPE_bodyStop(world.bodies);
 TPE_bodyStop(world.bodies + 1);
+
+TPE_bodyAccelerate(world.bodies,TPE_vec3(-50,0,0));
+TPE_bodyAccelerate(world.bodies + 1,TPE_vec3(50,0,0));
 
 //TPE_bodyRotate(world.bodies,TPE_vec3(0,0,200));
 
@@ -389,9 +412,8 @@ for (int i = 0; i < world.bodyCount; ++i)
 {
 
 
-
-TPE_bodyAccelerate(world.bodies + i,
-TPE_vec3(0,-6,0));
+if (!(world.bodies[i].flags & TPE_BODY_FLAG_DEACTIVATED))
+  TPE_bodyAccelerate(world.bodies + i,TPE_vec3(0,-6,0));
 
 }
 
@@ -471,7 +493,7 @@ TPE_Vec3 camRot = TPE_vec3(
 
 sphereScene.models = &cube;
 S3L_newFrame();
-S3L_drawScene(sphereScene);
+//S3L_drawScene(sphereScene);
 sphereScene.models = &sphereModel;
 
 TPE_worldDebugDraw(&world,debugDrawPixel,
@@ -526,15 +548,17 @@ if (state[SDL_SCANCODE_M])
    30));
 }
 
+#define S 10
 if (state[SDL_SCANCODE_J])
-  TPE_bodyAccelerate(bodies,TPE_vec3(10,0,0));
+  TPE_bodyAccelerate(bodies,TPE_vec3(S,0,0));
 else if (state[SDL_SCANCODE_G])
-  TPE_bodyAccelerate(bodies,TPE_vec3(-10,0,0));
+  TPE_bodyAccelerate(bodies,TPE_vec3(-S,0,0));
 
 if (state[SDL_SCANCODE_Y])
-  TPE_bodyAccelerate(bodies,TPE_vec3(0,0,10));
+  TPE_bodyAccelerate(bodies,TPE_vec3(0,0,S));
 else if (state[SDL_SCANCODE_H])
-  TPE_bodyAccelerate(bodies,TPE_vec3(0,0,-10));
+  TPE_bodyAccelerate(bodies,TPE_vec3(0,0,-S));
+#undef S
 
 #define SHIFT_STEP 50
 
