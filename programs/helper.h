@@ -8,6 +8,7 @@
 #include "../tinyphysicsengine.h"
 #include <SDL2/SDL.h>
 #include <math.h>
+#include <sys/time.h> // for measuring time
 
 #ifndef RES_X
   #define RES_X 640
@@ -226,20 +227,41 @@ S3L_Scene s3l_scene;
 
 S3L_Vec4 helper_cameraForw, helper_cameraRight, helper_cameraUp;
 
+unsigned long helper_getMicroSecs(void)
+{
+  struct timeval t;
+  gettimeofday(&t,NULL);
+  return 1000000 * t.tv_sec + t.tv_usec;
+}
+
+void _helper_bodyAdded(int joints, int conns, TPE_Unit mass)
+{
+  TPE_bodyInit(&tpe_bodies[tpe_world.bodyCount],
+    &tpe_joints[helper_jointsUsed],joints,
+    &tpe_connections[helper_connectionsUsed],conns,mass);
+ 
+  helper_jointsUsed += joints;
+  helper_connectionsUsed += conns;
+
+  tpe_world.bodyCount++;
+}
+
 void helper_addBox(TPE_Unit w, TPE_Unit h, TPE_Unit d, TPE_Unit jointSize, TPE_Unit mass)
 {
   TPE_makeBox(
     tpe_joints + helper_jointsUsed,
     tpe_connections + helper_connectionsUsed,w,h,d,jointSize);
 
-  TPE_bodyInit(&tpe_bodies[tpe_world.bodyCount],
-    &tpe_joints[helper_jointsUsed],8,
-    &tpe_connections[helper_connectionsUsed],16,mass);
- 
-  helper_jointsUsed += 8;
-  helper_connectionsUsed += 16;
+  _helper_bodyAdded(8,16,mass);
+}
 
-  tpe_world.bodyCount++;
+void helper_addTriangle(TPE_Unit s, TPE_Unit d, TPE_Unit mass)
+{
+  TPE_makeTriangle(
+    tpe_joints + helper_jointsUsed,
+    tpe_connections + helper_connectionsUsed,s,d);
+
+  _helper_bodyAdded(3,3,mass);
 }
 
 void helper_printCamera(void)
@@ -297,6 +319,39 @@ void sdl_drawPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b)
   *pixel = g;
   pixel++;
   *pixel = r;
+}
+
+void helper_drawLine2D(int x1, int y1, int x2, int y2, uint8_t r, uint8_t g,
+  uint8_t b)
+{
+  // stupid algorithm
+
+  x2 -= x1;
+  y2 -= y1;
+
+  int max = (x2 * x2 > y2 * y2) ? x2 : y2;
+
+  if (max < 0)
+    max *= -1;
+
+  for (int i = 0; i < max; ++i)
+    sdl_drawPixel(x1 + (x2 * i) / max,y1 + (y2 * i) / max,r,g,b);
+}
+
+void helper_drawLine3D(TPE_Vec3 p1, TPE_Vec3 p2, uint8_t rr, uint8_t gg,
+  uint8_t bb)
+{
+  S3L_Vec4 a, b, c, d;
+
+  a.x = p1.x; a.y = p1.y; a.z = p1.z; a.w = 0;
+  b.x = p2.x; b.y = p2.y; b.z = p2.z; b.w = 0;
+
+  S3L_project3DPointToScreen(a,s3l_scene.camera,&c);
+  S3L_project3DPointToScreen(b,s3l_scene.camera,&d);
+  
+  if (c.x >= 0 && c.x < S3L_RESOLUTION_X && c.y >= 0 && c.y < S3L_RESOLUTION_Y && c.z > 0 &&
+      d.x >= 0 && d.x < S3L_RESOLUTION_X && d.y >= 0 && d.y < S3L_RESOLUTION_Y && d.z > 0)
+    helper_drawLine2D(c.x,c.y,d.x,d.y,rr,gg,bb);
 }
 
 void tpe_debugDrawPixel(uint16_t x, uint16_t y, uint8_t color)
@@ -475,4 +530,5 @@ void helper_frameEnd(void)
 
 void helper_end(void)
 {
+  // TODO
 }

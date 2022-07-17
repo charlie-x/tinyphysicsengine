@@ -14,7 +14,7 @@ TPE_Vec3 cubePositions[6];
 TPE_Joint ballJoints[4];
 TPE_Connection ballConnections[3];
 
-uint8_t debugDrawOn = 1;
+uint8_t debugDrawOn = 0;
 
 void updateOrientPos(int i)
 {
@@ -35,6 +35,8 @@ int main(void)
 
   s3l_scene.camera.transform.translation.z -= ROOM_SIZE / 2;
   s3l_scene.camera.transform.translation.y += ROOM_SIZE / 3;
+  s3l_scene.camera.transform.translation.x -= ROOM_SIZE / 4;
+  s3l_scene.camera.transform.rotation.y = -1 * TPE_FRACTIONS_PER_UNIT / 16;
 
   for (int i = 0; i < 6; ++i)
     helper_addBox(CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 4,100);
@@ -61,15 +63,13 @@ int main(void)
   ballJoints[1] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - 100,-600),0);
   ballJoints[2] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - 200,-1200),0);
   ballJoints[3] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - 300,-1800),400);
-
-ballJoints[3].velocity[1] = -30;
+  ballJoints[3].velocity[1] = -100;
 
   ballConnections[0].joint1 = 0; ballConnections[0].joint2 = 1;
   ballConnections[1].joint1 = 1; ballConnections[1].joint2 = 2;
   ballConnections[2].joint1 = 2; ballConnections[2].joint2 = 3;
 
-  TPE_bodyInit(&tpe_world.bodies[6],ballJoints,4,ballConnections,3,
-    1000);
+  TPE_bodyInit(&tpe_world.bodies[6],ballJoints,4,ballConnections,3,10000);
 
   tpe_world.bodyCount++;
     
@@ -95,15 +95,11 @@ ballJoints[3].velocity[1] = -30;
         }
     }
 
-tpe_world.bodies[6].joints[0].position = TPE_vec3(0,ROOM_SIZE / 2 - 10,0);
-tpe_world.bodies[6].joints[0].velocity[0] = 0;
-tpe_world.bodies[6].joints[0].velocity[1] = 0;
-tpe_world.bodies[6].joints[0].velocity[2] = 0;
+    TPE_jointPin(&tpe_world.bodies[6].joints[0],TPE_vec3(0,ROOM_SIZE / 2 - 10,0));
 
-tpe_world.bodies[6].deactivateCount = 0;
+    tpe_world.bodies[6].deactivateCount = 0;
 
     TPE_worldStep(&tpe_world);
-
 
     helper_set3dColor(100,100,100);
     helper_draw3dCubeInside(TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE),TPE_vec3(0,0,0));
@@ -121,9 +117,15 @@ tpe_world.bodies[6].deactivateCount = 0;
       helper_draw3dCube(cubePositions[i],TPE_vec3(CUBE_SIZE,CUBE_SIZE,CUBE_SIZE),cubeOrientations[i]);
     }
 
-tpe_world.bodies[6].joints[3].velocity[1] -= 5;
+    tpe_world.bodies[6].joints[3].velocity[1] -= 5;
 
-helper_draw3dSphere(tpe_world.bodies[6].joints[3].position,TPE_vec3(400,400,400),TPE_vec3(0,0,0)  );
+    helper_draw3dSphere(tpe_world.bodies[6].joints[3].position,TPE_vec3(400,400,400),TPE_vec3(0,0,0)  );
+
+    for (int i = 0; i < 3; ++i)
+      helper_drawLine3D(
+        tpe_world.bodies[6].joints[tpe_world.bodies[6].connections[i].joint1].position,
+        tpe_world.bodies[6].joints[tpe_world.bodies[6].connections[i].joint2].position,
+        255,0,0);
 
     if (debugDrawOn)
       helper_debugDraw();

@@ -41,6 +41,8 @@ typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
 
 #define TPE_JOINT_SIZE_MULTIPLIER 32
 
+#define TPE_INFINITY 2147483647
+
 #define TPE_JOINT_SIZE(joint) ((joint).sizeDivided * TPE_JOINT_SIZE_MULTIPLIER)
 
 #ifndef TPE_APPROXIMATE_LENGTH
@@ -248,7 +250,14 @@ uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elastici
 uint8_t TPE_bodyEnvironmentResolveCollision(TPE_Body *body, 
   TPE_ClosestPointFunction env);
 
+void TPE_bodyGetAABB(const TPE_Body *body, TPE_Vec3 *vMin, TPE_Vec3 *vMax);
+
+uint8_t TPE_checkOverlapAABB(TPE_Vec3 v1Min, TPE_Vec3 v1Max, TPE_Vec3 v2Min,
+  TPE_Vec3 v2Max);
+
 uint8_t TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2);
+
+void TPE_jointPin(TPE_Joint *joint, TPE_Vec3 position);
 
 // -----------------------------------------------------------------------------
 // body generation functions:
@@ -602,11 +611,23 @@ void TPE_worldStep(TPE_World *world)
     }
 
     TPE_Connection *connection = body->connections;
+
+TPE_Vec3 aabbMin, aabbMax;
+
+TPE_bodyGetAABB(body,&aabbMin,&aabbMax);
  
     for (uint16_t j = 0; j < world->bodyCount; ++j)
     {
       if (j > i ||  (world->bodies[j].flags & TPE_BODY_FLAG_DEACTIVATED))
-        if (TPE_bodiesResolveCollision(body,world->bodies + j)) // TODO: nested if
+{
+
+TPE_Vec3 aabbMin2, aabbMax2;
+
+TPE_bodyGetAABB(&world->bodies[j],&aabbMin2,&aabbMax2);
+
+        if (
+TPE_checkOverlapAABB(aabbMin,aabbMax,aabbMin2,aabbMax2) &&
+TPE_bodiesResolveCollision(body,world->bodies + j)) // TODO: nested if
         {
           TPE_bodyActivate(body);
           body->deactivateCount = TPE_LIGHT_DEACTIVATION; 
@@ -614,6 +635,9 @@ void TPE_worldStep(TPE_World *world)
           TPE_bodyActivate(world->bodies + j);
           world->bodies[j].deactivateCount = TPE_LIGHT_DEACTIVATION; 
         }
+}
+
+
     }
  
     TPE_bodyEnvironmentResolveCollision(body,
@@ -1618,6 +1642,70 @@ TPE_Vec3 TPE_envHalfPlane(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 normal)
 
   return TPE_vec3Minus(point,
     TPE_vec3Times(normal,tmp));
+}
+
+uint8_t TPE_checkOverlapAABB(TPE_Vec3 v1Min, TPE_Vec3 v1Max, TPE_Vec3 v2Min,
+  TPE_Vec3 v2Max)
+{
+  TPE_Unit dist;
+
+#define test(c) \
+  dist = v1Min.c + v1Max.c - v2Max.c - v2Min.c; \
+  if (dist < 0) dist *= -1; \
+  if (dist > v1Max.c - v1Min.c + v2Max.c - v2Min.c) return 0;
+
+  test(x)
+  test(y)
+  test(z)
+
+#undef test
+
+  return 1;
+}
+
+void TPE_bodyGetAABB(const TPE_Body *body, TPE_Vec3 *vMin, TPE_Vec3 *vMax)
+{
+  *vMin = body->joints[0].position;
+  *vMax = *vMin;
+
+  TPE_Unit js = TPE_JOINT_SIZE(body->joints[0]);
+
+  vMin->x -= js;
+  vMin->y -= js;
+  vMin->z -= js;
+
+  vMax->x += js;
+  vMax->y += js;
+  vMax->z += js;
+
+  for (uint16_t i = 1; i < body->jointCount; ++i)
+  {
+    TPE_Unit v;
+  
+    js = TPE_JOINT_SIZE(body->joints[i]);
+  
+#define test(c) \
+  v = body->joints[i].position.c - js; \
+  if (v < vMin->c) \
+    vMin->c = v; \
+  v += 2 * js; \
+  if (v > vMax->c) \
+    vMax->c = v;
+
+    test(x)
+    test(y)
+    test(z)
+
+#undef test
+  }
+}
+
+void TPE_jointPin(TPE_Joint *joint, TPE_Vec3 position)
+{
+  joint->position = position;
+  joint->velocity[0] = 0;
+  joint->velocity[1] = 0;
+  joint->velocity[2] = 0;
 }
 
 #endif // guard
