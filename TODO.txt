@@ -1,8 +1,6 @@
-- Would be nice if we could typefef TPE_Vec4 as TPE_Unit[4] and TPE_Vec3 as
-  TPE_Unit[3] to save the space (many operations just use vec4 as vec3 and waste
-  space with the unused w component) -- and we can, but function then can't
-  return these types :((( THINK ABOUT THIS
-- BETTER VIBRATION HANDLING: there are issues, e.g. body stabilizes on a platform,
-  then the platform moves underneath it and it doesn't fall over the edge, or a
-  quickly moving body micro-colliding with floor will be stopped (create an
-  energy threshold)
+- zero sized joints should never collide (can be useful)
+- zero weight joints should behave how?
+- non-rotating bodies
+- when waking a body by collision, maybe set the disable count to lower values,
+  to handle situations in which two touching bodies wouldn't allow each other
+  to ever get disabled

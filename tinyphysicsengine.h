@@ -85,10 +85,20 @@ stable but will cost some performance. */
   #define TPE_RESHAPE_ITERATIONS 3
 #endif
 
-#ifndef TPE_DISABLE_AFTER
+#ifndef TPE_DEACTIVATE_AFTER
 /** After how many ticks of low speed should a body be disabled. This mustn't
 be greater than 255. */
-  #define TPE_DISABLE_AFTER 64
+  #define TPE_DEACTIVATE_AFTER 64
+#endif
+
+#ifndef TPE_LIGHT_DEACTIVATION
+/** When a body is activated by a collision, its deactivation counter will be
+set to this value, i.e. after a collision the body will be prone to deactivate
+sooner than normally. This is to handle situations with many bodies touching
+each other that would normally keep activating each other, never coming to
+rest. */
+  #define TPE_LIGHT_DEACTIVATION \
+    (TPE_DEACTIVATE_AFTER - TPE_DEACTIVATE_AFTER / 10)
 #endif
 
 #ifndef TPE_TENSION_ACCELERATION_DIVIDER
@@ -144,9 +154,9 @@ typedef struct
                                           collisions etc. */
 #define TPE_BODY_FLAG_NONROTATING 2  /**< When set, the body won't rotate, will
                                           only move linearly. */
-#define TPE_BODY_FLAG_DISABLED 3     /**< Disabled, not taking part in
+#define TPE_BODY_FLAG_DISABLED 4     /**< Disabled, not taking part in
                                           simulation. */
-#define TPE_BODY_FLAG_SOFT 4         /**< Soft connections, effort won't be made
+#define TPE_BODY_FLAG_SOFT 8         /**< Soft connections, effort won't be made
                                           to keep the body's shape. */
 
 /** Function used for defining static environment, working similarly to an SDF
@@ -173,7 +183,7 @@ typedef struct
   TPE_UnitReduced friction;
   TPE_UnitReduced elasticity;
   uint8_t flags;
-  uint8_t disableCount;
+  uint8_t deactivateCount;
 } TPE_Body;
 
 typedef struct
@@ -275,6 +285,8 @@ void TPE_worldStep(TPE_World *world);
 TPE_Unit TPE_bodyNetSpeed(const TPE_Body *body);
 TPE_Unit TPE_bodyAverageSpeed(const TPE_Body *body);
 
+void TPE_bodyDeactivate(TPE_Body *body);
+
 void TPE_bodyLimitAverageSpeed(TPE_Body *body, TPE_Unit speedMin,
   TPE_Unit speedMax);
 
@@ -294,7 +306,7 @@ void TPE_bodyMove(TPE_Body *body, TPE_Vec3 offset);
 /** Zero velocities of all soft body joints. */
 void TPE_bodyStop(TPE_Body *body);
 
-void TPE_bodyWake(TPE_Body *body);
+void TPE_bodyActivate(TPE_Body *body);
 
 /** Add velocity to a soft body. */
 void TPE_bodyAccelerate(TPE_Body *body, TPE_Vec3 velocity);
@@ -446,7 +458,7 @@ void TPE_bodyInit(TPE_Body *body,
   body->jointCount = jointCount;
   body->connections = connections;
   body->connectionCount = connectionCount;
-  body->disableCount = 0;
+  body->deactivateCount = 0;
   body->friction = TPE_FRACTIONS_PER_UNIT / 2;
   body->elasticity = TPE_FRACTIONS_PER_UNIT / 2;
 
@@ -564,6 +576,11 @@ void TPE_makeCenterBox(TPE_Joint joints[9], TPE_Connection connections[18],
   
 #undef C
 
+void TPE_bodyDeactivate(TPE_Body *body)
+{
+  body->flags |= TPE_BODY_FLAG_DEACTIVATED;
+}
+
 void TPE_worldStep(TPE_World *world)
 {
   for (uint16_t i = 0; i < world->bodyCount; ++i)
@@ -571,7 +588,7 @@ void TPE_worldStep(TPE_World *world)
     TPE_Body *body = world->bodies + i;   
 
     if (body->flags & (TPE_BODY_FLAG_DEACTIVATED | TPE_BODY_FLAG_DISABLED))
-      continue;    
+      continue; 
 
     TPE_Joint *joint = body->joints, *joint2;
 
@@ -586,15 +603,18 @@ void TPE_worldStep(TPE_World *world)
 
     TPE_Connection *connection = body->connections;
  
-for (uint16_t j = i + 1; j < world->bodyCount; ++j)
-{
-if (TPE_bodiesResolveCollision(body,world->bodies + j))
-{
-  TPE_bodyWake(body);
-  TPE_bodyWake(world->bodies + j);
-}
+    for (uint16_t j = 0; j < world->bodyCount; ++j)
+    {
+      if (j > i ||  (world->bodies[j].flags & TPE_BODY_FLAG_DEACTIVATED))
+        if (TPE_bodiesResolveCollision(body,world->bodies + j)) // TODO: nested if
+        {
+          TPE_bodyActivate(body);
+          body->deactivateCount = TPE_LIGHT_DEACTIVATION; 
 
-}
+          TPE_bodyActivate(world->bodies + j);
+          world->bodies[j].deactivateCount = TPE_LIGHT_DEACTIVATION; 
+        }
+    }
  
     TPE_bodyEnvironmentResolveCollision(body,
       world->environmentFunction);
@@ -619,12 +639,12 @@ if (TPE_bodiesResolveCollision(body,world->bodies + j))
         len > TPE_TENSION_ACCELERATION_THRESHOLD || 
         len < -1 * TPE_TENSION_ACCELERATION_THRESHOLD)
       {
-
         TPE_vec3Normalize(&dir);
 
         dir.x /= TPE_TENSION_ACCELERATION_DIVIDER;
         dir.y /= TPE_TENSION_ACCELERATION_DIVIDER;
         dir.z /= TPE_TENSION_ACCELERATION_DIVIDER;
+
 
         if (len < 0)
         {
@@ -656,27 +676,28 @@ if (TPE_bodiesResolveCollision(body,world->bodies + j))
           TPE_bodyReshape(body,world->environmentFunction);
     }
 
-    if (body->disableCount >= TPE_DISABLE_AFTER)
+    if (body->deactivateCount >= TPE_DEACTIVATE_AFTER)
     {
       TPE_bodyStop(body);
-      body->disableCount = 0;
+      body->deactivateCount = 0;
       body->flags |= TPE_BODY_FLAG_DEACTIVATED;
     }
     else if (TPE_bodyAverageSpeed(body) <= TPE_LOW_SPEED) // TODO: optimize
-      body->disableCount++;
+      body->deactivateCount++;
     else
-      body->disableCount = 0;
+      body->deactivateCount = 0;
   }
 }
 
-void TPE_bodyWake(TPE_Body *body)
+void TPE_bodyActivate(TPE_Body *body)
 {
   // the if check has to be here, don't remove it
 
-  if (body->flags & TPE_BODY_FLAG_DISABLED)
+  if (body->flags & TPE_BODY_FLAG_DEACTIVATED)
   {
     TPE_bodyStop(body);
     body->flags &= ~TPE_BODY_FLAG_DEACTIVATED;
+    body->deactivateCount = 0;
   }
 }
 
@@ -927,7 +948,7 @@ void TPE_bodyMove(TPE_Body *body, TPE_Vec3 offset)
 
 void TPE_bodyAccelerate(TPE_Body *body, TPE_Vec3 velocity)
 {
-  TPE_bodyWake(body);
+  TPE_bodyActivate(body);
 
   for (uint16_t i = 0; i < body->jointCount; ++i)
   {
@@ -1387,12 +1408,10 @@ void TPE_worldDebugDraw(
   TPE_Vec3 camRot,
   TPE_Vec3 camView)
 {
-  TPE_Vec3 p = _TPE_project3DPoint(TPE_vec3(-512,0,-512),
-    camPos,camRot,camView);
-
-  for (uint16_t i = 0; i < world->bodyCount; ++i)
+  if (world->environmentFunction != 0)
   {
     // environment:
+
     TPE_Vec3 testPoint;
 
 #define D 256
@@ -1444,7 +1463,10 @@ void TPE_worldDebugDraw(
 
 #undef N
 #undef D
+  }
 
+  for (uint16_t i = 0; i < world->bodyCount; ++i)
+  {
     // connections:
     for (uint16_t j = 0; j < world->bodies[i].connectionCount; ++j)
     {

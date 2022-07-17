@@ -328,7 +328,8 @@ switch (1)
 
   case 1:
     TPE_makeBox(joints,connections,1000,1000,1000,500);
-    TPE_bodyInit(bodies,joints,8,connections,16,MASS);
+//    TPE_bodyInit(bodies,joints,8,connections,16,MASS);
+TPE_bodyInit(bodies,joints,1,connections,0,MASS);
     break;
 
   case 2:
