@@ -2,7 +2,6 @@
 #define _TINYPHYSICSENGINE_H
 
 /**
-
   Conventions and formats are the same or similar to those of small3dlib so as
   to make them easily integrate with each other.
 
@@ -90,7 +89,7 @@ stable but will cost some performance. */
 #ifndef TPE_DEACTIVATE_AFTER
 /** After how many ticks of low speed should a body be disabled. This mustn't
 be greater than 255. */
-  #define TPE_DEACTIVATE_AFTER 64
+  #define TPE_DEACTIVATE_AFTER 128
 #endif
 
 #ifndef TPE_LIGHT_DEACTIVATION
@@ -206,6 +205,10 @@ void TPE_worldInit(TPE_World *world,
 
 void TPE_vec3Normalize(TPE_Vec3 *v);
 
+TPE_Vec3 TPE_pointRotate(TPE_Vec3 point, TPE_Vec3 rotation);
+
+TPE_Vec3 TPE_rotationInverse(TPE_Vec3 rotation);
+
 void TPE_getVelocitiesAfterCollision(
   TPE_Unit *v1,
   TPE_Unit *v2,
@@ -284,6 +287,9 @@ void TPE_make2Line(TPE_Joint joints[2], TPE_Connection connections[1],
 // environment functions:
 
 TPE_Vec3 TPE_envAABoxInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 size);
+TPE_Vec3 TPE_envAABox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec);
+TPE_Vec3 TPE_envBox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec,
+  TPE_Vec3 rotation);
 TPE_Vec3 TPE_envSphere(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
 TPE_Vec3 TPE_envHalfPlane(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 normal);
 
@@ -330,7 +336,7 @@ void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation);
 /** Instantly rotate soft body, the rotation vector specifies the rotation axis
 by its direction and the rotation angle by its magnitude (TPE_FRACTIONS_PER_UNIT
 stands for full angle, i.e. 2 * PI x). */
-void TPE_bodyRotate(TPE_Body *body, TPE_Vec3 rotation);
+void TPE_bodyRotateByAxis(TPE_Body *body, TPE_Vec3 rotation);
 
 /** Compute the center of mass of a soft body. */
 TPE_Vec3 TPE_bodyGetCenter(const TPE_Body *body);
@@ -905,7 +911,7 @@ void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation)
   }
 }
 
-void TPE_bodyRotate(TPE_Body *body, TPE_Vec3 rotation)
+void TPE_bodyRotateByAxis(TPE_Body *body, TPE_Vec3 rotation)
 {
   TPE_Vec3 bodyCenter = TPE_bodyGetCenter(body);
 
@@ -1553,6 +1559,66 @@ void TPE_worldDebugDraw(
   }
 }
 
+TPE_Vec3 TPE_envBox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec,
+  TPE_Vec3 rotation)
+{
+  point = TPE_pointRotate(TPE_vec3Minus(point,center),
+    TPE_rotationInverse(rotation));
+
+  return TPE_vec3Plus(center,TPE_pointRotate(TPE_envAABox(point,TPE_vec3(0,0,0),
+    maxCornerVec),rotation));
+}
+
+TPE_Vec3 TPE_envAABox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec)
+{
+  TPE_Vec3 shifted = TPE_vec3Minus(point,center);
+ 
+  int8_t sign[3] = {1, 1, 1};
+
+  if (shifted.x < 0)
+  {
+    shifted.x *= -1;
+    sign[0] = -1;
+  }
+
+  if (shifted.y < 0)
+  {
+    shifted.y *= -1;
+    sign[1] = -1;
+  }
+
+  if (shifted.z < 0)
+  {
+    shifted.z *= -1;
+    sign[2] = -1;
+  }
+
+  uint8_t region =
+    (shifted.x > maxCornerVec.x) |
+    ((shifted.y > maxCornerVec.y) << 1) |
+    ((shifted.z > maxCornerVec.z) << 2);
+
+  switch (region)
+  {
+#define align(c,i) point.c = center.c + sign[i] * maxCornerVec.c
+
+    case 0x01: align(x,0); break;
+    case 0x02: align(y,1); break;
+    case 0x04: align(z,2); break;
+
+    case 0x03: align(x,0); align(y,1); break;
+    case 0x05: align(x,0); align(z,2); break;
+    case 0x06: align(y,1); align(z,2); break;
+
+    case 0x07: align(x,0); align(y,1); align(z,2); break; 
+    default: break;
+
+#undef align
+  }
+
+  return point;
+}
+
 TPE_Vec3 TPE_envAABoxInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 size)
 {
   size.x /= 2;
@@ -1706,6 +1772,40 @@ void TPE_jointPin(TPE_Joint *joint, TPE_Vec3 position)
   joint->velocity[0] = 0;
   joint->velocity[1] = 0;
   joint->velocity[2] = 0;
+}
+
+TPE_Vec3 TPE_pointRotate(TPE_Vec3 point, TPE_Vec3 rotation)
+{
+  _TPE_vec2Rotate(&point.y,&point.x,rotation.z);
+  _TPE_vec2Rotate(&point.z,&point.y,rotation.x);
+  _TPE_vec2Rotate(&point.x,&point.z,rotation.y);
+
+  return point;
+}
+
+TPE_Vec3 TPE_rotationInverse(TPE_Vec3 rotation)
+{
+  /* If r1 = (X,Y,Z) is rotation in convention ABC then r1^-1 = (-X,-Y,-Z) in
+     convention CBA is its inverse rotation. We exploit this, i.e. we rotate
+     forward/right vectors in opposite axis order and then turn the result
+     into normal rotation/orientation. */
+
+  TPE_Vec3 f = TPE_vec3(0,0,TPE_FRACTIONS_PER_UNIT);
+  TPE_Vec3 r = TPE_vec3(TPE_FRACTIONS_PER_UNIT,0,0);
+
+  rotation.x *= -1;
+  rotation.y *= -1;
+  rotation.z *= -1;
+
+  _TPE_vec2Rotate(&f.x,&f.z,rotation.y);
+  _TPE_vec2Rotate(&f.z,&f.y,rotation.x);
+  _TPE_vec2Rotate(&f.y,&f.x,rotation.z);
+
+  _TPE_vec2Rotate(&r.x,&r.z,rotation.y);
+  _TPE_vec2Rotate(&r.z,&r.y,rotation.x);
+  _TPE_vec2Rotate(&r.y,&r.x,rotation.z);
+
+  return TPE_orientationFromVecs(f,r);
 }
 
 #endif // guard

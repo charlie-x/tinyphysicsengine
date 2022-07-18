@@ -48,6 +48,10 @@ S3L_Unit cubeVertices[] = { S3L_CUBE_VERTICES(TPE_FRACTIONS_PER_UNIT) };
 S3L_Index cubeTriangles[] = { S3L_CUBE_TRIANGLES };
 S3L_Model3D cubeModel;
 
+S3L_Unit triangleVertices[9];
+S3L_Index triangleTriangles[] = {0, 1, 2, 0, 2, 1};
+S3L_Model3D triangleModel;
+
 S3L_Unit planeVerices[] = 
 {
 #define a S3L_FRACTIONS_PER_UNIT / 2
@@ -255,6 +259,15 @@ void helper_addBox(TPE_Unit w, TPE_Unit h, TPE_Unit d, TPE_Unit jointSize, TPE_U
   _helper_bodyAdded(8,16,mass);
 }
 
+void helper_add2Line(TPE_Unit w, TPE_Unit jointSize, TPE_Unit mass)
+{
+  TPE_make2Line(
+    tpe_joints + helper_jointsUsed,
+    tpe_connections + helper_connectionsUsed,w,jointSize);
+
+  _helper_bodyAdded(2,1,mass);
+}
+
 void helper_addTriangle(TPE_Unit s, TPE_Unit d, TPE_Unit mass)
 {
   TPE_makeTriangle(
@@ -262,6 +275,22 @@ void helper_addTriangle(TPE_Unit s, TPE_Unit d, TPE_Unit mass)
     tpe_connections + helper_connectionsUsed,s,d);
 
   _helper_bodyAdded(3,3,mass);
+}
+
+void helper_addRect(TPE_Unit w, TPE_Unit d, TPE_Unit jointSize, TPE_Unit mass)
+{
+  TPE_makeRect(
+    tpe_joints + helper_jointsUsed,
+    tpe_connections + helper_connectionsUsed,w,d,jointSize);
+
+  _helper_bodyAdded(4,6,mass);
+}
+
+void helper_addBall(TPE_Unit s, TPE_Unit mass)
+{
+  tpe_joints[helper_jointsUsed] = TPE_joint(TPE_vec3(0,0,0),s);
+
+  _helper_bodyAdded(1,0,mass);
 }
 
 void helper_printCamera(void)
@@ -440,6 +469,23 @@ void helper_drawModel(S3L_Model3D *model, TPE_Vec3 pos, TPE_Vec3 scale,
   S3L_drawScene(s3l_scene);
 }
 
+void helper_draw3dTriangle(TPE_Vec3 v1, TPE_Vec3 v2, TPE_Vec3 v3)
+{
+  triangleVertices[0] = v1.x; 
+  triangleVertices[1] = v1.y; 
+  triangleVertices[2] = v1.z; 
+  triangleVertices[3] = v2.x; 
+  triangleVertices[4] = v2.y; 
+  triangleVertices[5] = v2.z; 
+  triangleVertices[6] = v3.x; 
+  triangleVertices[7] = v3.y; 
+  triangleVertices[8] = v3.z;
+
+  helper_drawModel(&triangleModel,TPE_vec3(0,0,0),
+    TPE_vec3(S3L_FRACTIONS_PER_UNIT,S3L_FRACTIONS_PER_UNIT,S3L_FRACTIONS_PER_UNIT),
+    TPE_vec3(0,0,0)); 
+}
+
 void helper_draw3dCube(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
 {
   cubeModel.config.backfaceCulling = 2;
@@ -483,6 +529,8 @@ void helper_init(void)
 
   S3L_model3DInit(sphereVertices,SPHERE_VERTEX_COUNT,sphereTriangleIndices,
     SPHERE_TRIANGLE_COUNT,&sphereModel);
+
+  S3L_model3DInit(triangleVertices,3,triangleTriangles,2,&triangleModel);
 
   S3L_sceneInit(0,1,&s3l_scene);
 
