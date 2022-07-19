@@ -635,11 +635,14 @@ TPE_bodyGetAABB(&world->bodies[j],&aabbMin2,&aabbMax2);
 TPE_checkOverlapAABB(aabbMin,aabbMax,aabbMin2,aabbMax2) &&
 TPE_bodiesResolveCollision(body,world->bodies + j)) // TODO: nested if
         {
+
           TPE_bodyActivate(body);
           body->deactivateCount = TPE_LIGHT_DEACTIVATION; 
 
           TPE_bodyActivate(world->bodies + j);
           world->bodies[j].deactivateCount = TPE_LIGHT_DEACTIVATION; 
+
+
         }
 }
 
@@ -1303,7 +1306,25 @@ vel2 = TPE_vec3Times(vel2,friction);
 uint8_t TPE_bodyEnvironmentResolveCollision(TPE_Body *body, 
   TPE_ClosestPointFunction env)
 {
-// TODO: bounding sphere
+  /* Bounding sphere test first. NOTE: This is not a minimal bounding sphere
+  but one created from the bounding box. Hopes are that this can be faster.
+  TODO: actually test if the minimal B sphere is faster */
+
+  TPE_Vec3 v1, v2;
+
+  TPE_bodyGetAABB(body,&v1,&v2);
+
+  v1.x = (v1.x + v2.x) / 2;
+  v1.y = (v1.y + v2.y) / 2;
+  v1.z = (v1.z + v2.z) / 2;
+
+  TPE_Unit d = TPE_DISTANCE(v1,v2);
+
+  if (TPE_DISTANCE(v1,env(v1,d)) > d)
+    return 0;
+
+  // now test the full body collision:
+
   uint8_t collision = 0;
 
   for (uint16_t i = 0; i < body->jointCount; ++i)
