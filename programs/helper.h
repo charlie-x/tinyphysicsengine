@@ -208,6 +208,9 @@ TPE_Body tpe_bodies[MAX_BODIES];
 TPE_Joint tpe_joints[MAX_JOINTS];
 TPE_Connection tpe_connections[MAX_CONNECTIONS];
 
+int helper_debugDrawOn = 0,
+    helper_debugDrawOnCountdown = 0;
+
 unsigned int 
   helper_jointsUsed = 0,
   helper_connectionsUsed = 0;
@@ -306,7 +309,7 @@ void helper_printCamera(void)
 
 void helper_printCPU(void)
 {
-  printf("CPU (%d FPS): %d %\n",FPS,((MSPF - helper_frameMsLeft) * 100) / MSPF);
+  printf("CPU (%d FPS): %d \n",FPS,((MSPF - helper_frameMsLeft) * 100) / MSPF);
 }
 
 void helper_cameraFreeMovement(void)
@@ -559,6 +562,14 @@ void helper_frameStart(void)
     CAMERA_STEP,&helper_cameraForw,&helper_cameraRight,&helper_cameraUp);
 
   sdl_keyboard = SDL_GetKeyboardState(NULL);
+
+  if (helper_debugDrawOnCountdown == 0 && sdl_keyboard[SDL_SCANCODE_F1])
+  {
+    helper_debugDrawOn = !helper_debugDrawOn;
+    helper_debugDrawOnCountdown = FPS / 4;
+  }
+  else if (helper_debugDrawOnCountdown > 0)
+    helper_debugDrawOnCountdown--;
 }
 
 void helper_frameEnd(void)

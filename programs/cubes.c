@@ -83,9 +83,6 @@ int main(void)
     {
       helper_printCPU();
 
-      if (sdl_keyboard[SDL_SCANCODE_P])
-        debugDrawOn = !debugDrawOn;
-
       if (sdl_keyboard[SDL_SCANCODE_L])
         for (int i = 0; i < 6; ++i)
         {
@@ -127,7 +124,7 @@ int main(void)
         tpe_world.bodies[6].joints[tpe_world.bodies[6].connections[i].joint2].position,
         255,0,0);
 
-    if (debugDrawOn)
+    if (helper_debugDrawOn)
       helper_debugDraw();
 
     helper_frameEnd();

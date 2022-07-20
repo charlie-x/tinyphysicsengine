@@ -2,6 +2,11 @@
 #define _TINYPHYSICSENGINE_H
 
 /**
+  WORK IN PROGRESS, UNUSABLE YET
+
+  Simple/suckless header-only hybrid 3D physics engine with no floating point,
+  only 32 bit int arithmetic, similar to e.g. small3dlib.
+  
   Conventions and formats are the same or similar to those of small3dlib so as
   to make them easily integrate with each other.
 
@@ -12,6 +17,8 @@
   system (x right, y up, z forward).
 
   --------------------
+
+  by drummyfish, 2022
 
   This work's goal is to never be encumbered by any exclusive intellectual
   property rights. The work is therefore provided under CC0 1.0 + additional
@@ -64,8 +71,6 @@ typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
 #ifndef TPE_LOG
   #define TPE_LOG(s) ;
 #endif
-
-
 
 #ifndef TPE_LOW_SPEED
 /** Speed, in TPE_Units per ticks, that is considered low (used e.g. for auto
@@ -618,39 +623,32 @@ void TPE_worldStep(TPE_World *world)
 
     TPE_Connection *connection = body->connections;
 
-TPE_Vec3 aabbMin, aabbMax;
+    TPE_Vec3 aabbMin, aabbMax;
 
-TPE_bodyGetAABB(body,&aabbMin,&aabbMax);
+    TPE_bodyGetAABB(body,&aabbMin,&aabbMax);
  
     for (uint16_t j = 0; j < world->bodyCount; ++j)
     {
       if (j > i ||  (world->bodies[j].flags & TPE_BODY_FLAG_DEACTIVATED))
-{
+      {
+        // firstly quick-check collision of body AA bounding boxes
 
-TPE_Vec3 aabbMin2, aabbMax2;
+        TPE_Vec3 aabbMin2, aabbMax2;
+        TPE_bodyGetAABB(&world->bodies[j],&aabbMin2,&aabbMax2);
 
-TPE_bodyGetAABB(&world->bodies[j],&aabbMin2,&aabbMax2);
-
-        if (
-TPE_checkOverlapAABB(aabbMin,aabbMax,aabbMin2,aabbMax2) &&
-TPE_bodiesResolveCollision(body,world->bodies + j)) // TODO: nested if
+        if (TPE_checkOverlapAABB(aabbMin,aabbMax,aabbMin2,aabbMax2) &&
+          TPE_bodiesResolveCollision(body,world->bodies + j))
         {
-
           TPE_bodyActivate(body);
           body->deactivateCount = TPE_LIGHT_DEACTIVATION; 
 
           TPE_bodyActivate(world->bodies + j);
-          world->bodies[j].deactivateCount = TPE_LIGHT_DEACTIVATION; 
-
-
+          world->bodies[j].deactivateCount = TPE_LIGHT_DEACTIVATION;
         }
-}
-
-
+      }
     }
  
-    TPE_bodyEnvironmentResolveCollision(body,
-      world->environmentFunction);
+    TPE_bodyEnvironmentResolveCollision(body,world->environmentFunction);
 
     TPE_Unit bodyTension = 0;
 
@@ -668,8 +666,7 @@ TPE_bodiesResolveCollision(body,world->bodies + j)) // TODO: nested if
 
       bodyTension += len > 0 ? len : -len;
 
-      if (
-        len > TPE_TENSION_ACCELERATION_THRESHOLD || 
+      if (len > TPE_TENSION_ACCELERATION_THRESHOLD || 
         len < -1 * TPE_TENSION_ACCELERATION_THRESHOLD)
       {
         TPE_vec3Normalize(&dir);
@@ -677,7 +674,6 @@ TPE_bodiesResolveCollision(body,world->bodies + j)) // TODO: nested if
         dir.x /= TPE_TENSION_ACCELERATION_DIVIDER;
         dir.y /= TPE_TENSION_ACCELERATION_DIVIDER;
         dir.z /= TPE_TENSION_ACCELERATION_DIVIDER;
-
 
         if (len < 0)
         {
@@ -813,27 +809,27 @@ void TPE_bodyReshape(TPE_Body *body,
     dir.y = (dir.y * c->length) / TPE_FRACTIONS_PER_UNIT;
     dir.z = (dir.z * c->length) / TPE_FRACTIONS_PER_UNIT;
 
-TPE_Vec3 positionBackup = j1->position;
+    TPE_Vec3 positionBackup = j1->position;
 
     j1->position.x = middle.x - dir.x / 2;
     j1->position.y = middle.y - dir.y / 2;
     j1->position.z = middle.z - dir.z / 2;
 
-if (environmentFunction != 0 &&
-  TPE_LENGTH(TPE_vec3Minus(j1->position,environmentFunction(j1->position,TPE_JOINT_SIZE(*j1))))
-  < TPE_JOINT_SIZE(*j1))
-  j1->position = positionBackup;
+    if (environmentFunction != 0 && TPE_LENGTH(TPE_vec3Minus(j1->position,
+      environmentFunction(j1->position,TPE_JOINT_SIZE(*j1))))
+      < TPE_JOINT_SIZE(*j1))
+      j1->position = positionBackup;
   
-positionBackup = j2->position;
+    positionBackup = j2->position;
 
     j2->position.x = j1->position.x + dir.x;
     j2->position.y = j1->position.y + dir.y;
     j2->position.z = j1->position.z + dir.z; 
 
-if (environmentFunction != 0 &&
-  TPE_LENGTH(TPE_vec3Minus(j2->position,environmentFunction(j2->position,TPE_JOINT_SIZE(*j2))))
-  < TPE_JOINT_SIZE(*j2))
-  j2->position = positionBackup;
+    if (environmentFunction != 0 && TPE_LENGTH(TPE_vec3Minus(j2->position,
+      environmentFunction(j2->position,TPE_JOINT_SIZE(*j2))))
+      < TPE_JOINT_SIZE(*j2))
+      j2->position = positionBackup;
   }
 }
 
@@ -892,8 +888,6 @@ void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation)
 {
   TPE_Vec3 center = TPE_bodyGetCenter(body);
 
-  TPE_Unit anuglarV = TPE_LENGTH(rotation);
-
   for (uint16_t i = 0; i < body->jointCount; ++i)
   {
     TPE_Joint *j = body->joints + i;
@@ -901,11 +895,8 @@ void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation)
     TPE_Vec3 toPoint = TPE_vec3Minus(j->position,center);
 
     toPoint = TPE_vec3Project(toPoint,rotation);
-
     toPoint = TPE_vec3Plus(center,toPoint);
-
     toPoint = TPE_vec3Minus(j->position,toPoint);
-
     toPoint = TPE_vec3Cross(toPoint,rotation);
 
     j->velocity[0] += toPoint.x;
@@ -917,7 +908,6 @@ void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation)
 void TPE_bodyRotateByAxis(TPE_Body *body, TPE_Vec3 rotation)
 {
   TPE_Vec3 bodyCenter = TPE_bodyGetCenter(body);
-
   TPE_Unit angle = TPE_LENGTH(rotation);
 
   TPE_vec3Normalize(&rotation);
@@ -936,13 +926,10 @@ void TPE_bodyRotateByAxis(TPE_Body *body, TPE_Vec3 rotation)
 
     TPE_Vec3 toPoint2 = TPE_vec3Cross(toPoint,rotation);
 
-    j->position = 
-      TPE_vec3Plus(rotationCenter,
+    j->position = TPE_vec3Plus(rotationCenter,
         TPE_vec3Plus(
           TPE_vec3Times(toPoint,TPE_cos(angle)),
-          TPE_vec3Times(toPoint2,TPE_sin(angle))
-        )
-      );
+          TPE_vec3Times(toPoint2,TPE_sin(angle))));
   }
 }
 
@@ -1041,20 +1028,15 @@ TPE_Unit TPE_sin(TPE_Unit x)
 
 uint8_t TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2)
 {
-// TODO: bounding sphere (or AABB? maybe ifdef)
   uint8_t r = 0;
 
   for (uint16_t i = 0; i < b1->jointCount; ++i)
     for (uint16_t j = 0; j < b2->jointCount; ++j)
     {
       r |= TPE_jointsResolveCollision( 
-&(b1->joints[i]),
-&(b2->joints[j]),
-b1->jointMass,
-b2->jointMass,
-512,
-(b1->friction + b2->friction) / 2
- );
+        &(b1->joints[i]),&(b2->joints[j]),
+        b1->jointMass,b2->jointMass,
+        512,(b1->friction + b2->friction) / 2);
     }
 
   return r;
@@ -1181,8 +1163,8 @@ void TPE_getVelocitiesAfterCollision(
   TPE_Unit elasticity
 )
 {
-  /* in the following a lot of TPE_FRACTIONS_PER_UNIT cancel out, feel free to
-     check if confused */
+  /* In the following a lot of TPE_FRACTIONS_PER_UNIT cancel out, feel free to
+     check if confused. */
 
   TPE_Unit m1Pm2 = TPE_nonZero(m1 + m2);
   TPE_Unit v2Mv1 = TPE_nonZero(*v2 - *v1);
@@ -1273,13 +1255,10 @@ uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elastici
 
       vel = TPE_vec3Project(vel,shift);
 
-TPE_Vec3 vel2 = TPE_vec3Minus
-(
-  TPE_vec3(joint->velocity[0],joint->velocity[1],joint->velocity[2]),
-  vel
-);
+      TPE_Vec3 vel2 = TPE_vec3Minus(
+        TPE_vec3(joint->velocity[0],joint->velocity[1],joint->velocity[2]),vel);
 
-vel2 = TPE_vec3Times(vel2,friction);
+      vel2 = TPE_vec3Times(vel2,friction);
 
       vel = TPE_vec3Times(vel,TPE_FRACTIONS_PER_UNIT + elasticity);
 
