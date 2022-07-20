@@ -355,12 +355,21 @@ TPE_Unit TPE_cos(TPE_Unit x);
 
 TPE_Unit TPE_atan(TPE_Unit x);
 
-void TPE_worldDebugDraw(
-  TPE_World *world, 
-  TPE_DebugDrawFunction drawFunc,
-  TPE_Vec3 camPos,
-  TPE_Vec3 camRot,
-  TPE_Vec3 camView);
+/** Draws a debug view of a 3D physics world using a provided pixel drawing
+  function. This can be used to overlay a simple visualization of the physics
+  objects to your main render, to spot exact borders of objects etc. The
+  function draws simple dotted lines and circles with different "colors" for
+  different types of objects (joints, connections, environemnt). camPos, camRot
+  and camView should match the camera settings of your main renderer. CamView.x
+  is horizontal resolution in pixels, camView.y is the vertical resolution,
+  CamView.z says the camera focal length (~FOV) in TPE_Units. envGridRes is the
+  resolution of an environment probe grid (the function will probe points in
+  space and draw borders of the physics environemnt), envGridSize is the size
+  (int TPE_Units) of the grid cell. Note the function may be slow (reducing
+  envGridRes can help, workable value can be e.g. 16). */
+void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
+  TPE_Vec3 camPos, TPE_Vec3 camRot, TPE_Vec3 camView, uint16_t envGridRes,
+  TPE_Unit envGridSize);
 
 //------------------------------------------------------------------------------
 
@@ -1431,12 +1440,9 @@ void _TPE_drawDebugPixel(
     f(x,y,c);
 }
 
-void TPE_worldDebugDraw(
-  TPE_World *world, 
-  TPE_DebugDrawFunction drawFunc,
-  TPE_Vec3 camPos,
-  TPE_Vec3 camRot,
-  TPE_Vec3 camView)
+void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
+  TPE_Vec3 camPos, TPE_Vec3 camRot, TPE_Vec3 camView, uint16_t envGridRes,
+  TPE_Unit envGridSize)
 {
   if (world->environmentFunction != 0)
   {
@@ -1444,36 +1450,34 @@ void TPE_worldDebugDraw(
 
     TPE_Vec3 testPoint;
 
-#define D 256
-#define N 16
-
     TPE_Vec3 center = TPE_vec3(0,TPE_sin(camRot.x),TPE_cos(camRot.x));
 
     _TPE_vec2Rotate(&center.x,&center.z,camRot.y);
 
-    center = TPE_vec3Times(center,(D * N) / 2);
+    TPE_Unit gridHalfSize = (envGridSize * envGridRes) / 2;
+
+    center = TPE_vec3Times(center,gridHalfSize);
     center = TPE_vec3Plus(camPos,center);
 
-    center.x = (center.x / D) * D;
-    center.y = (center.y / D) * D;
-    center.z = (center.z / D) * D;
+    center.x = (center.x / envGridSize) * envGridSize;
+    center.y = (center.y / envGridSize) * envGridSize;
+    center.z = (center.z / envGridSize) * envGridSize;
 
-    testPoint.y = center.y - (D * N) / 2; //(camPos.y / D) * D  - (D * N) / 2;
+    testPoint.y = center.y - gridHalfSize;
 
-    for (uint8_t j = 0; j < N; ++j)
+    for (uint8_t j = 0; j < envGridRes; ++j)
     {
-      testPoint.x = center.x - (D * N) / 2;//(camPos.x / D) * D - (D * N) / 2;
+      testPoint.x = center.x - gridHalfSize;
 
-      for (uint8_t k = 0; k < N; ++k)
+      for (uint8_t k = 0; k < envGridRes; ++k)
       {
-        testPoint.z = center.z - (D * N) / 2; //(camPos.z / D) * D - (D * N) / 2;
+        testPoint.z = center.z - gridHalfSize;
 
-        for (uint8_t l = 0; l < N; ++l)
+        for (uint8_t l = 0; l < envGridRes; ++l)
         {
-          TPE_Vec3 r = world->environmentFunction(testPoint,D);
+          TPE_Vec3 r = world->environmentFunction(testPoint,envGridSize);
 
-          if ((r.x != testPoint.x || r.y != testPoint.y || r.z != testPoint.z)
-        ) //   && TPE_DISTANCE(testPoint,r) < D)
+          if ((r.x != testPoint.x || r.y != testPoint.y || r.z != testPoint.z))
           {
 // TODO: accel. by testing cheb dist first?
             r = _TPE_project3DPoint(r,camPos,camRot,camView);
@@ -1482,17 +1486,14 @@ void TPE_worldDebugDraw(
               _TPE_drawDebugPixel(r.x,r.y,camView.x,camView.y,2,drawFunc);
           }
 
-          testPoint.z += D;
+          testPoint.z += envGridSize;
         }
 
-        testPoint.x += D;
+        testPoint.x += envGridSize;
       }
 
-      testPoint.y += D;
+      testPoint.y += envGridSize;
     }
-
-#undef N
-#undef D
   }
 
   for (uint16_t i = 0; i < world->bodyCount; ++i)

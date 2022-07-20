@@ -421,7 +421,8 @@ void helper_debugDraw(void)
       s3l_scene.camera.transform.rotation.z);
 
   TPE_worldDebugDraw(&tpe_world,tpe_debugDrawPixel,camPos,camRot,
-    TPE_vec3(S3L_RESOLUTION_X,S3L_RESOLUTION_Y,s3l_scene.camera.focalLength));
+    TPE_vec3(S3L_RESOLUTION_X,S3L_RESOLUTION_Y,s3l_scene.camera.focalLength),
+    16,256);
 }
 
 uint8_t s3l_r = 0, s3l_g = 255, s3l_b = 0;
