@@ -1,6 +1,12 @@
-- zero sized joints should never collide (can be useful)
+TODO:
 - zero weight joints should behave how?
 - non-rotating bodies
+- collision callbacks, ability to custom handle collision response
+- debug draw inactive bodies with different color?
+
+DONE:
+- zero sized joints should never collide (can be useful) <- NO because 0 size
+  can also mean just small size (due to size being stored divided)
 - when waking a body by collision, maybe set the disable count to lower values,
   to handle situations in which two touching bodies wouldn't allow each other
   to ever get disabled

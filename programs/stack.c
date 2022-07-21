@@ -58,6 +58,9 @@ int main(void)
     }
 
     TPE_bodyMove(&tpe_world.bodies[tpe_world.bodyCount - 1],TPE_vec3((1 - (i % 4)) * 1200,8000,(2 - (i / 4)) * 1200));
+
+//if (i % 2)
+//tpe_world.bodies[tpe_world.bodyCount - 1].flags |= TPE_BODY_FLAG_NONROTATING;
   } 
 
   while (helper_running)
@@ -68,8 +71,8 @@ int main(void)
 
     if (helper_frame % 16 == 0)
     {
-      helper_printCPU();
-      helper_printCamera();
+      //helper_printCPU();
+      //helper_printCamera();
 
       if (sdl_keyboard[SDL_SCANCODE_L])
         for (int i = 0; i < tpe_world.bodyCount; ++i)

@@ -39,7 +39,15 @@ int main(void)
   s3l_scene.camera.transform.rotation.y = -1 * TPE_FRACTIONS_PER_UNIT / 16;
 
   for (int i = 0; i < 6; ++i)
+{
     helper_addBox(CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 4,100);
+
+tpe_world.bodies[tpe_world.bodyCount - 1].elasticity = 256;
+tpe_world.bodies[tpe_world.bodyCount - 1].friction = 256;
+
+//if (i % 2)
+//tpe_world.bodies[tpe_world.bodyCount - 1].flags |= TPE_BODY_FLAG_NONROTATING;
+}
 
 #define move(i,x,y) \
   TPE_bodyMove(&tpe_world.bodies[i],TPE_vec3((CUBE_SIZE / 2 + 10) * x,10 + CUBE_SIZE / 2 + y * (CUBE_SIZE + 10),0));

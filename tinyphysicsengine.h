@@ -252,8 +252,14 @@ TPE_Joint TPE_joint(TPE_Vec3 position, TPE_Unit size);
 uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
   TPE_Unit mass1, TPE_Unit mass2, TPE_Unit elasticity, TPE_Unit friction);
 
-uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elasticity,
-  TPE_Unit friction, TPE_ClosestPointFunction env);
+/** Tests and potentially resolves a collision between a joint and environment,
+  returns 0 if no collision happened, 1 if it happened and was resolved normally
+  and 2 if it couldn't be resolved normally. */
+uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit
+  elasticity, TPE_Unit friction, TPE_ClosestPointFunction env);
+
+uint8_t TPE_bodyEnvironmentCollide(const TPE_Body *body,
+  TPE_ClosestPointFunction env);
 
 uint8_t TPE_bodyEnvironmentResolveCollision(TPE_Body *body, 
   TPE_ClosestPointFunction env);
@@ -623,6 +629,12 @@ void TPE_worldStep(TPE_World *world)
 
     for (uint16_t j = 0; j < body->jointCount; ++j) // apply velocities
     {
+      // non-rotating bodies will copy the 1st joint's velocity
+
+      if (body->flags & TPE_BODY_FLAG_NONROTATING)
+        for (uint8_t k = 0; k < 3; ++k)
+          joint->velocity[k] = body->joints[0].velocity[k];
+
       joint->position.x += joint->velocity[0];
       joint->position.y += joint->velocity[1];
       joint->position.z += joint->velocity[2];
@@ -661,58 +673,61 @@ void TPE_worldStep(TPE_World *world)
 
     TPE_Unit bodyTension = 0;
 
-    for (uint16_t j = 0; j < body->connectionCount; ++j) // update velocities
+    if (!(body->flags & TPE_BODY_FLAG_NONROTATING))
     {
-      joint  = &(body->joints[connection->joint1]);
-      joint2 = &(body->joints[connection->joint2]);
-
-      TPE_Vec3 dir = TPE_vec3Minus(joint2->position,joint->position);
-
-      TPE_Unit len = TPE_LENGTH(dir);
-
-      len = (len * TPE_FRACTIONS_PER_UNIT) /
-        connection->length - TPE_FRACTIONS_PER_UNIT;
-
-      bodyTension += len > 0 ? len : -len;
-
-      if (len > TPE_TENSION_ACCELERATION_THRESHOLD || 
-        len < -1 * TPE_TENSION_ACCELERATION_THRESHOLD)
+      for (uint16_t j = 0; j < body->connectionCount; ++j) // update velocities
       {
-        TPE_vec3Normalize(&dir);
+        joint  = &(body->joints[connection->joint1]);
+        joint2 = &(body->joints[connection->joint2]);
 
-        dir.x /= TPE_TENSION_ACCELERATION_DIVIDER;
-        dir.y /= TPE_TENSION_ACCELERATION_DIVIDER;
-        dir.z /= TPE_TENSION_ACCELERATION_DIVIDER;
+        TPE_Vec3 dir = TPE_vec3Minus(joint2->position,joint->position);
 
-        if (len < 0)
+        TPE_Unit len = TPE_LENGTH(dir);
+
+        len = (len * TPE_FRACTIONS_PER_UNIT) /
+          connection->length - TPE_FRACTIONS_PER_UNIT;
+
+        bodyTension += len > 0 ? len : -len;
+
+        if (len > TPE_TENSION_ACCELERATION_THRESHOLD || 
+          len < -1 * TPE_TENSION_ACCELERATION_THRESHOLD)
         {
-          dir.x *= -1;
-          dir.y *= -1;
-          dir.z *= -1;
+          TPE_vec3Normalize(&dir);
+
+          dir.x /= TPE_TENSION_ACCELERATION_DIVIDER;
+          dir.y /= TPE_TENSION_ACCELERATION_DIVIDER;
+          dir.z /= TPE_TENSION_ACCELERATION_DIVIDER;
+
+          if (len < 0)
+          {
+            dir.x *= -1;
+            dir.y *= -1;
+            dir.z *= -1;
+          }
+
+          joint->velocity[0] += dir.x;
+          joint->velocity[1] += dir.y;
+          joint->velocity[2] += dir.z;
+
+          joint2->velocity[0] -= dir.x;
+          joint2->velocity[1] -= dir.y;
+          joint2->velocity[2] -= dir.z;
         }
 
-        joint->velocity[0] += dir.x;
-        joint->velocity[1] += dir.y;
-        joint->velocity[2] += dir.z;
-
-        joint2->velocity[0] -= dir.x;
-        joint2->velocity[1] -= dir.y;
-        joint2->velocity[2] -= dir.z;
+        connection++;
       }
 
-      connection++;
-    }
+      if (body->connectionCount > 0 && !(body->flags & TPE_BODY_FLAG_SOFT))
+      {
+        TPE_bodyReshape(body,world->environmentFunction);
 
-    if (body->connectionCount > 0 && !(body->flags & TPE_BODY_FLAG_SOFT))
-    {
-      TPE_bodyReshape(body,world->environmentFunction);
-
-      bodyTension /= body->connectionCount;
-    
-      if (bodyTension > TPE_RESHAPE_TENSION_LIMIT)
-        for (uint8_t k = 0; k < TPE_RESHAPE_ITERATIONS; ++k) 
-          TPE_bodyReshape(body,world->environmentFunction);
-    }
+        bodyTension /= body->connectionCount;
+      
+        if (bodyTension > TPE_RESHAPE_TENSION_LIMIT)
+          for (uint8_t k = 0; k < TPE_RESHAPE_ITERATIONS; ++k) 
+            TPE_bodyReshape(body,world->environmentFunction);
+      }
+    } // if (rotating)
 
     if (body->deactivateCount >= TPE_DEACTIVATE_AFTER)
     {
@@ -997,6 +1012,22 @@ void TPE_bodyStop(TPE_Body *body)
   }
 }
 
+void _TPE_bodyNonrotatingJointCollided(TPE_Body *b, int16_t jointIndex, 
+  TPE_Vec3 origPos, uint8_t success)
+{
+  origPos = TPE_vec3Minus(b->joints[jointIndex].position,origPos);
+
+  for (uint16_t i = 0; i < b->jointCount; ++i)
+    if (i != jointIndex)
+    {
+      b->joints[i].position = TPE_vec3Plus(b->joints[i].position,origPos);
+     
+      if (success) 
+        for (uint8_t j = 0; j < 3; ++j)
+          b->joints[i].velocity[j] = b->joints[jointIndex].velocity[j];
+    }
+}
+
 TPE_Unit TPE_vec3Dot(TPE_Vec3 v1, TPE_Vec3 v2)
 {
   return (v1.x * v2.x + v1.y * v2.y + v1.z * v2.z) / TPE_FRACTIONS_PER_UNIT;
@@ -1042,10 +1073,21 @@ uint8_t TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2)
   for (uint16_t i = 0; i < b1->jointCount; ++i)
     for (uint16_t j = 0; j < b2->jointCount; ++j)
     {
-      r |= TPE_jointsResolveCollision( 
-        &(b1->joints[i]),&(b2->joints[j]),
-        b1->jointMass,b2->jointMass,
-        512,(b1->friction + b2->friction) / 2);
+      TPE_Vec3 origPos2 = b2->joints[j].position;
+      TPE_Vec3 origPos1 = b1->joints[i].position;
+
+      if (TPE_jointsResolveCollision(&(b1->joints[i]),&(b2->joints[j]),
+        b1->jointMass,b2->jointMass,(b1->elasticity + b2->elasticity) / 2,
+        (b1->friction + b2->friction) / 2))
+      {
+        r = 1;
+
+        if (b1->flags & TPE_BODY_FLAG_NONROTATING)
+          _TPE_bodyNonrotatingJointCollided(b1,i,origPos1,1);
+
+        if (b2->flags & TPE_BODY_FLAG_NONROTATING)
+          _TPE_bodyNonrotatingJointCollided(b2,j,origPos2,1);
+      }
     }
 
   return r;
@@ -1283,12 +1325,33 @@ uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elastici
       joint->velocity[0] = 0;
       joint->velocity[1] = 0;
       joint->velocity[2] = 0;
+
+      return 2;
     }
 
     return 1;
   }
 
   return 0;
+}
+
+uint8_t TPE_bodyEnvironmentCollide(const TPE_Body *body,
+  TPE_ClosestPointFunction env)
+{
+  // TODO: should bounding vol check be here? maybe in param?
+
+  for (uint16_t i = 0; i < body->jointCount; ++i)
+  {
+    const TPE_Joint *joint = body->joints + i;
+
+    TPE_Unit size = TPE_JOINT_SIZE(*joint);
+
+  if (TPE_DISTANCE(joint->position,env(joint->position,size)) <= size)
+    return 1;
+  }
+
+  return 0;
+ 
 }
 
 uint8_t TPE_bodyEnvironmentResolveCollision(TPE_Body *body, 
@@ -1316,8 +1379,20 @@ uint8_t TPE_bodyEnvironmentResolveCollision(TPE_Body *body,
   uint8_t collision = 0;
 
   for (uint16_t i = 0; i < body->jointCount; ++i)
-    collision |= TPE_jointEnvironmentResolveCollision(
+  {
+    TPE_Vec3 previousPos = body->joints[i].position;
+
+    uint8_t r = TPE_jointEnvironmentResolveCollision(
       body->joints + i,body->elasticity,body->friction,env);
+
+    if (r)
+    {
+      collision = 1;
+
+      if (body->flags & TPE_BODY_FLAG_NONROTATING)
+        _TPE_bodyNonrotatingJointCollided(body,i,previousPos,r == 1);
+    }
+  }
 
   return collision;
 }
