@@ -55,7 +55,7 @@ typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
   #define TPE_APPROXIMATE_LENGTH 0      /**< whether or not use length/distance 
                                            approximation rather than exact 
                                            calculation (1 is faster but less
-                                           accurate)  */
+                                           accurate) */
 #endif
 
 #if !TPE_APPROXIMATE_LENGTH
@@ -175,6 +175,15 @@ point further away than D may be returned (this allows for potentially
 potentially faster implementation). */
 typedef TPE_Vec3 (*TPE_ClosestPointFunction)(TPE_Vec3, TPE_Unit);
 
+/** Function that can be used as a joint-joint or joint-environment collision
+callback, parameters are following: body1 index, joint1 index, body2 index,
+joint2 index, collision world position. If body1 index is the same as body1
+index, then collision type is body-environment, otherwise it is body-body type.
+The function has to return either 1 if the collision is to be allowed or 0 if
+it is to be discarded. */
+typedef uint8_t (*TPE_CollisionCallback)(uint16_t, uint16_t, uint16_t, uint16_t,
+  TPE_Vec3);
+
 /** Function used by the debug drawing functions to draw individual pixels to
   the screen. The parameters are following: pixel x, pixel y, pixel color. */
 typedef void (*TPE_DebugDrawFunction)(uint16_t, uint16_t, uint8_t);
@@ -197,6 +206,7 @@ typedef struct
   TPE_Body *bodies;
   uint16_t bodyCount;
   TPE_ClosestPointFunction environmentFunction;
+  TPE_CollisionCallback collisionCallback;
 } TPE_World;
 
 void TPE_bodyInit(TPE_Body *body, 
@@ -221,6 +231,8 @@ void TPE_getVelocitiesAfterCollision(
   TPE_Unit m2,
   TPE_Unit elasticity);
 
+TPE_Unit TPE_keepInRange(TPE_Unit x, TPE_Unit xMin, TPE_Unit xMax);
+
 TPE_Vec3 TPE_vec3(TPE_Unit x, TPE_Unit y, TPE_Unit z);
 TPE_Vec3 TPE_vec3Minus(TPE_Vec3 v1, TPE_Vec3 v2);
 TPE_Vec3 TPE_vec3Plus(TPE_Vec3 v1, TPE_Vec3 v2);
@@ -230,7 +242,12 @@ TPE_Vec3 TPE_vec3Times(TPE_Vec3 v, TPE_Unit units);
 TPE_Vec3 TPE_vec3TimesNonNormalized(TPE_Vec3 v, TPE_Unit q);
 TPE_Vec3 TPE_vec3Normalized(TPE_Vec3 v);
 
-/* Computes orientation/rotation (see docs for orientation format) from two
+/** Keeps given point inside specified axis-aligned box. This can be used e.g.
+to smooth rendered movement of jittering physics bodies. */
+TPE_Vec3 TPE_vec3KeepWithinBox(TPE_Vec3 point, TPE_Vec3 boxCenter,
+  TPE_Vec3 boxMaxVect);
+
+/** Computes orientation/rotation (see docs for orientation format) from two
   vectors (which should be at least a close to being perpensicular and do NOT
   need to be normalized). */
 TPE_Vec3 TPE_orientationFromVecs(TPE_Vec3 forward, TPE_Vec3 right);
@@ -304,6 +321,18 @@ TPE_Vec3 TPE_envBox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec,
 TPE_Vec3 TPE_envSphere(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
 TPE_Vec3 TPE_envHalfPlane(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 normal);
 
+
+#define TPE_ENV_START(test,point) TPE_Vec3 _pBest = test, _pTest; \
+  TPE_Unit _dBest = TPE_DISTANCE(_pBest,point), _dTest;
+
+#define TPE_ENV_NEXT(test,point) \
+ { if (_pBest.x == point.x && _pBest.y == point.y && _pBest.z == point.z) \
+     return _pBest; \
+  _pTest = test; _dTest = TPE_DISTANCE(_pTest,point); \
+  if (_dTest < _dBest) { _pBest = _pTest; _dBest = _dTest; } }
+
+#define TPE_ENV_END return _pBest;
+
 //---------------------------
 
 void TPE_worldStep(TPE_World *world);
@@ -336,6 +365,8 @@ void TPE_bodyActivate(TPE_Body *body);
 
 /** Add velocity to a soft body. */
 void TPE_bodyAccelerate(TPE_Body *body, TPE_Vec3 velocity);
+
+void TPE_bodyApplyGravity(TPE_Body *body, TPE_Unit downwardsAccel);
 
 /** Add angular velocity to a soft body. The rotation vector specifies the axis
 of rotation by its direction and angular velocity by its magnitude (magnitude
@@ -378,6 +409,10 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
   TPE_Unit envGridSize);
 
 //------------------------------------------------------------------------------
+// privates:
+
+uint16_t _TPE_body1Index, _TPE_body2Index, _TPE_joint1Index, _TPE_joint2Index;
+TPE_CollisionCallback _TPE_collisionCallback;
 
 static inline TPE_Unit TPE_nonZero(TPE_Unit x)
 {
@@ -524,6 +559,7 @@ void TPE_worldInit(TPE_World *world,
   world->bodies = bodies;
   world->bodyCount = bodyCount;
   world->environmentFunction = environmentFunction;
+  world->collisionCallback = 0;
 }
   
 #define C(n,a,b) connections[n].joint1 = a; connections[n].joint2 = b;
@@ -618,6 +654,8 @@ void TPE_bodyDeactivate(TPE_Body *body)
 
 void TPE_worldStep(TPE_World *world)
 {
+  _TPE_collisionCallback = world->collisionCallback;
+
   for (uint16_t i = 0; i < world->bodyCount; ++i)
   {
     TPE_Body *body = world->bodies + i;   
@@ -626,6 +664,8 @@ void TPE_worldStep(TPE_World *world)
       continue; 
 
     TPE_Joint *joint = body->joints, *joint2;
+
+TPE_Vec3 origPos = body->joints[0].position;
 
     for (uint16_t j = 0; j < body->jointCount; ++j) // apply velocities
     {
@@ -647,6 +687,8 @@ void TPE_worldStep(TPE_World *world)
     TPE_Vec3 aabbMin, aabbMax;
 
     TPE_bodyGetAABB(body,&aabbMin,&aabbMax);
+        
+    _TPE_body1Index = i;
  
     for (uint16_t j = 0; j < world->bodyCount; ++j)
     {
@@ -656,6 +698,8 @@ void TPE_worldStep(TPE_World *world)
 
         TPE_Vec3 aabbMin2, aabbMax2;
         TPE_bodyGetAABB(&world->bodies[j],&aabbMin2,&aabbMax2);
+
+        _TPE_body2Index = j;
 
         if (TPE_checkOverlapAABB(aabbMin,aabbMax,aabbMin2,aabbMax2) &&
           TPE_bodiesResolveCollision(body,world->bodies + j))
@@ -669,13 +713,27 @@ void TPE_worldStep(TPE_World *world)
       }
     }
  
-    TPE_bodyEnvironmentResolveCollision(body,world->environmentFunction);
+    _TPE_body2Index = _TPE_body1Index;
 
-    TPE_Unit bodyTension = 0;
+    uint8_t collided =    
+      TPE_bodyEnvironmentResolveCollision(body,world->environmentFunction);
 
-    if (!(body->flags & TPE_BODY_FLAG_NONROTATING))
+    if (body->flags & TPE_BODY_FLAG_NONROTATING)
     {
-      for (uint16_t j = 0; j < body->connectionCount; ++j) // update velocities
+      /* Non-rotating bodies may end up still colliding after environment coll 
+      resolvement (unlike rotatng bodies where each joint is ensured separately
+      to not collide). So if still in collision, we simply undo any shifts we've
+      done. This sadly results in jitter movement along walls sometimes, but it
+      should absolutely prevent any body escaping out of environment bounds. */
+      if (collided &&
+        TPE_bodyEnvironmentCollide(body,world->environmentFunction))
+        TPE_bodyMove(body,TPE_vec3Minus(origPos,body->joints[0].position));
+    }
+    else
+    {
+      TPE_Unit bodyTension = 0;
+
+      for (uint16_t j = 0; j < body->connectionCount; ++j) // joint tension
       {
         joint  = &(body->joints[connection->joint1]);
         joint2 = &(body->joints[connection->joint2]);
@@ -727,7 +785,7 @@ void TPE_worldStep(TPE_World *world)
           for (uint8_t k = 0; k < TPE_RESHAPE_ITERATIONS; ++k) 
             TPE_bodyReshape(body,world->environmentFunction);
       }
-    } // if (rotating)
+    }
 
     if (body->deactivateCount >= TPE_DEACTIVATE_AFTER)
     {
@@ -990,6 +1048,16 @@ void TPE_bodyMove(TPE_Body *body, TPE_Vec3 offset)
       offset);
 }
 
+void TPE_bodyApplyGravity(TPE_Body *body, TPE_Unit downwardsAccel)
+{
+  if ((body->flags & TPE_BODY_FLAG_DEACTIVATED) ||
+      (body->flags & TPE_BODY_FLAG_DISABLED))
+    return;
+
+  for (uint16_t i = 0; i < body->jointCount; ++i)
+    body->joints[i].velocity[1] -= downwardsAccel;
+}
+
 void TPE_bodyAccelerate(TPE_Body *body, TPE_Vec3 velocity)
 {
   TPE_bodyActivate(body);
@@ -1076,6 +1144,9 @@ uint8_t TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2)
       TPE_Vec3 origPos2 = b2->joints[j].position;
       TPE_Vec3 origPos1 = b1->joints[i].position;
 
+      _TPE_joint1Index = i;
+      _TPE_joint2Index = j;
+
       if (TPE_jointsResolveCollision(&(b1->joints[i]),&(b2->joints[j]),
         b1->jointMass,b2->jointMass,(b1->elasticity + b2->elasticity) / 2,
         (b1->friction + b2->friction) / 2))
@@ -1102,6 +1173,11 @@ uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
 
   if (d < 0) // collision?
   {
+    if (_TPE_collisionCallback != 0)
+      if (!_TPE_collisionCallback(_TPE_body1Index,_TPE_joint1Index,
+        _TPE_body2Index,_TPE_joint2Index,TPE_vec3Plus(j1->position,dir)))
+        return 0;
+  
     // separate bodies, the shift distance will depend on the weight ratio:
 
     d = -1 * d + TPE_COLLISION_RESOLUTION_MARGIN;
@@ -1238,6 +1314,12 @@ uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elastici
 
   if (len <= TPE_JOINT_SIZE(*joint))
   {
+    if (_TPE_collisionCallback != 0)
+      if (!_TPE_collisionCallback(_TPE_body1Index,
+        _TPE_joint1Index,_TPE_body2Index,_TPE_joint2Index,
+        TPE_vec3Minus(joint->position,toJoint)))
+        return 0;
+
     // colliding
 
     TPE_Vec3 positionBackup = joint->position, shift;
@@ -1256,7 +1338,7 @@ uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elastici
         TPE_vec3Normalize(&shift); 
 
         shift = TPE_vec3Times(shift,TPE_JOINT_SIZE(*joint) - len + 
-          TPE_FRACTIONS_PER_UNIT / TPE_COLLISION_RESOLUTION_MARGIN);
+          TPE_COLLISION_RESOLUTION_MARGIN);
           
         joint->position = TPE_vec3Plus(joint->position,shift);
   
@@ -1346,8 +1428,8 @@ uint8_t TPE_bodyEnvironmentCollide(const TPE_Body *body,
 
     TPE_Unit size = TPE_JOINT_SIZE(*joint);
 
-  if (TPE_DISTANCE(joint->position,env(joint->position,size)) <= size)
-    return 1;
+    if (TPE_DISTANCE(joint->position,env(joint->position,size)) <= size)
+      return 1;
   }
 
   return 0;
@@ -1381,6 +1463,8 @@ uint8_t TPE_bodyEnvironmentResolveCollision(TPE_Body *body,
   for (uint16_t i = 0; i < body->jointCount; ++i)
   {
     TPE_Vec3 previousPos = body->joints[i].position;
+
+    _TPE_joint1Index = i;
 
     uint8_t r = TPE_jointEnvironmentResolveCollision(
       body->joints + i,body->elasticity,body->friction,env);
@@ -1519,6 +1603,7 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
   TPE_Vec3 camPos, TPE_Vec3 camRot, TPE_Vec3 camView, uint16_t envGridRes,
   TPE_Unit envGridSize)
 {
+#define Z_LIMIT 250
   if (world->environmentFunction != 0)
   {
     // environment:
@@ -1557,7 +1642,7 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
 // TODO: accel. by testing cheb dist first?
             r = _TPE_project3DPoint(r,camPos,camRot,camView);
         
-            if (r.z > 0)
+            if (r.z > Z_LIMIT)
               _TPE_drawDebugPixel(r.x,r.y,camView.x,camView.y,2,drawFunc);
           }
 
@@ -1583,7 +1668,7 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
       p1 = _TPE_project3DPoint(p1,camPos,camRot,camView);
       p2 = _TPE_project3DPoint(p2,camPos,camRot,camView);
 
-      if (p1.z <= 0 || p2.z <= 0)
+      if (p1.z <= Z_LIMIT || p2.z <= Z_LIMIT)
         continue;
 
       TPE_Vec3 diff = TPE_vec3Minus(p2,p1);
@@ -1594,8 +1679,7 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
         p2.x = p1.x + (diff.x * k) / SEGS;
         p2.y = p1.y + (diff.y * k) / SEGS;
 
-        if (p2.z > 0)
-          _TPE_drawDebugPixel(p2.x,p2.y,camView.x,camView.y,0,drawFunc);
+        _TPE_drawDebugPixel(p2.x,p2.y,camView.x,camView.y,0,drawFunc);
       }
 #undef SEGS
     }
@@ -1606,7 +1690,7 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
       TPE_Vec3 p = _TPE_project3DPoint(world->bodies[i].joints[j].position,
         camPos,camRot,camView);
 
-      if (p.z > 0)
+      if (p.z > Z_LIMIT)
       {
         _TPE_drawDebugPixel(p.x,p.y,camView.x,camView.y,1,drawFunc);
 
@@ -1633,6 +1717,7 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
       }
     }
   }
+#undef Z_LIMIT
 }
 
 TPE_Vec3 TPE_envBox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec,
@@ -1882,6 +1967,26 @@ TPE_Vec3 TPE_rotationInverse(TPE_Vec3 rotation)
   _TPE_vec2Rotate(&r.y,&r.x,rotation.z);
 
   return TPE_orientationFromVecs(f,r);
+}
+
+TPE_Unit TPE_keepInRange(TPE_Unit x, TPE_Unit xMin, TPE_Unit xMax)
+{
+  return x > xMin ? (x < xMax ? x : xMax) : xMin;
+}
+
+TPE_Vec3 TPE_vec3KeepWithinBox(TPE_Vec3 point, TPE_Vec3 boxCenter,
+  TPE_Vec3 boxMaxVect)
+{
+  point.x = TPE_keepInRange(point.x,
+    boxCenter.x - boxMaxVect.x,boxCenter.x + boxMaxVect.x);
+
+  point.y = TPE_keepInRange(point.y,
+    boxCenter.y - boxMaxVect.y,boxCenter.y + boxMaxVect.y);
+
+  point.z = TPE_keepInRange(point.z,
+    boxCenter.z - boxMaxVect.z,boxCenter.z + boxMaxVect.z);
+
+  return point;
 }
 
 #endif // guard

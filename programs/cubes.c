@@ -14,8 +14,6 @@ TPE_Vec3 cubePositions[6];
 TPE_Joint ballJoints[4];
 TPE_Connection ballConnections[3];
 
-uint8_t debugDrawOn = 0;
-
 void updateOrientPos(int i)
 {
   TPE_Joint *joints = tpe_world.bodies[i].joints;
@@ -71,7 +69,7 @@ tpe_world.bodies[tpe_world.bodyCount - 1].friction = 256;
   ballJoints[1] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - 100,-600),0);
   ballJoints[2] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - 200,-1200),0);
   ballJoints[3] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - 300,-1800),400);
-  ballJoints[3].velocity[1] = -100;
+  ballJoints[3].velocity[1] = -200;
 
   ballConnections[0].joint1 = 0; ballConnections[0].joint2 = 1;
   ballConnections[1].joint1 = 1; ballConnections[1].joint2 = 2;
@@ -113,11 +111,10 @@ tpe_world.bodies[tpe_world.bodyCount - 1].friction = 256;
 
     for (int i = 0; i < 6; ++i)
     {
+      TPE_bodyApplyGravity(&tpe_world.bodies[i],5);
+
       if (!(tpe_world.bodies[i].flags & TPE_BODY_FLAG_DEACTIVATED))
-      {
-        TPE_bodyAccelerate(&tpe_world.bodies[i],TPE_vec3(0,-5,0));
         updateOrientPos(i);
-      }
 
       helper_draw3dCube(cubePositions[i],TPE_vec3(CUBE_SIZE,CUBE_SIZE,CUBE_SIZE),cubeOrientations[i]);
     }

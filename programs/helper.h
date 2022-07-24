@@ -36,8 +36,14 @@
 
 #define S3L_PIXEL_FUNCTION s3l_drawPixel
 
-#define S3L_SORT 0
-#define S3L_Z_BUFFER 1
+#ifndef S3L_SORT
+  #define S3L_SORT 0
+#endif
+
+#ifndef S3L_Z_BUFFER
+  #define S3L_Z_BUFFER 1
+#endif
+
 #define S3L_NEAR_CROSS_STRATEGY 2
 #define S3L_USE_WIDER_TYPES 1
 #include "small3dlib.h"
@@ -458,11 +464,11 @@ void helper_drawModel(S3L_Model3D *model, TPE_Vec3 pos, TPE_Vec3 scale,
 
   model->transform.translation.x = pos.x;  
   model->transform.translation.y = pos.y;  
-  model->transform.translation.z = pos.z;  
+  model->transform.translation.z = pos.z;
 
-  model->transform.scale.x = scale.x;  
-  model->transform.scale.y = scale.y;  
-  model->transform.scale.z = scale.z;  
+  model->transform.scale.x = scale.x;
+  model->transform.scale.y = scale.y;
+  model->transform.scale.z = scale.z;
 
   model->transform.rotation.x = rot.x;  
   model->transform.rotation.y = rot.y;  

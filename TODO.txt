@@ -1,8 +1,10 @@
 TODO:
 - zero weight joints should behave how?
-- non-rotating bodies
 - collision callbacks, ability to custom handle collision response
 - debug draw inactive bodies with different color?
+- test different tick lengths
+- air friction
+- test env functions with a single distinct point near camera
 
 DONE:
 - zero sized joints should never collide (can be useful) <- NO because 0 size
@@ -10,3 +12,4 @@ DONE:
 - when waking a body by collision, maybe set the disable count to lower values,
   to handle situations in which two touching bodies wouldn't allow each other
   to ever get disabled
+- non-rotating bodies

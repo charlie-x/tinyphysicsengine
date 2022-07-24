@@ -2,6 +2,13 @@
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
+
+TPE_ENV_START( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(256,256,0)),p )
+TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(-256,256,-256)),p )
+TPE_ENV_NEXT(  TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(-256,256,256)),p )
+TPE_ENV_END
+
+/*
   TPE_Vec3 pTest, pBest;
   TPE_Unit dTest, dBest;
 
@@ -30,6 +37,7 @@ TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
   }
 
   return pBest;
+*/
 }
 
 uint8_t debugDrawOn = 1;
@@ -96,9 +104,8 @@ timeMeasure += helper_getMicroSecs() - t1;
 
     for (int i = 0; i < tpe_world.bodyCount; ++i)
     {
-      if (!(tpe_world.bodies[i].flags & TPE_BODY_FLAG_DEACTIVATED))
-        TPE_bodyAccelerate(&tpe_world.bodies[i],TPE_vec3(0,-5,0));
-  
+      TPE_bodyApplyGravity(&tpe_world.bodies[i],5);
+
       TPE_Joint *joints = tpe_world.bodies[i].joints;
       TPE_Vec3 pos = TPE_bodyGetCenter(&tpe_world.bodies[i]);
       TPE_Vec3 right = TPE_vec3(512,0,0);
