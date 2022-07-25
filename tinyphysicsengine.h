@@ -225,6 +225,12 @@ void TPE_worldInit(TPE_World *world,
   TPE_Body *bodies, uint16_t bodyCount,
   TPE_ClosestPointFunction environmentFunction);
 
+/** Gets orientation (rotation) of a body from a position of three of its
+  joints. The vector from joint1 to joint2 is considered the body's forward
+  direction, the vector from joint1 to joint3 its right direction. */
+TPE_Vec3 TPE_bodyGetOrientation(const TPE_Body *body, uint16_t joint1, 
+  uint16_t joint2, uint16_t joint3);
+
 void TPE_vec3Normalize(TPE_Vec3 *v);
 
 TPE_Vec3 TPE_pointRotate(TPE_Vec3 point, TPE_Vec3 rotation);
@@ -327,7 +333,6 @@ TPE_Vec3 TPE_envBox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec,
   TPE_Vec3 rotation);
 TPE_Vec3 TPE_envSphere(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
 TPE_Vec3 TPE_envHalfPlane(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 normal);
-
 
 #define TPE_ENV_START(test,point) TPE_Vec3 _pBest = test, _pTest; \
   TPE_Unit _dBest = TPE_DISTANCE(_pBest,point), _dTest;
@@ -960,6 +965,18 @@ void TPE_vec3Normalize(TPE_Vec3 *v)
     v->y = (v->y * TPE_FRACTIONS_PER_UNIT) / l;
     v->z = (v->z * TPE_FRACTIONS_PER_UNIT) / l;
   }
+}
+
+TPE_Vec3 TPE_bodyGetOrientation(const TPE_Body *body, uint16_t joint1, 
+  uint16_t joint2, uint16_t joint3)
+{
+  return TPE_orientationFromVecs(
+    TPE_vec3Minus(
+      body->joints[joint2].position,
+      body->joints[joint1].position),
+    TPE_vec3Minus(
+      body->joints[joint3].position,
+      body->joints[joint1].position));
 }
 
 TPE_Vec3 TPE_bodyGetCenter(const TPE_Body *body)

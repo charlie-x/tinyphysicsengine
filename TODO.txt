@@ -8,6 +8,9 @@ TODO:
 - test/handle: collision where the velocity goes "away" from the collision (can
   happen e.g. if one body is hit by a faster body OR by manual manipulation with
   velocities)
+- function for "faking" rotation of a single-joint body (ball): it will simply
+  rotate by the axis perpendicular to its linear velocity vec
+- BUG? makeCenterBox doesnt seem to add the center joint: check it out
 
 DONE:
 - zero sized joints should never collide (can be useful) <- NO because 0 size

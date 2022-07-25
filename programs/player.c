@@ -1,3 +1,5 @@
+#define SCALE_3D_RENDERING 8
+
 #include "helper.h"
 
 #define ROOM_SIZE 10000
@@ -9,13 +11,9 @@ TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
   TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(4000,160,4000),TPE_vec3(1000,160,1000)),p )
   TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(4000,80,2500),TPE_vec3(1000,80,500)),p )
   TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(-1000,270,4500),TPE_vec3(4000,270,250)),p )
+  TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,-2000),TPE_vec3(0,255,255)),p )
   TPE_ENV_END
 }
-
-/*
-320
-320 + 160
-*/
 
 int jumpCountdown = 0;
 TPE_Unit rotation = 0;
@@ -67,7 +65,16 @@ tpe_world.bodies[0].friction = 0;
 helper_addBall(1000,100);
 TPE_bodyMove(&tpe_world.bodies[1],TPE_vec3(-1000,1000,0));
 
-tpe_world.bodies[1].elasticity = 512;
+tpe_world.bodies[1].elasticity = 400;
+tpe_world.bodies[1].friction = 100;
+ 
+//helper_addBox(400,400,400,200,300);
+helper_addCenterRect(600,600,400,50);
+//helper_addBox(500,500,500,250,300);
+TPE_bodyMove(&tpe_world.bodies[2],TPE_vec3(-3000,1000,2000));
+
+tpe_world.bodies[2].elasticity = 400;
+tpe_world.bodies[2].friction = 50;
  
   while (helper_running)
   {
@@ -140,8 +147,22 @@ tpe_world.bodies[1].elasticity = 512;
     helper_draw3dCubeInside(TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE),TPE_vec3(0,0,0));
     helper_draw3dCube(TPE_vec3(4000,160,4000),TPE_vec3(2000,320,2000),TPE_vec3(0,0,0));
     helper_draw3dCube(TPE_vec3(4000,80,2500),TPE_vec3(2000,160,1000),TPE_vec3(0,0,0));
-
     helper_draw3dCube(TPE_vec3(-1000,270,4500),TPE_vec3(8000,540,500),TPE_vec3(0,0,0));
+
+helper_draw3dPlane(
+TPE_vec3(0,1500,-3500),
+TPE_vec3(10000,512,4000),
+TPE_vec3(-64,0,0));
+    
+helper_set3dColor(200,50,0);
+
+helper_draw3dCube(
+TPE_bodyGetCenter(&tpe_world.bodies[2]),
+TPE_vec3(1200,800,1200),
+TPE_bodyGetOrientation(&tpe_world.bodies[2],0,2,1)
+
+);
+
     
 
 helper_draw3dSphere(

@@ -16,13 +16,7 @@ TPE_Connection ballConnections[3];
 
 void updateOrientPos(int i)
 {
-  TPE_Joint *joints = tpe_world.bodies[i].joints;
-
-  cubeOrientations[i] = TPE_orientationFromVecs(
-    TPE_vec3Minus(joints[2].position,joints[0].position),
-    TPE_vec3Minus(joints[1].position,joints[0].position));
-
-  cubePositions[i] = TPE_bodyGetCenter(&tpe_world.bodies[i]);
+  cubeOrientations[i] = TPE_bodyGetOrientation(&tpe_world.bodies[i],0,2,1);
 }
 
 int main(void)

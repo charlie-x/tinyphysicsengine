@@ -36,6 +36,12 @@
 
 #define S3L_PIXEL_FUNCTION s3l_drawPixel
 
+#ifndef SCALE_3D_RENDERING
+  #define SCALE_3D_RENDERING 1 // helper divider for preveneting overflows
+#endif
+
+#define S3L_NEAR (S3L_FRACTIONS_PER_UNIT / (4 * SCALE_3D_RENDERING))
+
 #ifndef S3L_SORT
   #define S3L_SORT 0
 #endif
@@ -44,8 +50,16 @@
   #define S3L_Z_BUFFER 1
 #endif
 
-#define S3L_NEAR_CROSS_STRATEGY 2
+#ifndef S3L_PERSPECTIVE_CORRECTION
+  #define S3L_PERSPECTIVE_CORRECTION 2
+#endif
+
+#ifndef S3L_NEAR_CROSS_STRATEGY
+  #define S3L_NEAR_CROSS_STRATEGY 2
+#endif
+
 #define S3L_USE_WIDER_TYPES 1
+
 #include "small3dlib.h"
 
 #define PIXELS_SIZE (S3L_RESOLUTION_X * S3L_RESOLUTION_Y * 4)
@@ -286,6 +300,15 @@ void helper_addTriangle(TPE_Unit s, TPE_Unit d, TPE_Unit mass)
   _helper_bodyAdded(3,3,mass);
 }
 
+void helper_addCenterRect(TPE_Unit w, TPE_Unit d, TPE_Unit jointSize, TPE_Unit mass)
+{
+  TPE_makeCenterRect(
+    tpe_joints + helper_jointsUsed,
+    tpe_connections + helper_connectionsUsed,w,d,jointSize);
+
+  _helper_bodyAdded(5,8,mass);
+}
+
 void helper_addRect(TPE_Unit w, TPE_Unit d, TPE_Unit jointSize, TPE_Unit mass)
 {
   TPE_makeRect(
@@ -476,7 +499,35 @@ void helper_drawModel(S3L_Model3D *model, TPE_Vec3 pos, TPE_Vec3 scale,
 
   s3l_scene.models = model;
 
+#if SCALE_3D_RENDERING != 1
+
+  S3L_Vec4 cp = s3l_scene.camera.transform.translation;
+  S3L_Vec4 ms = s3l_scene.models[0].transform.scale;
+  S3L_Vec4 mp = s3l_scene.models[0].transform.translation;
+
+  s3l_scene.camera.transform.translation.x /= SCALE_3D_RENDERING;
+  s3l_scene.camera.transform.translation.y /= SCALE_3D_RENDERING;
+  s3l_scene.camera.transform.translation.z /= SCALE_3D_RENDERING;
+
+  s3l_scene.models[0].transform.scale.x /= SCALE_3D_RENDERING;
+  s3l_scene.models[0].transform.scale.y /= SCALE_3D_RENDERING;
+  s3l_scene.models[0].transform.scale.z /= SCALE_3D_RENDERING;
+
+  s3l_scene.models[0].transform.translation.x /= SCALE_3D_RENDERING;
+  s3l_scene.models[0].transform.translation.y /= SCALE_3D_RENDERING;
+  s3l_scene.models[0].transform.translation.z /= SCALE_3D_RENDERING;
+
+#endif
+
   S3L_drawScene(s3l_scene);
+
+#if SCALE_3D_RENDERING != 1
+
+  s3l_scene.camera.transform.translation = cp;
+  s3l_scene.models[0].transform.scale = ms;
+  s3l_scene.models[0].transform.translation = mp;
+
+#endif
 }
 
 void helper_draw3dTriangle(TPE_Vec3 v1, TPE_Vec3 v2, TPE_Vec3 v3)
