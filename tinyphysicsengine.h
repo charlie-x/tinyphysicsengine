@@ -131,6 +131,13 @@ of 2. */
   #define TPE_COLLISION_RESOLUTION_MARGIN (TPE_FRACTIONS_PER_UNIT / 64)
 #endif
 
+#ifndef TPE_NONROTATING_COLLISION_RESOLVE_ATTEMPTS
+/** Number of times a collision of nonrotating bodies with environment will be
+  attempted to resolve. This probably won't have great performance implications
+  as complex collisions of this kind should be relatively rare. */
+  #define TPE_NONROTATING_COLLISION_RESOLVE_ATTEMPTS 3
+#endif
+
 #define TPE_PRINTF_VEC3(v) printf("[%d %d %d]",(v).x,(v).y,(v).z);
 
 typedef struct
@@ -665,7 +672,7 @@ void TPE_worldStep(TPE_World *world)
 
     TPE_Joint *joint = body->joints, *joint2;
 
-TPE_Vec3 origPos = body->joints[0].position;
+    TPE_Vec3 origPos = body->joints[0].position;
 
     for (uint16_t j = 0; j < body->jointCount; ++j) // apply velocities
     {
@@ -721,10 +728,20 @@ TPE_Vec3 origPos = body->joints[0].position;
     if (body->flags & TPE_BODY_FLAG_NONROTATING)
     {
       /* Non-rotating bodies may end up still colliding after environment coll 
-      resolvement (unlike rotatng bodies where each joint is ensured separately
-      to not collide). So if still in collision, we simply undo any shifts we've
-      done. This sadly results in jitter movement along walls sometimes, but it
-      should absolutely prevent any body escaping out of environment bounds. */
+      resolvement (unlike rotating bodies where each joint is ensured separately
+      to not collide). So if still in collision, we try a few more times. If not
+      successful, we simply undo any shifts we've done. This should absolutely
+      prevent any body escaping out of environment bounds. */
+ 
+      for (uint8_t i = 0; i < TPE_NONROTATING_COLLISION_RESOLVE_ATTEMPTS; ++i) 
+      {
+        if (!collided)
+          break;
+
+        collided =
+          TPE_bodyEnvironmentResolveCollision(body,world->environmentFunction);
+      }
+
       if (collided &&
         TPE_bodyEnvironmentCollide(body,world->environmentFunction))
         TPE_bodyMove(body,TPE_vec3Minus(origPos,body->joints[0].position));
@@ -1342,7 +1359,8 @@ uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elastici
           
         joint->position = TPE_vec3Plus(joint->position,shift);
   
-        toJoint = TPE_vec3Minus(joint->position,env(joint->position,TPE_JOINT_SIZE(*joint)));
+        toJoint = TPE_vec3Minus(joint->position,env(joint->position,
+          TPE_JOINT_SIZE(*joint)));
 
         len = TPE_LENGTH(toJoint); // still colliding?
 
@@ -1381,14 +1399,15 @@ uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elastici
         shift.z /= 2;
       }
     }
+
     if (success)
     {
       TPE_Vec3 vel = TPE_vec3(joint->velocity[0],joint->velocity[1],
         joint->velocity[2]);
 
-      vel = TPE_vec3Project(vel,shift);
+      vel = TPE_vec3Project(vel,shift); // parallel part of velocity
 
-      TPE_Vec3 vel2 = TPE_vec3Minus(
+      TPE_Vec3 vel2 = TPE_vec3Minus( // perpendicular part of velocity
         TPE_vec3(joint->velocity[0],joint->velocity[1],joint->velocity[2]),vel);
 
       vel2 = TPE_vec3Times(vel2,friction);

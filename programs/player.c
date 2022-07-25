@@ -1,6 +1,3 @@
-#define S3L_SORT 1
-#define S3L_Z_BUFFER 0
-
 #include "helper.h"
 
 #define ROOM_SIZE 10000
@@ -11,7 +8,7 @@ TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
   TPE_ENV_START( TPE_envAABoxInside(p,TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE)),p )
   TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(4000,160,4000),TPE_vec3(1000,160,1000)),p )
   TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(4000,80,2500),TPE_vec3(1000,80,500)),p )
-  TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(-500,270,4500),TPE_vec3(4000,270,250)),p )
+  TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(-1000,270,4500),TPE_vec3(4000,270,250)),p )
   TPE_ENV_END
 }
 
@@ -76,6 +73,9 @@ tpe_world.bodies[1].elasticity = 512;
   {
     if (onGroundCount > 0)
       onGroundCount--;
+      
+    if (jumpCountdown > 0)
+      jumpCountdown--;
 
     helper_frameStart();
 
@@ -99,11 +99,10 @@ tpe_world.bodies[1].elasticity = 512;
     {
       if (sdl_keyboard[SDL_SCANCODE_SPACE] && jumpCountdown == 0 && onGroundCount)
       {
-        tpe_world.bodies[0].joints[0].velocity[1] += 80;
-        jumpCountdown = 3;
+        tpe_world.bodies[0].joints[0].velocity[1] = 80;
+        jumpCountdown = 8;
+        onGroundCount = 0;
       }
-      else if (jumpCountdown > 0)
-        jumpCountdown--;
 
 #define AAA 16
       if (sdl_keyboard[SDL_SCANCODE_UP] || sdl_keyboard[SDL_SCANCODE_W])
@@ -141,6 +140,8 @@ tpe_world.bodies[1].elasticity = 512;
     helper_draw3dCubeInside(TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE),TPE_vec3(0,0,0));
     helper_draw3dCube(TPE_vec3(4000,160,4000),TPE_vec3(2000,320,2000),TPE_vec3(0,0,0));
     helper_draw3dCube(TPE_vec3(4000,80,2500),TPE_vec3(2000,160,1000),TPE_vec3(0,0,0));
+
+    helper_draw3dCube(TPE_vec3(-1000,270,4500),TPE_vec3(8000,540,500),TPE_vec3(0,0,0));
     
 
 helper_draw3dSphere(

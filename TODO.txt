@@ -5,6 +5,9 @@ TODO:
 - test different tick lengths
 - air friction
 - test env functions with a single distinct point near camera
+- test/handle: collision where the velocity goes "away" from the collision (can
+  happen e.g. if one body is hit by a faster body OR by manual manipulation with
+  velocities)
 
 DONE:
 - zero sized joints should never collide (can be useful) <- NO because 0 size
