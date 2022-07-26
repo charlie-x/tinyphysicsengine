@@ -251,6 +251,8 @@ TPE_Vec3 TPE_vec3Minus(TPE_Vec3 v1, TPE_Vec3 v2);
 TPE_Vec3 TPE_vec3Plus(TPE_Vec3 v1, TPE_Vec3 v2);
 TPE_Vec3 TPE_vec3Cross(TPE_Vec3 v1, TPE_Vec3 v2);
 TPE_Vec3 TPE_vec3Project(TPE_Vec3 v, TPE_Vec3 base);
+TPE_Vec3 TPE_vec3ProjectNormalized(TPE_Vec3 v, TPE_Vec3 baseNormalized);
+
 TPE_Vec3 TPE_vec3Times(TPE_Vec3 v, TPE_Unit units);
 TPE_Vec3 TPE_vec3TimesNonNormalized(TPE_Vec3 v, TPE_Unit q);
 TPE_Vec3 TPE_vec3Normalized(TPE_Vec3 v);
@@ -333,6 +335,8 @@ TPE_Vec3 TPE_envBox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec,
   TPE_Vec3 rotation);
 TPE_Vec3 TPE_envSphere(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
 TPE_Vec3 TPE_envHalfPlane(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 normal);
+TPE_Vec3 TPE_envInfiniteCyllinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
+  direction, TPE_Unit radius);
 
 #define TPE_ENV_START(test,point) TPE_Vec3 _pBest = test, _pTest; \
   TPE_Unit _dBest = TPE_DISTANCE(_pBest,point), _dTest;
@@ -1060,19 +1064,24 @@ TPE_Vec3 TPE_vec3Cross(TPE_Vec3 v1, TPE_Vec3 v2)
   return r;
 }
 
-TPE_Vec3 TPE_vec3Project(TPE_Vec3 v, TPE_Vec3 base)
+TPE_Vec3 TPE_vec3ProjectNormalized(TPE_Vec3 v, TPE_Vec3 baseNormalized)
 {
   TPE_Vec3 r;
 
-  TPE_vec3Normalize(&base);
+  TPE_Unit p = TPE_vec3Dot(v,baseNormalized);
 
-  TPE_Unit p = TPE_vec3Dot(v,base);
-
-  r.x = (p * base.x) / TPE_FRACTIONS_PER_UNIT;
-  r.y = (p * base.y) / TPE_FRACTIONS_PER_UNIT;
-  r.z = (p * base.z) / TPE_FRACTIONS_PER_UNIT;
+  r.x = (p * baseNormalized.x) / TPE_FRACTIONS_PER_UNIT;
+  r.y = (p * baseNormalized.y) / TPE_FRACTIONS_PER_UNIT;
+  r.z = (p * baseNormalized.z) / TPE_FRACTIONS_PER_UNIT;
   
   return r;
+}
+
+TPE_Vec3 TPE_vec3Project(TPE_Vec3 v, TPE_Vec3 base)
+{
+  TPE_vec3Normalize(&base);
+
+  return TPE_vec3ProjectNormalized(v,base);
 }
 
 void TPE_bodyMove(TPE_Body *body, TPE_Vec3 offset)
@@ -2023,6 +2032,26 @@ TPE_Vec3 TPE_vec3KeepWithinBox(TPE_Vec3 point, TPE_Vec3 boxCenter,
     boxCenter.z - boxMaxVect.z,boxCenter.z + boxMaxVect.z);
 
   return point;
+}
+
+TPE_Vec3 TPE_envInfiniteCyllinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
+  direction, TPE_Unit radius)
+{
+  TPE_Vec3 d = TPE_vec3Minus(point,center);
+  d = TPE_vec3Minus(d,TPE_vec3Project(d,direction));
+
+  TPE_Unit l = TPE_LENGTH(d);
+
+  if (l <= radius)
+    return point;
+
+  radius = l - radius;
+
+  d.x = (d.x * radius) / l;
+  d.y = (d.y * radius) / l;
+  d.z = (d.z * radius) / l;
+    
+  return TPE_vec3Minus(point,d);
 }
 
 #endif // guard

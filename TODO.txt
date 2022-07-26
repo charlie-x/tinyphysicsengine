@@ -11,6 +11,7 @@ TODO:
 - function for "faking" rotation of a single-joint body (ball): it will simply
   rotate by the axis perpendicular to its linear velocity vec
 - BUG? makeCenterBox doesnt seem to add the center joint: check it out
+- demo: momentum conservation
 
 DONE:
 - zero sized joints should never collide (can be useful) <- NO because 0 size
