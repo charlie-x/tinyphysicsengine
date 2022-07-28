@@ -218,7 +218,72 @@ const S3L_Index sphereTriangleIndices[SPHERE_TRIANGLE_COUNT * 3] = {
      13,     1,    14         // 237
 }; // sphereTriangleIndices
 
+#define CYLINDER_VERTEX_COUNT 20
+const S3L_Unit cylinderVertices[CYLINDER_VERTEX_COUNT * 3] = {
+      0,  -256,   512,        // 0
+      0,   256,   512,        // 3
+    300,  -256,   414,        // 6
+    300,   256,   414,        // 9
+    486,  -256,   158,        // 12
+    486,   256,   158,        // 15
+    486,  -256,  -158,        // 18
+    486,   256,  -158,        // 21
+    300,  -256,  -414,        // 24
+    300,   256,  -414,        // 27
+      0,  -256,  -512,        // 30
+      0,   256,  -512,        // 33
+   -300,  -256,  -414,        // 36
+   -300,   256,  -414,        // 39
+   -486,  -256,  -158,        // 42
+   -486,   256,  -158,        // 45
+   -486,  -256,   158,        // 48
+   -486,   256,   158,        // 51
+   -300,  -256,   414,        // 54
+   -300,   256,   414         // 57
+}; // cylinderVertices
+
+#define CYLINDER_TRIANGLE_COUNT 36
+const S3L_Index cylinderTriangleIndices[CYLINDER_TRIANGLE_COUNT * 3] = {
+      1,     2,     0,        // 0
+      3,     4,     2,        // 3
+      5,     6,     4,        // 6
+      7,     8,     6,        // 9
+      9,    10,     8,        // 12
+     11,    12,    10,        // 15
+     13,    14,    12,        // 18
+     15,    16,    14,        // 21
+     17,     7,     5,        // 24
+     17,    18,    16,        // 27
+     19,     0,    18,        // 30
+      6,    14,    18,        // 33
+      1,     3,     2,        // 36
+      3,     5,     4,        // 39
+      5,     7,     6,        // 42
+      7,     9,     8,        // 45
+      9,    11,    10,        // 48
+     11,    13,    12,        // 51
+     13,    15,    14,        // 54
+     15,    17,    16,        // 57
+      5,     3,    17,        // 60
+      1,    19,    17,        // 63
+     17,    15,    13,        // 66
+     13,    11,    17,        // 69
+      9,     7,    17,        // 72
+      3,     1,    17,        // 75
+     17,    11,     9,        // 78
+     17,    19,    18,        // 81
+     19,     1,     0,        // 84
+     18,     0,     2,        // 87
+      2,     4,     6,        // 90
+      6,     8,    10,        // 93
+     10,    12,    14,        // 96
+     14,    16,    18,        // 99
+     18,     2,     6,        // 102
+      6,    10,    14         // 105
+}; // cylinderTriangleIndices
+
 S3L_Model3D sphereModel;
+S3L_Model3D cylinderModel;
 
 #define MAX_BODIES 128
 #define MAX_JOINTS 1024
@@ -553,6 +618,11 @@ void helper_draw3dCube(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
   helper_drawModel(&cubeModel,pos,scale,rot);
 }
 
+void helper_draw3dCylinder(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
+{
+  helper_drawModel(&cylinderModel,pos,scale,rot);
+}
+
 void helper_draw3dCubeInside(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
 {
   cubeModel.config.backfaceCulling = 1;
@@ -590,6 +660,9 @@ void helper_init(void)
 
   S3L_model3DInit(sphereVertices,SPHERE_VERTEX_COUNT,sphereTriangleIndices,
     SPHERE_TRIANGLE_COUNT,&sphereModel);
+
+  S3L_model3DInit(cylinderVertices,CYLINDER_VERTEX_COUNT,
+    cylinderTriangleIndices,CYLINDER_TRIANGLE_COUNT,&cylinderModel);
 
   S3L_model3DInit(triangleVertices,3,triangleTriangles,2,&triangleModel);
 

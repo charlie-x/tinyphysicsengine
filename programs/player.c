@@ -1,4 +1,4 @@
-#define SCALE_3D_RENDERING 8
+#define SCALE_3D_RENDERING 1
 
 #include "helper.h"
 
@@ -12,12 +12,15 @@ TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
   TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(4000,80,2500),TPE_vec3(1000,80,500)),p )
   TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(-1000,270,4500),TPE_vec3(4000,270,250)),p )
   TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,-2000),TPE_vec3(0,255,255)),p )
+  TPE_ENV_NEXT( TPE_envInfiniteCylinder(p,TPE_vec3(2000,0,-1100),TPE_vec3(0,255,0),400),p )
   TPE_ENV_END
 }
 
 int jumpCountdown = 0;
 TPE_Unit rotation = 0;
 int onGroundCount = 0;
+
+TPE_Vec3 ballRot, ballPreviousPos;
 
 TPE_Vec3 directionVec;
 
@@ -38,11 +41,16 @@ uint8_t collisionCallback(uint16_t b1, uint16_t j1, uint16_t b2, uint16_t j2,
 
 int main(void)
 {
+
+
+
   helper_init();
 
   helper_debugDrawOn = 1;
 
   updateDirection();
+
+ballRot = TPE_vec3(0,0,0);
 
   tpe_world.environmentFunction = environmentDistance;
 
@@ -64,6 +72,8 @@ tpe_world.bodies[0].friction = 0;
 
 helper_addBall(1000,100);
 TPE_bodyMove(&tpe_world.bodies[1],TPE_vec3(-1000,1000,0));
+
+ballPreviousPos = tpe_world.bodies[1].joints[0].position;
 
 tpe_world.bodies[1].elasticity = 400;
 tpe_world.bodies[1].friction = 100;
@@ -99,6 +109,15 @@ tpe_world.bodies[2].friction = 50;
     s3l_scene.camera.transform.rotation.y = -1 * rotation;
 
     TPE_worldStep(&tpe_world);
+
+TPE_Vec3 ballRoll = TPE_fakeSphereRotation
+  (ballPreviousPos,tpe_world.bodies[1].joints[0].position,1000);
+
+
+ballRot = TPE_rotationRotateByAxis(ballRot,ballRoll);
+
+ballPreviousPos = tpe_world.bodies[1].joints[0].position;
+
 
     TPE_bodyActivate(&tpe_world.bodies[0]);
 
@@ -148,6 +167,9 @@ tpe_world.bodies[2].friction = 50;
     helper_draw3dCube(TPE_vec3(4000,160,4000),TPE_vec3(2000,320,2000),TPE_vec3(0,0,0));
     helper_draw3dCube(TPE_vec3(4000,80,2500),TPE_vec3(2000,160,1000),TPE_vec3(0,0,0));
     helper_draw3dCube(TPE_vec3(-1000,270,4500),TPE_vec3(8000,540,500),TPE_vec3(0,0,0));
+helper_draw3dCylinder(
+TPE_vec3(2000,
+5000,-1100),TPE_vec3(400,10000,400),TPE_vec3(0,0,0));
 
 helper_draw3dPlane(
 TPE_vec3(0,1500,-3500),
@@ -167,7 +189,7 @@ TPE_bodyGetOrientation(&tpe_world.bodies[2],0,2,1)
 
 helper_draw3dSphere(
 tpe_world.bodies[1].joints[0].position
-,TPE_vec3(1000,1000,1000),TPE_vec3(0,0,0)  );
+,TPE_vec3(1000,1000,1000),ballRot  );
 
     helper_set3dColor(200,10,10);
 

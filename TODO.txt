@@ -1,6 +1,5 @@
 TODO:
 - zero weight joints should behave how?
-- collision callbacks, ability to custom handle collision response
 - debug draw inactive bodies with different color?
 - test different tick lengths
 - air friction
@@ -12,8 +11,12 @@ TODO:
   rotate by the axis perpendicular to its linear velocity vec
 - BUG? makeCenterBox doesnt seem to add the center joint: check it out
 - demo: momentum conservation
+- bounding box/sphere test functions/macros for optimization of environment
+  building
+- unify naming: rotation vs orientation
 
 DONE:
+- collision callbacks, ability to custom handle collision response
 - zero sized joints should never collide (can be useful) <- NO because 0 size
   can also mean just small size (due to size being stored divided)
 - when waking a body by collision, maybe set the disable count to lower values,

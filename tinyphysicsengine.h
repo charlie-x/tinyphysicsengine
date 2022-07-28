@@ -11,7 +11,10 @@
   to make them easily integrate with each other.
 
   Orientations/rotations are in extrinsic Euler angles in the ZXY order (by Z,
-  then by X, then by Y).
+  then by X, then by Y). Angles are in TPE_Units, TPE_FRACTIONS_PER_UNIT is
+  full angle (2 PI). Sometimes rotations can also be specified in the
+  "about axis" format: here the object is rotated CW by given axis by an angle
+  that's specified by the magnitude of the vector.
 
   Where it matters (e.g. rotations about axes) we consider a left-handed coord.
   system (x right, y up, z forward).
@@ -237,6 +240,8 @@ TPE_Vec3 TPE_pointRotate(TPE_Vec3 point, TPE_Vec3 rotation);
 
 TPE_Vec3 TPE_rotationInverse(TPE_Vec3 rotation);
 
+TPE_Vec3 TPE_rotationRotateByAxis(TPE_Vec3 rotation, TPE_Vec3 rotationByAxis);
+
 void TPE_getVelocitiesAfterCollision(
   TPE_Unit *v1,
   TPE_Unit *v2,
@@ -305,6 +310,14 @@ uint8_t TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2);
 
 void TPE_jointPin(TPE_Joint *joint, TPE_Vec3 position);
 
+/** "Fakes" a rotation of a moving sphere by rotating it in the direction of
+  its movement; this can create the illusion of the sphere actually rotating
+  due to friction even if the physics sphere object (a body with a single joint)
+  isn't rotating at all. Returns a rotating in the "about axis" format (see
+  library conventions). */
+TPE_Vec3 TPE_fakeSphereRotation(TPE_Vec3 position1, TPE_Vec3 position2,
+  TPE_Unit radius);
+
 // -----------------------------------------------------------------------------
 // body generation functions:
 
@@ -335,7 +348,7 @@ TPE_Vec3 TPE_envBox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec,
   TPE_Vec3 rotation);
 TPE_Vec3 TPE_envSphere(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
 TPE_Vec3 TPE_envHalfPlane(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 normal);
-TPE_Vec3 TPE_envInfiniteCyllinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
+TPE_Vec3 TPE_envInfiniteCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
   direction, TPE_Unit radius);
 
 #define TPE_ENV_START(test,point) TPE_Vec3 _pBest = test, _pTest; \
@@ -391,9 +404,8 @@ tick to a point in the distance of TPE_FRACTIONS_PER_UNIT from the rotation
 axis). */
 void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation);
 
-/** Instantly rotate soft body, the rotation vector specifies the rotation axis
-by its direction and the rotation angle by its magnitude (TPE_FRACTIONS_PER_UNIT
-stands for full angle, i.e. 2 * PI x). */
+/** Instantly rotate soft body about an axis (see library conventions for
+  the rotation format). */
 void TPE_bodyRotateByAxis(TPE_Body *body, TPE_Vec3 rotation);
 
 /** Compute the center of mass of a soft body. */
@@ -963,12 +975,23 @@ void TPE_vec3Normalize(TPE_Vec3 *v)
 {
   TPE_Unit l = TPE_LENGTH(*v);
 
-  if (l != 0)
+if (l == 0)
+  *v = TPE_vec3(TPE_FRACTIONS_PER_UNIT,0,0);
+else
+{
+  if (l < 16) // TODO: const, for too short
   {
-    v->x = (v->x * TPE_FRACTIONS_PER_UNIT) / l;
-    v->y = (v->y * TPE_FRACTIONS_PER_UNIT) / l;
-    v->z = (v->z * TPE_FRACTIONS_PER_UNIT) / l;
+v->x *= 8;
+v->y *= 8;
+v->z *= 8;
+l = TPE_LENGTH(*v);
   }
+
+  v->x = (v->x * TPE_FRACTIONS_PER_UNIT) / l;
+  v->y = (v->y * TPE_FRACTIONS_PER_UNIT) / l;
+  v->z = (v->z * TPE_FRACTIONS_PER_UNIT) / l;
+}
+
 }
 
 TPE_Vec3 TPE_bodyGetOrientation(const TPE_Body *body, uint16_t joint1, 
@@ -1025,6 +1048,22 @@ void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation)
   }
 }
 
+TPE_Vec3 _TPE_rotateByAxis(TPE_Vec3 p, TPE_Vec3 axisNormalized, TPE_Unit angle)
+{
+  TPE_Vec3 projected = TPE_vec3ProjectNormalized(p,axisNormalized);
+
+  TPE_Vec3 a = TPE_vec3Minus(p,projected);
+
+  if (a.x == 0 && a.y == 0 && a.z == 0)
+    return p;
+
+  TPE_Vec3 b = TPE_vec3Cross(a,axisNormalized);
+
+  return TPE_vec3Plus(projected,TPE_vec3Plus(
+    TPE_vec3Times(a,TPE_cos(angle)),
+    TPE_vec3Times(b,TPE_sin(angle))));
+}
+
 void TPE_bodyRotateByAxis(TPE_Body *body, TPE_Vec3 rotation)
 {
   TPE_Vec3 bodyCenter = TPE_bodyGetCenter(body);
@@ -1034,22 +1073,9 @@ void TPE_bodyRotateByAxis(TPE_Body *body, TPE_Vec3 rotation)
 
   for (uint16_t i = 0; i < body->jointCount; ++i)
   {
-    TPE_Joint *j = body->joints + i;
-
-    TPE_Vec3 toPoint = TPE_vec3Minus(j->position,bodyCenter);
-
-    toPoint = TPE_vec3Project(toPoint,rotation);
-
-    TPE_Vec3 rotationCenter = TPE_vec3Plus(bodyCenter,toPoint);
-
-    toPoint = TPE_vec3Minus(j->position,rotationCenter);
-
-    TPE_Vec3 toPoint2 = TPE_vec3Cross(toPoint,rotation);
-
-    j->position = TPE_vec3Plus(rotationCenter,
-        TPE_vec3Plus(
-          TPE_vec3Times(toPoint,TPE_cos(angle)),
-          TPE_vec3Times(toPoint2,TPE_sin(angle))));
+    TPE_Vec3 toPoint = TPE_vec3Minus(body->joints[i].position,bodyCenter);
+    body->joints[i].position = TPE_vec3Plus(bodyCenter,
+    _TPE_rotateByAxis(toPoint,rotation,angle));
   }
 }
 
@@ -2014,6 +2040,20 @@ TPE_Vec3 TPE_rotationInverse(TPE_Vec3 rotation)
   return TPE_orientationFromVecs(f,r);
 }
 
+TPE_Vec3 TPE_rotationRotateByAxis(TPE_Vec3 rotation, TPE_Vec3 rotationByAxis)
+{
+  TPE_Vec3 f = TPE_pointRotate(TPE_vec3(0,0,TPE_FRACTIONS_PER_UNIT),rotation);
+  TPE_Vec3 r = TPE_pointRotate(TPE_vec3(TPE_FRACTIONS_PER_UNIT,0,0),rotation);
+
+  TPE_Unit a = TPE_LENGTH(rotationByAxis);
+  TPE_vec3Normalize(&rotationByAxis);
+
+  f = _TPE_rotateByAxis(f,rotationByAxis,a);
+  r = _TPE_rotateByAxis(r,rotationByAxis,a);
+
+  return TPE_orientationFromVecs(f,r);
+}
+
 TPE_Unit TPE_keepInRange(TPE_Unit x, TPE_Unit xMin, TPE_Unit xMax)
 {
   return x > xMin ? (x < xMax ? x : xMax) : xMin;
@@ -2034,7 +2074,7 @@ TPE_Vec3 TPE_vec3KeepWithinBox(TPE_Vec3 point, TPE_Vec3 boxCenter,
   return point;
 }
 
-TPE_Vec3 TPE_envInfiniteCyllinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
+TPE_Vec3 TPE_envInfiniteCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
   direction, TPE_Unit radius)
 {
   TPE_Vec3 d = TPE_vec3Minus(point,center);
@@ -2052,6 +2092,29 @@ TPE_Vec3 TPE_envInfiniteCyllinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
   d.z = (d.z * radius) / l;
     
   return TPE_vec3Minus(point,d);
+}
+
+TPE_Vec3 TPE_fakeSphereRotation(TPE_Vec3 position1, TPE_Vec3 position2,
+  TPE_Unit radius)
+{
+  TPE_Vec3 m;
+
+  m.x = position1.z - position2.z;
+  m.y = 0;
+  m.z = position2.x - position1.x;
+    
+  TPE_Unit l = TPE_sqrt(m.x * m.x + m.z * m.z);
+
+  if (l == 0)
+    return TPE_vec3(0,0,0);
+
+  TPE_Unit d = (TPE_DISTANCE(position1,position2) * 
+    TPE_FRACTIONS_PER_UNIT) / (radius * 4);
+
+  m.x = (m.x * d) / l;
+  m.z = (m.z * d) / l;
+  
+  return m;
 }
 
 #endif // guard
