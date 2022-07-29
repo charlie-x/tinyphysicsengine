@@ -2,20 +2,19 @@ TODO:
 - zero weight joints should behave how?
 - debug draw inactive bodies with different color?
 - test different tick lengths
-- air friction
 - test env functions with a single distinct point near camera
 - test/handle: collision where the velocity goes "away" from the collision (can
   happen e.g. if one body is hit by a faster body OR by manual manipulation with
   velocities)
-- function for "faking" rotation of a single-joint body (ball): it will simply
-  rotate by the axis perpendicular to its linear velocity vec
 - BUG? makeCenterBox doesnt seem to add the center joint: check it out
 - demo: momentum conservation
 - bounding box/sphere test functions/macros for optimization of environment
   building
-- unify naming: rotation vs orientation
+- tip: body center can quickly be approximated by just averaging two extreme
+  points rather than averaging all points -- write this somewhere
 
 DONE:
+- air friction (can be done by multiplying energy)
 - collision callbacks, ability to custom handle collision response
 - zero sized joints should never collide (can be useful) <- NO because 0 size
   can also mean just small size (due to size being stored divided)
@@ -23,3 +22,6 @@ DONE:
   to handle situations in which two touching bodies wouldn't allow each other
   to ever get disabled
 - non-rotating bodies
+- unify naming: rotation vs orientation
+- function for "faking" rotation of a single-joint body (ball): it will simply
+  rotate by the axis perpendicular to its linear velocity vec

@@ -179,9 +179,9 @@ TPE_vec3(-64,0,0));
 helper_set3dColor(200,50,0);
 
 helper_draw3dCube(
-TPE_bodyGetCenter(&tpe_world.bodies[2]),
+TPE_bodyGetCenterOfMass(&tpe_world.bodies[2]),
 TPE_vec3(1200,800,1200),
-TPE_bodyGetOrientation(&tpe_world.bodies[2],0,2,1)
+TPE_bodyGetRotation(&tpe_world.bodies[2],0,2,1)
 
 );
 

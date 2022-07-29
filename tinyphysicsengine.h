@@ -10,11 +10,17 @@
   Conventions and formats are the same or similar to those of small3dlib so as
   to make them easily integrate with each other.
 
+  The library works with bodies made of spheres connected by elastic springs,
+  i.e. soft bodies which however behave as "stiff" bodies by default and can
+  be used to fake rigid body physics as well. Bodies are placed in environemnts
+  specified by a distance function that allows to implement any mathematical
+  shape.
+
   Orientations/rotations are in extrinsic Euler angles in the ZXY order (by Z,
-  then by X, then by Y). Angles are in TPE_Units, TPE_FRACTIONS_PER_UNIT is
-  full angle (2 PI). Sometimes rotations can also be specified in the
-  "about axis" format: here the object is rotated CW by given axis by an angle
-  that's specified by the magnitude of the vector.
+  then by X, then by Y), if not mentioned otherwise. Angles are in TPE_Units,
+  TPE_FRACTIONS_PER_UNIT is full angle (2 PI). Sometimes rotations can also be
+  specified in the "about axis" format: here the object is rotated CW by given
+  axis by an angle that's specified by the magnitude of the vector.
 
   Where it matters (e.g. rotations about axes) we consider a left-handed coord.
   system (x right, y up, z forward).
@@ -46,9 +52,8 @@
 typedef int32_t TPE_Unit;
 typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
 
-#define TPE_FRACTIONS_PER_UNIT 512
-
-#define TPE_JOINT_SIZE_MULTIPLIER 32
+#define TPE_FRACTIONS_PER_UNIT 512      ///< one fixed point unit, don't change
+#define TPE_JOINT_SIZE_MULTIPLIER 32    ///< joint size is scaled (size saving)
 
 #define TPE_INFINITY 2147483647
 
@@ -77,43 +82,43 @@ typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
 
 #ifndef TPE_LOW_SPEED
 /** Speed, in TPE_Units per ticks, that is considered low (used e.g. for auto
-disabling bodies). */
+  disabling bodies). */
   #define TPE_LOW_SPEED 30
 #endif
 
 #ifndef TPE_RESHAPE_TENSION_LIMIT
 /** Tension limit, in TPE_Units, after which a non-soft body will be reshaped.
-Smaller number will keep more stable shapes but will cost more performance. */
+  Smaller number will keep more stable shapes but will cost more performance. */
   #define TPE_RESHAPE_TENSION_LIMIT 20
 #endif
 
 #ifndef TPE_RESHAPE_ITERATIONS
 /** How many iterations of reshaping will be performed by the step function if
-the body's shape needs to be reshaped. Greater number will keep shapes more
-stable but will cost some performance. */
+  the body's shape needs to be reshaped. Greater number will keep shapes more
+  stable but will cost some performance. */
   #define TPE_RESHAPE_ITERATIONS 3
 #endif
 
 #ifndef TPE_DEACTIVATE_AFTER
 /** After how many ticks of low speed should a body be disabled. This mustn't
-be greater than 255. */
+  be greater than 255. */
   #define TPE_DEACTIVATE_AFTER 128
 #endif
 
 #ifndef TPE_LIGHT_DEACTIVATION
 /** When a body is activated by a collision, its deactivation counter will be
-set to this value, i.e. after a collision the body will be prone to deactivate
-sooner than normally. This is to handle situations with many bodies touching
-each other that would normally keep activating each other, never coming to
-rest. */
+  set to this value, i.e. after a collision the body will be prone to deactivate
+  sooner than normally. This is to handle situations with many bodies touching
+  each other that would normally keep activating each other, never coming to
+  rest. */
   #define TPE_LIGHT_DEACTIVATION \
     (TPE_DEACTIVATE_AFTER - TPE_DEACTIVATE_AFTER / 10)
 #endif
 
 #ifndef TPE_TENSION_ACCELERATION_DIVIDER
 /** Number by which the base acceleration (TPE_FRACTIONS_PER_UNIT per tick
-squared) caused by the connection tension will be divided. This should be power
-of 2. */
+  squared) caused by the connection tension will be divided. This should be
+  power of 2. */
   #define TPE_TENSION_ACCELERATION_DIVIDER 32
 #endif
 
@@ -198,6 +203,8 @@ typedef uint8_t (*TPE_CollisionCallback)(uint16_t, uint16_t, uint16_t, uint16_t,
   the screen. The parameters are following: pixel x, pixel y, pixel color. */
 typedef void (*TPE_DebugDrawFunction)(uint16_t, uint16_t, uint8_t);
 
+/** Physics body made of spheres (each of same weight but possibly different
+  radia) connected by elastic springs. */
 typedef struct
 {
   TPE_Joint *joints;
@@ -230,8 +237,9 @@ void TPE_worldInit(TPE_World *world,
 
 /** Gets orientation (rotation) of a body from a position of three of its
   joints. The vector from joint1 to joint2 is considered the body's forward
-  direction, the vector from joint1 to joint3 its right direction. */
-TPE_Vec3 TPE_bodyGetOrientation(const TPE_Body *body, uint16_t joint1, 
+  direction, the vector from joint1 to joint3 its right direction. The returned
+  rotation is in Euler angles (see rotation conventions). */
+TPE_Vec3 TPE_bodyGetRotation(const TPE_Body *body, uint16_t joint1, 
   uint16_t joint2, uint16_t joint3);
 
 void TPE_vec3Normalize(TPE_Vec3 *v);
@@ -240,16 +248,15 @@ TPE_Vec3 TPE_pointRotate(TPE_Vec3 point, TPE_Vec3 rotation);
 
 TPE_Vec3 TPE_rotationInverse(TPE_Vec3 rotation);
 
+/** Rotates a rotation specified in Euler angles by given axis + angle (see
+  rotation conventions). Returns a rotation in Eurler angles. */
 TPE_Vec3 TPE_rotationRotateByAxis(TPE_Vec3 rotation, TPE_Vec3 rotationByAxis);
 
-void TPE_getVelocitiesAfterCollision(
-  TPE_Unit *v1,
-  TPE_Unit *v2,
-  TPE_Unit m1,
-  TPE_Unit m2,
-  TPE_Unit elasticity);
+/** Computes the formula of a 1 dimensional collision of rigid bodies. */
+void TPE_getVelocitiesAfterCollision(TPE_Unit *v1, TPE_Unit *v2, TPE_Unit m1,
+  TPE_Unit m2, TPE_Unit elasticity);
 
-TPE_Unit TPE_keepInRange(TPE_Unit x, TPE_Unit xMin, TPE_Unit xMax);
+TPE_Unit TPE_sqrt(TPE_Unit value);
 
 TPE_Vec3 TPE_vec3(TPE_Unit x, TPE_Unit y, TPE_Unit z);
 TPE_Vec3 TPE_vec3Minus(TPE_Vec3 v1, TPE_Vec3 v2);
@@ -257,30 +264,29 @@ TPE_Vec3 TPE_vec3Plus(TPE_Vec3 v1, TPE_Vec3 v2);
 TPE_Vec3 TPE_vec3Cross(TPE_Vec3 v1, TPE_Vec3 v2);
 TPE_Vec3 TPE_vec3Project(TPE_Vec3 v, TPE_Vec3 base);
 TPE_Vec3 TPE_vec3ProjectNormalized(TPE_Vec3 v, TPE_Vec3 baseNormalized);
-
 TPE_Vec3 TPE_vec3Times(TPE_Vec3 v, TPE_Unit units);
 TPE_Vec3 TPE_vec3TimesNonNormalized(TPE_Vec3 v, TPE_Unit q);
 TPE_Vec3 TPE_vec3Normalized(TPE_Vec3 v);
 
-/** Keeps given point inside specified axis-aligned box. This can be used e.g.
-to smooth rendered movement of jittering physics bodies. */
+TPE_Unit TPE_vec3Dot(TPE_Vec3 v1, TPE_Vec3 v2);
+TPE_Unit TPE_vec3Len(TPE_Vec3 v);
+TPE_Unit TPE_vec3LenApprox(TPE_Vec3 v);
+
+/** Keeps given value within specified range. This can be used e.g. for movement
+  smoothing. */
+TPE_Unit TPE_keepInRange(TPE_Unit x, TPE_Unit xMin, TPE_Unit xMax);
+
+/** Keeps given point within specified axis-aligned box. This can be used e.g.
+  to smooth rendered movement of jittering physics bodies. */
 TPE_Vec3 TPE_vec3KeepWithinBox(TPE_Vec3 point, TPE_Vec3 boxCenter,
   TPE_Vec3 boxMaxVect);
 
 /** Computes orientation/rotation (see docs for orientation format) from two
   vectors (which should be at least a close to being perpensicular and do NOT
   need to be normalized). */
-TPE_Vec3 TPE_orientationFromVecs(TPE_Vec3 forward, TPE_Vec3 right);
-
-TPE_Unit TPE_vec3Dot(TPE_Vec3 v1, TPE_Vec3 v2);
-
-TPE_Unit TPE_sqrt(TPE_Unit value);
-
-TPE_Unit TPE_vec3Len(TPE_Vec3 v);
-TPE_Unit TPE_vec3LenApprox(TPE_Vec3 v);
+TPE_Vec3 TPE_rotationFromVecs(TPE_Vec3 forward, TPE_Vec3 right);
 
 static inline TPE_Unit TPE_nonZero(TPE_Unit x);
-
 static inline TPE_Unit TPE_dist(TPE_Vec3 p1, TPE_Vec3 p2);
 static inline TPE_Unit TPE_distApprox(TPE_Vec3 p1, TPE_Vec3 p2);
 
@@ -295,6 +301,7 @@ uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
 uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit
   elasticity, TPE_Unit friction, TPE_ClosestPointFunction env);
 
+/** Tests whether a body is currently colliding with the environment. */
 uint8_t TPE_bodyEnvironmentCollide(const TPE_Body *body,
   TPE_ClosestPointFunction env);
 
@@ -308,6 +315,7 @@ uint8_t TPE_checkOverlapAABB(TPE_Vec3 v1Min, TPE_Vec3 v1Max, TPE_Vec3 v2Min,
 
 uint8_t TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2);
 
+/** Pins a joint of a body to specified location in space. */
 void TPE_jointPin(TPE_Joint *joint, TPE_Vec3 position);
 
 /** "Fakes" a rotation of a moving sphere by rotating it in the direction of
@@ -318,8 +326,7 @@ void TPE_jointPin(TPE_Joint *joint, TPE_Vec3 position);
 TPE_Vec3 TPE_fakeSphereRotation(TPE_Vec3 position1, TPE_Vec3 position2,
   TPE_Unit radius);
 
-// -----------------------------------------------------------------------------
-// body generation functions:
+// generation of bodies:
 
 void TPE_makeBox(TPE_Joint joints[8], TPE_Connection connections[16],
   TPE_Unit width, TPE_Unit depth, TPE_Unit height, TPE_Unit jointSize);
@@ -339,8 +346,7 @@ void TPE_makeCenterRect(TPE_Joint joints[5], TPE_Connection connections[8],
 void TPE_make2Line(TPE_Joint joints[2], TPE_Connection connections[1],
   TPE_Unit length, TPE_Unit jointSize);
 
-//------------------------------------------------------------------------------
-// environment functions:
+// environment building functions:
 
 TPE_Vec3 TPE_envAABoxInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 size);
 TPE_Vec3 TPE_envAABox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec);
@@ -377,14 +383,14 @@ void TPE_bodyLimitAverageSpeed(TPE_Body *body, TPE_Unit speedMin,
 void TPE_bodyMultiplyNetSpeed(TPE_Body *body, TPE_Unit factor);
 
 /** Attempts to shift the joints of a soft body so that the tension of all
-strings becomes zero while keeping the joints near their current position. This
-function performs one iteration of the equalizing algorithm and doesn't
-guarantee a perfect solution, it may help to run multiple iterations (call this
-function multiple times). */
+  strings becomes zero while keeping the joints near their current position.
+  This function performs one iteration of the equalizing algorithm and doesn't
+  guarantee a perfect solution, it may help to run multiple iterations (call
+  this function multiple times). */
 void TPE_bodyReshape(TPE_Body *body, TPE_ClosestPointFunction
   environmentFunction);
 
-/** Move a soft body by certain offset. */
+/** Move a body by certain offset. */
 void TPE_bodyMove(TPE_Body *body, TPE_Vec3 offset);
 
 /** Zero velocities of all soft body joints. */
@@ -398,18 +404,21 @@ void TPE_bodyAccelerate(TPE_Body *body, TPE_Vec3 velocity);
 void TPE_bodyApplyGravity(TPE_Body *body, TPE_Unit downwardsAccel);
 
 /** Add angular velocity to a soft body. The rotation vector specifies the axis
-of rotation by its direction and angular velocity by its magnitude (magnitude
-of TPE_FRACTIONS_PER_UNIT will add linear velocity of TPE_FRACTIONS_PER_UNIT per
-tick to a point in the distance of TPE_FRACTIONS_PER_UNIT from the rotation
-axis). */
+  of rotation by its direction and angular velocity by its magnitude (magnitude
+  of TPE_FRACTIONS_PER_UNIT will add linear velocity of TPE_FRACTIONS_PER_UNIT
+  per tick to a point in the distance of TPE_FRACTIONS_PER_UNIT from the
+  rotation axis). */
 void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation);
 
 /** Instantly rotate soft body about an axis (see library conventions for
   the rotation format). */
 void TPE_bodyRotateByAxis(TPE_Body *body, TPE_Vec3 rotation);
 
-/** Compute the center of mass of a soft body. */
-TPE_Vec3 TPE_bodyGetCenter(const TPE_Body *body);
+/** Compute the center of mass of a soft body. This averages the position of
+  all joints, note that this may be slow; a faster approximation of body's
+  center can be computed by averaging just the positions of two of its joints
+  (those that represent two opposite extremes of the body). */
+TPE_Vec3 TPE_bodyGetCenterOfMass(const TPE_Body *body);
 
 /** Compute sine, TPE_FRACTIONS_PER_UNIT as argument corresponds to 2 * PI
   radians. Returns a number from -TPE_FRACTIONS_PER_UNIT to
@@ -994,10 +1003,10 @@ l = TPE_LENGTH(*v);
 
 }
 
-TPE_Vec3 TPE_bodyGetOrientation(const TPE_Body *body, uint16_t joint1, 
+TPE_Vec3 TPE_bodyGetRotation(const TPE_Body *body, uint16_t joint1, 
   uint16_t joint2, uint16_t joint3)
 {
-  return TPE_orientationFromVecs(
+  return TPE_rotationFromVecs(
     TPE_vec3Minus(
       body->joints[joint2].position,
       body->joints[joint1].position),
@@ -1006,9 +1015,9 @@ TPE_Vec3 TPE_bodyGetOrientation(const TPE_Body *body, uint16_t joint1,
       body->joints[joint1].position));
 }
 
-TPE_Vec3 TPE_bodyGetCenter(const TPE_Body *body)
+TPE_Vec3 TPE_bodyGetCenterOfMass(const TPE_Body *body)
 {
-// TODO: take into account possibly different joint sizes? does it even matter?
+  // note that joint sizes don't play a role as all weight the same
 
   TPE_Vec3 result = TPE_vec3(0,0,0);
 
@@ -1029,7 +1038,7 @@ TPE_Vec3 TPE_bodyGetCenter(const TPE_Body *body)
 
 void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation)
 {
-  TPE_Vec3 center = TPE_bodyGetCenter(body);
+  TPE_Vec3 center = TPE_bodyGetCenterOfMass(body);
 
   for (uint16_t i = 0; i < body->jointCount; ++i)
   {
@@ -1066,7 +1075,7 @@ TPE_Vec3 _TPE_rotateByAxis(TPE_Vec3 p, TPE_Vec3 axisNormalized, TPE_Unit angle)
 
 void TPE_bodyRotateByAxis(TPE_Body *body, TPE_Vec3 rotation)
 {
-  TPE_Vec3 bodyCenter = TPE_bodyGetCenter(body);
+  TPE_Vec3 bodyCenter = TPE_bodyGetCenterOfMass(body);
   TPE_Unit angle = TPE_LENGTH(rotation);
 
   TPE_vec3Normalize(&rotation);
@@ -1374,10 +1383,11 @@ void TPE_getVelocitiesAfterCollision(
     + m1v1Pm2v2) / m1Pm2;
 }
 
-uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint, TPE_Unit elasticity,
-  TPE_Unit friction, TPE_ClosestPointFunction env)
+uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint,
+  TPE_Unit elasticity, TPE_Unit friction, TPE_ClosestPointFunction env)
 {
-  TPE_Vec3 toJoint = TPE_vec3Minus(joint->position,env(joint->position,TPE_JOINT_SIZE(*joint)));
+  TPE_Vec3 toJoint =
+    TPE_vec3Minus(joint->position,env(joint->position,TPE_JOINT_SIZE(*joint)));
 
   TPE_Unit len = TPE_LENGTH(toJoint);
 
@@ -1614,7 +1624,7 @@ TPE_Unit _TPE_vec2Angle(TPE_Unit x, TPE_Unit y)
   return r;
 }
 
-TPE_Vec3 TPE_orientationFromVecs(TPE_Vec3 forward, TPE_Vec3 right)
+TPE_Vec3 TPE_rotationFromVecs(TPE_Vec3 forward, TPE_Vec3 right)
 {
   TPE_Vec3 result;
 
@@ -2037,7 +2047,7 @@ TPE_Vec3 TPE_rotationInverse(TPE_Vec3 rotation)
   _TPE_vec2Rotate(&r.z,&r.y,rotation.x);
   _TPE_vec2Rotate(&r.y,&r.x,rotation.z);
 
-  return TPE_orientationFromVecs(f,r);
+  return TPE_rotationFromVecs(f,r);
 }
 
 TPE_Vec3 TPE_rotationRotateByAxis(TPE_Vec3 rotation, TPE_Vec3 rotationByAxis)
@@ -2051,7 +2061,7 @@ TPE_Vec3 TPE_rotationRotateByAxis(TPE_Vec3 rotation, TPE_Vec3 rotationByAxis)
   f = _TPE_rotateByAxis(f,rotationByAxis,a);
   r = _TPE_rotateByAxis(r,rotationByAxis,a);
 
-  return TPE_orientationFromVecs(f,r);
+  return TPE_rotationFromVecs(f,r);
 }
 
 TPE_Unit TPE_keepInRange(TPE_Unit x, TPE_Unit xMin, TPE_Unit xMax)

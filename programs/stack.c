@@ -107,7 +107,7 @@ timeMeasure += helper_getMicroSecs() - t1;
       TPE_bodyApplyGravity(&tpe_world.bodies[i],5);
 
       TPE_Joint *joints = tpe_world.bodies[i].joints;
-      TPE_Vec3 pos = TPE_bodyGetCenter(&tpe_world.bodies[i]);
+      TPE_Vec3 pos = TPE_bodyGetCenterOfMass(&tpe_world.bodies[i]);
       TPE_Vec3 right = TPE_vec3(512,0,0);
       TPE_Vec3 forw = TPE_vec3(0,0,512);
 
@@ -122,7 +122,7 @@ timeMeasure += helper_getMicroSecs() - t1;
           forw = TPE_vec3Minus(joints[1].position,joints[0].position);
       }
 
-      TPE_Vec3 orient = TPE_orientationFromVecs(forw,right);
+      TPE_Vec3 orient = TPE_rotationFromVecs(forw,right);
 
       switch (i % 5)
       {
