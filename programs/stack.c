@@ -2,42 +2,10 @@
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
-
 TPE_ENV_START( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(256,256,0)),p )
 TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(-256,256,-256)),p )
-TPE_ENV_NEXT(  TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(-256,256,256)),p )
+TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(-256,256,256)),p )
 TPE_ENV_END
-
-/*
-  TPE_Vec3 pTest, pBest;
-  TPE_Unit dTest, dBest;
-
-  pBest = TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(256,256,0));
-
-  dBest = TPE_DISTANCE(p,pBest);
-
-  pTest = TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(-256,256,-256));
-
-  dTest = TPE_DISTANCE(p,pTest);
-
-  if (dTest < dBest)
-  {
-    pBest = pTest;
-    dBest = dTest;
-  }
-
-  pTest = TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(-256,256,256));
-
-  dTest = TPE_DISTANCE(p,pTest);
-
-  if (dTest < dBest)
-  {
-    pBest = pTest;
-    dBest = dTest;
-  }
-
-  return pBest;
-*/
 }
 
 uint8_t debugDrawOn = 1;
@@ -126,11 +94,11 @@ timeMeasure += helper_getMicroSecs() - t1;
 
       switch (i % 5)
       {
-        case 0: helper_draw3dCube(pos,TPE_vec3(1200,1200,1200),orient); break;
+        case 0: helper_draw3dBox(pos,TPE_vec3(1200,1200,1200),orient); break;
         case 1: helper_draw3dTriangle(joints[0].position,joints[1].position,joints[2].position); break;
         case 2: helper_draw3dSphere(pos,TPE_vec3(500,500,500),orient); break;
-        case 3: helper_draw3dCube(pos,TPE_vec3(1200,400,1200),orient); break; 
-        case 4: helper_draw3dCube(pos,TPE_vec3(200,200,1200),orient); break;
+        case 3: helper_draw3dBox(pos,TPE_vec3(1200,400,1200),orient); break; 
+        case 4: helper_draw3dBox(pos,TPE_vec3(200,200,1200),orient); break;
         default: break;
       }
     }

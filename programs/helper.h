@@ -464,6 +464,27 @@ void helper_drawLine2D(int x1, int y1, int x2, int y2, uint8_t r, uint8_t g,
     sdl_drawPixel(x1 + (x2 * i) / max,y1 + (y2 * i) / max,r,g,b);
 }
 
+void helper_drawPoint3D(TPE_Vec3 p, uint8_t r, uint8_t g, uint8_t b)
+{
+  S3L_Vec4 p2, p3;
+
+  p2.x = p.x;
+  p2.y = p.y;
+  p2.z = p.z;
+  p2.w = 0;
+
+  S3L_project3DPointToScreen(p2,s3l_scene.camera,&p3);
+  
+  if (p3.x >= 0 && p3.x < S3L_RESOLUTION_X - 1 && 
+    p3.y >= 0 && p3.y < S3L_RESOLUTION_Y - 1 && p3.z > 0)
+  {
+    sdl_drawPixel(p3.x,p3.y,r,g,b); 
+    sdl_drawPixel(p3.x + 1,p3.y,r,g,b); 
+    sdl_drawPixel(p3.x,p3.y + 1,r,g,b); 
+    sdl_drawPixel(p3.x + 1,p3.y + 1,r,g,b); 
+  }
+}
+
 void helper_drawLine3D(TPE_Vec3 p1, TPE_Vec3 p2, uint8_t rr, uint8_t gg,
   uint8_t bb)
 {
@@ -612,7 +633,7 @@ void helper_draw3dTriangle(TPE_Vec3 v1, TPE_Vec3 v2, TPE_Vec3 v3)
     TPE_vec3(0,0,0)); 
 }
 
-void helper_draw3dCube(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
+void helper_draw3dBox(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
 {
   cubeModel.config.backfaceCulling = 2;
   helper_drawModel(&cubeModel,pos,scale,rot);
@@ -623,7 +644,7 @@ void helper_draw3dCylinder(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
   helper_drawModel(&cylinderModel,pos,scale,rot);
 }
 
-void helper_draw3dCubeInside(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
+void helper_draw3dBoxInside(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
 {
   cubeModel.config.backfaceCulling = 1;
   helper_drawModel(&cubeModel,pos,scale,rot);

@@ -181,21 +181,21 @@ typedef struct
                                           to keep the body's shape. */
 
 /** Function used for defining static environment, working similarly to an SDF
-(signed distance function). The parameters are: 3D point P, max distance D.
-The function should behave like this: if P is inside the solid environment
-volume, P will be returned; otherwise closest point (by Euclidean distance) to
-the solid environment volume from P will be returned, except for a case when
-this closest point would be further away than D, in which case any arbitrary
-point further away than D may be returned (this allows for potentially 
-potentially faster implementation). */
+  (signed distance function). The parameters are: 3D point P, max distance D.
+  The function should behave like this: if P is inside the solid environment
+  volume, P will be returned; otherwise closest point (by Euclidean distance) to
+  the solid environment volume from P will be returned, except for a case when
+  this closest point would be further away than D, in which case any arbitrary
+  point further away than D may be returned (this allows for potentially 
+  potentially faster implementation). */
 typedef TPE_Vec3 (*TPE_ClosestPointFunction)(TPE_Vec3, TPE_Unit);
 
 /** Function that can be used as a joint-joint or joint-environment collision
-callback, parameters are following: body1 index, joint1 index, body2 index,
-joint2 index, collision world position. If body1 index is the same as body1
-index, then collision type is body-environment, otherwise it is body-body type.
-The function has to return either 1 if the collision is to be allowed or 0 if
-it is to be discarded. */
+  callback, parameters are following: body1 index, joint1 index, body2 index,
+  joint2 index, collision world position. If body1 index is the same as body1
+  index, then collision type is body-environment, otherwise it is body-body
+  type. The function has to return either 1 if the collision is to be allowed
+  or 0 if it is to be discarded. */
 typedef uint8_t (*TPE_CollisionCallback)(uint16_t, uint16_t, uint16_t, uint16_t,
   TPE_Vec3);
 
@@ -346,6 +346,23 @@ void TPE_makeCenterRect(TPE_Joint joints[5], TPE_Connection connections[8],
 void TPE_make2Line(TPE_Joint joints[2], TPE_Connection connections[1],
   TPE_Unit length, TPE_Unit jointSize);
 
+/** Casts a ray against environment and returns the first hit of a surface. If
+  no surface was hit, a vector with all elements equal to TPE_INFINITY will be
+  returned. The function internally works differently for outside rays (rays
+  cast from the outside of the environment) and inside rays. Outside rays can
+  be traced with raymarching and will be processed very quickly and precisely;
+  in this case if any intersection is found, the function will return a point
+  outside the environment that's just in front of the hit surface. Inside rays
+  are difficult and slow to trace because environment function won't provide
+  distance, so the results aren't guaranteed to be precise (the ray may miss
+  some intersections); here rays will be traced by given step (insideStepSize)
+  and eventually iterated a bit towards the intersection -- if any intersection
+  is found, the function will return a point inside the environment just before
+  the hit surface. */
+TPE_Vec3 TPE_castEnvironmentRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir,
+  TPE_ClosestPointFunction environment, TPE_Unit insideStepSize,
+  TPE_Unit rayMarchMaxStep, uint32_t maxSteps);
+
 // environment building functions:
 
 TPE_Vec3 TPE_envAABoxInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 size);
@@ -353,6 +370,7 @@ TPE_Vec3 TPE_envAABox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec);
 TPE_Vec3 TPE_envBox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec,
   TPE_Vec3 rotation);
 TPE_Vec3 TPE_envSphere(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
+TPE_Vec3 TPE_envSphereInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
 TPE_Vec3 TPE_envHalfPlane(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 normal);
 TPE_Vec3 TPE_envInfiniteCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
   direction, TPE_Unit radius);
@@ -1913,6 +1931,22 @@ TPE_Vec3 TPE_envAABoxInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 size)
   return point;
 }
 
+TPE_Vec3 TPE_envSphereInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius)
+{
+  TPE_Vec3 shifted = TPE_vec3Minus(point,center);
+
+  TPE_Unit l = TPE_LENGTH(shifted);
+
+  if (l >= radius)
+    return point;
+  else if (l < 0)
+    return TPE_vec3(center.x + radius,center.y,center.z);
+
+  TPE_vec3Normalize(&shifted);
+ 
+  return TPE_vec3Plus(center,TPE_vec3Times(shifted,radius));
+}
+
 TPE_Vec3 TPE_envSphere(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius)
 {
   // TODO: optim?
@@ -2125,6 +2159,106 @@ TPE_Vec3 TPE_fakeSphereRotation(TPE_Vec3 position1, TPE_Vec3 position2,
   m.z = (m.z * d) / l;
   
   return m;
+}
+
+TPE_Vec3 TPE_castEnvironmentRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir,
+  TPE_ClosestPointFunction environment, TPE_Unit insideStepSize,
+  TPE_Unit rayMarchMaxStep, uint32_t maxSteps)
+{
+  TPE_Vec3 p = rayPos;
+  TPE_Vec3 p2 = environment(rayPos,rayMarchMaxStep);
+  TPE_Unit totalD = 0;
+
+  TPE_vec3Normalize(&rayDir);
+
+  uint8_t found = 0; // 0 = nothing found, 1 = out/in found, 2 = in/out found
+
+  if (p2.x != p.x || p2.y != p.y || p2.z != p.z)
+  {
+    // outside ray: ray march
+
+    for (uint32_t i = 0; i < maxSteps; ++i)
+    {
+      TPE_Unit d = TPE_DISTANCE(p,p2);
+
+      if (d > rayMarchMaxStep)
+        d = rayMarchMaxStep;
+
+      totalD += d;
+
+      p2 = TPE_vec3Plus(rayPos,TPE_vec3Times(rayDir,totalD));
+
+      if (d == 0 || 
+        (p2.x == p.x && p2.y == p.y && p2.z == p.z))
+        return p2; // point not inside env but dist == 0, ideal case
+
+      TPE_Vec3 pTest = environment(p2,rayMarchMaxStep);
+
+      if (pTest.x == p2.x && pTest.y == p2.y && pTest.z == p2.z)
+      {
+        // stepped into env, will have to iterate
+        found = 1;
+        break;
+      }
+
+      p = p2;
+      p2 = pTest;
+    }
+  }
+  else if (insideStepSize != 0)
+  {
+    // inside ray: iterate by fixed steps
+
+    for (uint32_t i = 0; i < maxSteps; ++i)
+    {
+      totalD += insideStepSize;
+
+      p2 = TPE_vec3Plus(rayPos,TPE_vec3Times(rayDir,totalD));
+
+      TPE_Vec3 pTest = environment(p2,16);
+
+      if (p2.x != pTest.x || p2.y != pTest.y || p2.z != pTest.z)
+      {
+        found = 2;
+        break;
+      }
+
+      p = p2;
+      p2 = pTest;
+    }
+  }
+
+  if (found)
+  {
+    /* Here we've found two points (p, p2), each one the other side of the
+       env surface. Now iterate (binary search) to find the exact surface
+       pos. */
+
+    for (uint8_t i = 0; i < 128; ++i) // upper limit just in case
+    {
+      TPE_Vec3 middle = TPE_vec3Plus(p,p2);
+ 
+      middle.x /= 2;
+      middle.y /= 2;
+      middle.z /= 2;
+
+      if ((middle.x == p.x && middle.y == p.y && middle.z == p.z) ||
+        (middle.x == p2.x && middle.y == p2.y && middle.z == p2.z))
+        break; // points basically next to each other, don't continue
+
+      TPE_Vec3 pTest = environment(middle,16); // 16: just a small number
+
+      if ((found == 1) ==
+        (pTest.x == middle.x && pTest.y == middle.y && pTest.z == middle.z))
+        p2 = middle;
+      else
+        p = middle;
+    }
+
+    return (found == 1) ? p : p2;
+  }
+
+  return TPE_vec3(TPE_INFINITY,TPE_INFINITY,TPE_INFINITY);
 }
 
 #endif // guard

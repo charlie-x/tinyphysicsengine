@@ -100,7 +100,7 @@ tpe_world.bodies[tpe_world.bodyCount - 1].friction = 256;
     TPE_worldStep(&tpe_world);
 
     helper_set3dColor(100,100,100);
-    helper_draw3dCubeInside(TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE),TPE_vec3(0,0,0));
+    helper_draw3dBoxInside(TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE),TPE_vec3(0,0,0));
 
     helper_set3dColor(200,10,10);
 
@@ -111,7 +111,7 @@ tpe_world.bodies[tpe_world.bodyCount - 1].friction = 256;
       if (!(tpe_world.bodies[i].flags & TPE_BODY_FLAG_DEACTIVATED))
         updateOrientPos(i);
 
-      helper_draw3dCube(cubePositions[i],TPE_vec3(CUBE_SIZE,CUBE_SIZE,CUBE_SIZE),cubeOrientations[i]);
+      helper_draw3dBox(cubePositions[i],TPE_vec3(CUBE_SIZE,CUBE_SIZE,CUBE_SIZE),cubeOrientations[i]);
     }
 
     tpe_world.bodies[6].joints[3].velocity[1] -= 5;

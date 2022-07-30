@@ -163,10 +163,10 @@ ballPreviousPos = tpe_world.bodies[1].joints[0].position;
     updateDirection();
 
     helper_set3dColor(100,100,100);
-    helper_draw3dCubeInside(TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE),TPE_vec3(0,0,0));
-    helper_draw3dCube(TPE_vec3(4000,160,4000),TPE_vec3(2000,320,2000),TPE_vec3(0,0,0));
-    helper_draw3dCube(TPE_vec3(4000,80,2500),TPE_vec3(2000,160,1000),TPE_vec3(0,0,0));
-    helper_draw3dCube(TPE_vec3(-1000,270,4500),TPE_vec3(8000,540,500),TPE_vec3(0,0,0));
+    helper_draw3dBoxInside(TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE),TPE_vec3(0,0,0));
+    helper_draw3dBox(TPE_vec3(4000,160,4000),TPE_vec3(2000,320,2000),TPE_vec3(0,0,0));
+    helper_draw3dBox(TPE_vec3(4000,80,2500),TPE_vec3(2000,160,1000),TPE_vec3(0,0,0));
+    helper_draw3dBox(TPE_vec3(-1000,270,4500),TPE_vec3(8000,540,500),TPE_vec3(0,0,0));
 helper_draw3dCylinder(
 TPE_vec3(2000,
 5000,-1100),TPE_vec3(400,10000,400),TPE_vec3(0,0,0));
@@ -178,7 +178,7 @@ TPE_vec3(-64,0,0));
     
 helper_set3dColor(200,50,0);
 
-helper_draw3dCube(
+helper_draw3dBox(
 TPE_bodyGetCenterOfMass(&tpe_world.bodies[2]),
 TPE_vec3(1200,800,1200),
 TPE_bodyGetRotation(&tpe_world.bodies[2],0,2,1)
