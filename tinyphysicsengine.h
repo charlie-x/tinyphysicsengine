@@ -310,6 +310,14 @@ uint8_t TPE_bodyEnvironmentResolveCollision(TPE_Body *body,
 
 void TPE_bodyGetAABB(const TPE_Body *body, TPE_Vec3 *vMin, TPE_Vec3 *vMax);
 
+/** Gets a bounding sphere of a body which is not minimal but faster to compute
+  than the minimal bounding sphere. */
+void TPE_bodyGetFastBBSphere(const TPE_Body *body, TPE_Vec3 *center,
+  TPE_Unit *radius);
+
+void TPE_bodyGetBBSphere(const TPE_Body *body, TPE_Vec3 *center,
+  TPE_Unit *radius);
+
 uint8_t TPE_checkOverlapAABB(TPE_Vec3 v1Min, TPE_Vec3 v1Max, TPE_Vec3 v2Min,
   TPE_Vec3 v2Max);
 
@@ -346,7 +354,7 @@ void TPE_makeCenterRect(TPE_Joint joints[5], TPE_Connection connections[8],
 void TPE_make2Line(TPE_Joint joints[2], TPE_Connection connections[1],
   TPE_Unit length, TPE_Unit jointSize);
 
-/** Casts a ray against environment and returns the first hit of a surface. If
+/** Casts a ray against environment and returns the closest hit of a surface. If
   no surface was hit, a vector with all elements equal to TPE_INFINITY will be
   returned. The function internally works differently for outside rays (rays
   cast from the outside of the environment) and inside rays. Outside rays can
@@ -362,6 +370,15 @@ void TPE_make2Line(TPE_Joint joints[2], TPE_Connection connections[1],
 TPE_Vec3 TPE_castEnvironmentRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir,
   TPE_ClosestPointFunction environment, TPE_Unit insideStepSize,
   TPE_Unit rayMarchMaxStep, uint32_t maxSteps);
+
+/** Casts a ray against bodies in a world (ignoring the environment), returns
+  the position of the closest hit as well as the hit body's index in bodyIndex
+  (unless the bodyIndex pointer is 0 in which case it is ignored). If no hit is
+  found a vector with all elements equal to TPE_INFINITY will be returned and
+  bodyIndex will be -1. A specific body can be excluded with excludeBody
+  (negative value will just make this parameter ignored). */
+TPE_Vec3 TPE_castBodyRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir, int16_t excludeBody,
+  const TPE_World *world, int16_t *bodyIndex);
 
 // environment building functions:
 
@@ -433,9 +450,9 @@ void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation);
 void TPE_bodyRotateByAxis(TPE_Body *body, TPE_Vec3 rotation);
 
 /** Compute the center of mass of a soft body. This averages the position of
-  all joints, note that this may be slow; a faster approximation of body's
-  center can be computed by averaging just the positions of two of its joints
-  (those that represent two opposite extremes of the body). */
+  all joints; note that if you need, you may estimate the center of the body
+  faster, e.g. by taking a position of a single "center joint", or averaging
+  just 2 extreme points. */ 
 TPE_Vec3 TPE_bodyGetCenterOfMass(const TPE_Body *body);
 
 /** Compute sine, TPE_FRACTIONS_PER_UNIT as argument corresponds to 2 * PI
@@ -1535,24 +1552,69 @@ uint8_t TPE_bodyEnvironmentCollide(const TPE_Body *body,
  
 }
 
+void TPE_bodyGetFastBBSphere(const TPE_Body *body, TPE_Vec3 *center,
+  TPE_Unit *radius)
+{
+  TPE_Vec3 b;
+
+  TPE_bodyGetAABB(body,center,&b);
+
+  center->x = (center->x + b.x) / 2;
+  center->y = (center->y + b.y) / 2;
+  center->z = (center->z + b.z) / 2;
+
+  *radius = TPE_DISTANCE(*center,b);
+}
+
+void TPE_bodyGetBBSphere(const TPE_Body *body, TPE_Vec3 *center,
+  TPE_Unit *radius)
+{
+  *radius = TPE_INFINITY;
+  *center = TPE_bodyGetCenterOfMass(body);
+
+  const TPE_Joint *j = body->joints;
+
+  for (uint16_t i = 0; i < body->jointCount; ++i)
+  {
+    TPE_Vec3 diff;
+
+    TPE_Unit js = TPE_JOINT_SIZE(*j);
+
+    /* Sadly we have to have these conditions here which slow this down. If we
+       were only computing a BB sphere of a point cloud, we wouldn't have to
+       compute abs vals (as squaring would effectively compute them), but here
+       we need to add joint size which needs to know about the sign. */
+
+    diff.x = ((center->x > j->position.x) ?
+      (center->x - j->position.x) : (j->position.x - center->x)) + js;
+
+    diff.y = ((center->y > j->position.y) ?
+      (center->y - j->position.y) : (j->position.y - center->y)) + js;
+
+    diff.z = ((center->z > j->position.z) ?
+      (center->z - j->position.z) : (j->position.z - center->z)) + js;
+
+    TPE_Unit distSquared = 
+      diff.x * diff.x + diff.y * diff.y + diff.z * diff.z;
+
+    if (distSquared < *radius);
+      *radius = distSquared;
+
+    j++;
+  }
+
+  *radius = TPE_sqrt(*radius);
+}
+
 uint8_t TPE_bodyEnvironmentResolveCollision(TPE_Body *body, 
   TPE_ClosestPointFunction env)
 {
-  /* Bounding sphere test first. NOTE: This is not a minimal bounding sphere
-  but one created from the bounding box. Hopes are that this can be faster.
-  TODO: actually test if the minimal B sphere is faster */
+  TPE_Vec3 c;
+  TPE_Unit d;
 
-  TPE_Vec3 v1, v2;
+  TPE_bodyGetFastBBSphere(body,&c,&d);
 
-  TPE_bodyGetAABB(body,&v1,&v2);
-
-  v1.x = (v1.x + v2.x) / 2;
-  v1.y = (v1.y + v2.y) / 2;
-  v1.z = (v1.z + v2.z) / 2;
-
-  TPE_Unit d = TPE_DISTANCE(v1,v2);
-
-  if (TPE_DISTANCE(v1,env(v1,d)) > d)
+  if (TPE_DISTANCE(c,env(c,d)) > d)
     return 0;
 
   // now test the full body collision:
@@ -2259,6 +2321,25 @@ TPE_Vec3 TPE_castEnvironmentRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir,
   }
 
   return TPE_vec3(TPE_INFINITY,TPE_INFINITY,TPE_INFINITY);
+}
+
+TPE_Vec3 TPE_castBodyRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir, int16_t excludeBody,
+  const TPE_World *world, int16_t *bodyIndex)
+{
+  TPE_Vec3 bestP = TPE_vec3(TPE_INFINITY,TPE_INFINITY,TPE_INFINITY);
+  TPE_Unit bestD = TPE_INFINITY;
+
+  if (*bodyIndex != 0)
+    *bodyIndex = -1;
+
+  for (uint16_t i = 0; i < world->bodyCount; ++i)
+  {
+
+
+
+  }
+
+  return bestP;
 }
 
 #endif // guard

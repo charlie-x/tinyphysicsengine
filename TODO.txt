@@ -1,17 +1,19 @@
 TODO:
 - zero weight joints should behave how?
 - debug draw inactive bodies with different color?
-- test different tick lengths
+- test different tick lengths (demo)
 - test env functions with a single distinct point near camera
 - test/handle: collision where the velocity goes "away" from the collision (can
   happen e.g. if one body is hit by a faster body OR by manual manipulation with
   velocities)
-- BUG? makeCenterBox doesnt seem to add the center joint: check it out
 - demo: momentum conservation
+- demo: 2D physics
 - bounding box/sphere test functions/macros for optimization of environment
   building
-- tip: body center can quickly be approximated by just averaging two extreme
-  points rather than averaging all points -- write this somewhere
+- test ray casting (e.g. the hit of an outside ray should always be outside)
+- ray casting against bodies
+- check if using fastBBSphere vs normal BBSphere doesn't affect the simulation
+  result (it shouldn't)
 
 DONE:
 - air friction (can be done by multiplying energy)
@@ -25,3 +27,7 @@ DONE:
 - unify naming: rotation vs orientation
 - function for "faking" rotation of a single-joint body (ball): it will simply
   rotate by the axis perpendicular to its linear velocity vec
+- BUG? makeCenterBox doesnt seem to add the center joint: check it out <---
+  only hard to see
+- tip: body center can quickly be approximated by just averaging two extreme
+  points rather than averaging all points -- write this somewhere

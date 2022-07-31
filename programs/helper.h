@@ -347,6 +347,15 @@ void helper_addBox(TPE_Unit w, TPE_Unit h, TPE_Unit d, TPE_Unit jointSize, TPE_U
   _helper_bodyAdded(8,16,mass);
 }
 
+void helper_addCenterBox(TPE_Unit w, TPE_Unit h, TPE_Unit d, TPE_Unit jointSize, TPE_Unit mass)
+{
+  TPE_makeCenterBox(
+    tpe_joints + helper_jointsUsed,
+    tpe_connections + helper_connectionsUsed,w,h,d,jointSize);
+
+  _helper_bodyAdded(9,18,mass);
+}
+
 void helper_add2Line(TPE_Unit w, TPE_Unit jointSize, TPE_Unit mass)
 {
   TPE_make2Line(

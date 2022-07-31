@@ -33,7 +33,8 @@ int main(void)
 
   for (int i = 0; i < 6; ++i)
 {
-    helper_addBox(CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 4,100);
+    //helper_addBox(CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 4,100);
+helper_addCenterBox(CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 4,100);
 
 tpe_world.bodies[tpe_world.bodyCount - 1].elasticity = 256;
 tpe_world.bodies[tpe_world.bodyCount - 1].friction = 256;

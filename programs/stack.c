@@ -67,8 +67,10 @@ unsigned long t1 = helper_getMicroSecs();
     TPE_worldStep(&tpe_world);
 
 timeMeasure += helper_getMicroSecs() - t1;
-    
+
     helper_set3dColor(180,10,10); 
+
+
 
     for (int i = 0; i < tpe_world.bodyCount; ++i)
     {
