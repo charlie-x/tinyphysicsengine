@@ -312,10 +312,10 @@ void TPE_bodyGetAABB(const TPE_Body *body, TPE_Vec3 *vMin, TPE_Vec3 *vMax);
 
 /** Gets a bounding sphere of a body which is not minimal but faster to compute
   than the minimal bounding sphere. */
-void TPE_bodyGetFastBBSphere(const TPE_Body *body, TPE_Vec3 *center,
+void TPE_bodyGetFastBSphere(const TPE_Body *body, TPE_Vec3 *center,
   TPE_Unit *radius);
 
-void TPE_bodyGetBBSphere(const TPE_Body *body, TPE_Vec3 *center,
+void TPE_bodyGetBSphere(const TPE_Body *body, TPE_Vec3 *center,
   TPE_Unit *radius);
 
 uint8_t TPE_checkOverlapAABB(TPE_Vec3 v1Min, TPE_Vec3 v1Max, TPE_Vec3 v2Min,
@@ -373,12 +373,13 @@ TPE_Vec3 TPE_castEnvironmentRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir,
 
 /** Casts a ray against bodies in a world (ignoring the environment), returns
   the position of the closest hit as well as the hit body's index in bodyIndex
-  (unless the bodyIndex pointer is 0 in which case it is ignored). If no hit is
-  found a vector with all elements equal to TPE_INFINITY will be returned and
-  bodyIndex will be -1. A specific body can be excluded with excludeBody
-  (negative value will just make this parameter ignored). */
+  (unless the bodyIndex pointer is 0 in which case it is ignored). Similarly
+  with jointIndex. If no hit is found a vector with all elements equal to
+  TPE_INFINITY will be returned and bodyIndex will be -1. A specific body can be
+  excluded with excludeBody (negative value will just make this parameter
+  ignored). */
 TPE_Vec3 TPE_castBodyRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir, int16_t excludeBody,
-  const TPE_World *world, int16_t *bodyIndex);
+  const TPE_World *world, uint16_t *bodyIndex, uint16_t *jointIndex);
 
 // environment building functions:
 
@@ -1552,7 +1553,7 @@ uint8_t TPE_bodyEnvironmentCollide(const TPE_Body *body,
  
 }
 
-void TPE_bodyGetFastBBSphere(const TPE_Body *body, TPE_Vec3 *center,
+void TPE_bodyGetFastBSphere(const TPE_Body *body, TPE_Vec3 *center,
   TPE_Unit *radius)
 {
   TPE_Vec3 b;
@@ -1566,7 +1567,7 @@ void TPE_bodyGetFastBBSphere(const TPE_Body *body, TPE_Vec3 *center,
   *radius = TPE_DISTANCE(*center,b);
 }
 
-void TPE_bodyGetBBSphere(const TPE_Body *body, TPE_Vec3 *center,
+void TPE_bodyGetBSphere(const TPE_Body *body, TPE_Vec3 *center,
   TPE_Unit *radius)
 {
   *radius = TPE_INFINITY;
@@ -1597,7 +1598,7 @@ void TPE_bodyGetBBSphere(const TPE_Body *body, TPE_Vec3 *center,
     TPE_Unit distSquared = 
       diff.x * diff.x + diff.y * diff.y + diff.z * diff.z;
 
-    if (distSquared < *radius);
+    if (distSquared < *radius)
       *radius = distSquared;
 
     j++;
@@ -1612,7 +1613,7 @@ uint8_t TPE_bodyEnvironmentResolveCollision(TPE_Body *body,
   TPE_Vec3 c;
   TPE_Unit d;
 
-  TPE_bodyGetFastBBSphere(body,&c,&d);
+  TPE_bodyGetFastBSphere(body,&c,&d);
 
   if (TPE_DISTANCE(c,env(c,d)) > d)
     return 0;
@@ -2324,19 +2325,83 @@ TPE_Vec3 TPE_castEnvironmentRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir,
 }
 
 TPE_Vec3 TPE_castBodyRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir, int16_t excludeBody,
-  const TPE_World *world, int16_t *bodyIndex)
+  const TPE_World *world, uint16_t *bodyIndex, uint16_t *jointIndex)
 {
   TPE_Vec3 bestP = TPE_vec3(TPE_INFINITY,TPE_INFINITY,TPE_INFINITY);
   TPE_Unit bestD = TPE_INFINITY;
 
-  if (*bodyIndex != 0)
+  if (bodyIndex != 0)
     *bodyIndex = -1;
+
+  if (jointIndex != 0)
+    *jointIndex = -1;
+
+  TPE_vec3Normalize(&rayDir);
 
   for (uint16_t i = 0; i < world->bodyCount; ++i)
   {
+    TPE_Vec3 c, p;
+    TPE_Unit r, d;
 
+    TPE_bodyGetFastBSphere(&world->bodies[i],&c,&r);
 
+    c = TPE_vec3Minus(c,rayPos);
+    p = TPE_vec3ProjectNormalized(c,rayDir);
 
+    if (TPE_vec3Dot(p,rayDir) >= 0) // point is in ray's forward dir?
+    {
+      d = TPE_DISTANCE(p,c);
+
+      if (d <= r)
+      {
+        // bounding sphere hit, now check all joints:
+
+        const TPE_Joint *joint = world->bodies[i].joints;
+
+        for (uint16_t j = 0; j < world->bodies[i].jointCount; ++j)
+        {
+          c = joint->position;
+          c = TPE_vec3Minus(c,rayPos);
+          p = TPE_vec3ProjectNormalized(c,rayDir);
+
+          if (TPE_vec3Dot(p,rayDir) >= 0)
+          {
+            d = TPE_DISTANCE(p,c);
+            TPE_Unit js = TPE_JOINT_SIZE(*joint);
+
+            if (d <= js)
+            {
+              // joint hit, compute exact coordinates:
+
+              c = TPE_vec3Times(rayDir,TPE_sqrt(js * js - d * d));
+              // ^ offset vector to two intersections
+              p = TPE_vec3Plus(p,rayPos);
+
+              TPE_Vec3
+                i1 = TPE_vec3Plus(p,c), // intersection points
+                i2 = TPE_vec3Minus(p,c);
+
+              d = TPE_DISTANCE(rayPos,i1);
+              TPE_Unit d2 = TPE_DISTANCE(rayPos,i2);
+
+              if (d2 < d) // take the closer one
+              {
+                d = d2;
+                i1 = i2;
+              }
+
+              if (d < bestD)
+              {
+                bestD = d;
+                bestP = i1;
+              }
+            }
+          }
+
+          joint++;
+        }
+      }
+    }
   }
 
   return bestP;
