@@ -1,5 +1,7 @@
 #define TPE_RESHAPE_ITERATIONS 5
 
+#define DEBUG_DRAW_DIVIDE 16
+
 #include "helper.h"
 
 #define ROOM_SIZE 7000
@@ -19,6 +21,8 @@ helper_debugDrawOn = 1;
   tpe_world.environmentFunction = environmentDistance;
 
   s3l_scene.camera.transform.translation.z -= ROOM_SIZE / 2;
+
+s3l_scene.camera.focalLength = 0; // set orthographic projection
 
 for (int i = 0; i < 4; ++i)
 {

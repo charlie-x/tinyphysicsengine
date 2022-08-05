@@ -477,11 +477,12 @@ TPE_Unit TPE_atan(TPE_Unit x);
   different types of objects (joints, connections, environemnt). camPos, camRot
   and camView should match the camera settings of your main renderer. CamView.x
   is horizontal resolution in pixels, camView.y is the vertical resolution,
-  CamView.z says the camera focal length (~FOV) in TPE_Units. envGridRes is the
-  resolution of an environment probe grid (the function will probe points in
-  space and draw borders of the physics environemnt), envGridSize is the size
-  (int TPE_Units) of the grid cell. Note the function may be slow (reducing
-  envGridRes can help, workable value can be e.g. 16). */
+  CamView.z says the camera focal length (~FOV) in TPE_Units (0 means
+  orthographic projection). envGridRes is the resolution of an environment probe
+  grid (the function will probe points in space and draw borders of the physics
+  environemnt), envGridSize is the size (int TPE_Units) of the grid cell. Note
+  the function may be slow (reducing envGridRes can help, workable value can be
+  e.g. 16). */
 void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
   TPE_Vec3 camPos, TPE_Vec3 camRot, TPE_Vec3 camView, uint16_t envGridRes,
   TPE_Unit envGridSize);
@@ -1312,9 +1313,9 @@ uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
         _TPE_body2Index,_TPE_joint2Index,TPE_vec3Plus(j1->position,dir)))
         return 0;
 
-TPE_Vec3
-  pos1Backup = j1->position,
-  pos2Backup = j2->position;
+    TPE_Vec3
+      pos1Backup = j1->position,
+      pos2Backup = j2->position;
   
     // separate joints, the shift distance will depend on the weight ratio:
 
@@ -1779,12 +1780,25 @@ TPE_Vec3 _TPE_project3DPoint(TPE_Vec3 p, TPE_Vec3 camPos, TPE_Vec3 camRot,
   if (p.z <= 0)
     return p;
 
-  p.x = (p.x * camView.z) / p.z;
-  p.y = (p.y * camView.z) / p.z;
+  if (camView.z != 0)
+  {
+    // perspective
 
-  p.x = camView.x / 2 + (p.x * camView.x) / (2 * TPE_FRACTIONS_PER_UNIT);
-  p.y = camView.y / 2 - (p.y * camView.x) / (2 * TPE_FRACTIONS_PER_UNIT);
-                                    // ^ x here intentional
+    p.x = (p.x * camView.z) / p.z;
+    p.y = (p.y * camView.z) / p.z;
+
+    p.x = camView.x / 2 + (p.x * camView.x) / (2 * TPE_FRACTIONS_PER_UNIT);
+    p.y = camView.y / 2 - (p.y * camView.x) / (2 * TPE_FRACTIONS_PER_UNIT);
+                                      // ^ x here intentional
+  }
+  else
+  {
+    // ortho
+
+    p.x = camView.x / 2 + p.x;
+    p.y = camView.y / 2 - p.y;
+  }
+
   return p;
 }
 
@@ -1899,9 +1913,14 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
 
         _TPE_drawDebugPixel(p.x,p.y,camView.x,camView.y,color,drawFunc);
 
-        TPE_Unit size = TPE_JOINT_SIZE(world->bodies[i].joints[j]) / 2;
-        size = (size * camView.x) / TPE_FRACTIONS_PER_UNIT;
-        size = (size * camView.z) / p.z;
+        TPE_Unit size = TPE_JOINT_SIZE(world->bodies[i].joints[j]);
+
+        if (camView.z != 0) // not ortho?
+        {
+          size /= 2;
+          size = (size * camView.x) / TPE_FRACTIONS_PER_UNIT;
+          size = (size * camView.z) / p.z;
+        }
 
 #define SEGS 4
         for (uint8_t k = 0; k < SEGS + 1; ++k)
