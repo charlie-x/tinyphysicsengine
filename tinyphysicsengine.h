@@ -258,6 +258,8 @@ void TPE_getVelocitiesAfterCollision(TPE_Unit *v1, TPE_Unit *v2, TPE_Unit m1,
 
 TPE_Unit TPE_sqrt(TPE_Unit value);
 
+TPE_Unit TPE_vec2Angle(TPE_Unit x, TPE_Unit y);
+
 TPE_Vec3 TPE_vec3(TPE_Unit x, TPE_Unit y, TPE_Unit z);
 TPE_Vec3 TPE_vec3Minus(TPE_Vec3 v1, TPE_Vec3 v2);
 TPE_Vec3 TPE_vec3Plus(TPE_Vec3 v1, TPE_Vec3 v2);
@@ -1716,7 +1718,7 @@ void _TPE_vec2Rotate(TPE_Unit *x, TPE_Unit *y, TPE_Unit angle)
   *y = (s * tmp + c * *y) / TPE_FRACTIONS_PER_UNIT;
 }
 
-TPE_Unit _TPE_vec2Angle(TPE_Unit x, TPE_Unit y)
+TPE_Unit TPE_vec2Angle(TPE_Unit x, TPE_Unit y)
 {
   TPE_Unit r = 0;
 
@@ -1747,7 +1749,7 @@ TPE_Vec3 TPE_rotationFromVecs(TPE_Vec3 forward, TPE_Vec3 right)
 
   // get rotation around Y:
 
-  result.y = _TPE_vec2Angle(forward.z,-1 * forward.x);
+  result.y = TPE_vec2Angle(forward.z,-1 * forward.x);
 
   // now rotate back by this angle to align with x = 0 plane:
 
@@ -1757,11 +1759,11 @@ TPE_Vec3 TPE_rotationFromVecs(TPE_Vec3 forward, TPE_Vec3 right)
   // now do the same for the second axis:
 
   result.x = 
-    _TPE_vec2Angle(forward.z,forward.y);
+    TPE_vec2Angle(forward.z,forward.y);
 
   _TPE_vec2Rotate(&right.z,&right.y,-1 * result.x);
 
-  result.z = _TPE_vec2Angle(right.x,-1 * right.y);
+  result.z = TPE_vec2Angle(right.x,-1 * right.y);
 
   return result;
 }
@@ -1821,18 +1823,23 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
 
     TPE_Vec3 testPoint;
 
-    TPE_Vec3 center = TPE_vec3(0,TPE_sin(camRot.x),TPE_cos(camRot.x));
-
-    _TPE_vec2Rotate(&center.x,&center.z,camRot.y);
-
     TPE_Unit gridHalfSize = (envGridSize * envGridRes) / 2;
 
-    center = TPE_vec3Times(center,gridHalfSize);
-    center = TPE_vec3Plus(camPos,center);
+    TPE_Vec3 center;
 
-    center.x = (center.x / envGridSize) * envGridSize;
-    center.y = (center.y / envGridSize) * envGridSize;
-    center.z = (center.z / envGridSize) * envGridSize;
+    if (envGridRes != 0)
+    {
+      center = TPE_vec3(0,TPE_sin(camRot.x),TPE_cos(camRot.x));
+
+      _TPE_vec2Rotate(&center.x,&center.z,camRot.y);
+
+      center = TPE_vec3Times(center,gridHalfSize);
+      center = TPE_vec3Plus(camPos,center);
+
+      center.x = (center.x / envGridSize) * envGridSize;
+      center.y = (center.y / envGridSize) * envGridSize;
+      center.z = (center.z / envGridSize) * envGridSize;
+    }
 
     testPoint.y = center.y - gridHalfSize;
 
