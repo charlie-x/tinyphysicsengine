@@ -293,7 +293,8 @@ static inline TPE_Unit TPE_distApprox(TPE_Vec3 p1, TPE_Vec3 p2);
 TPE_Joint TPE_joint(TPE_Vec3 position, TPE_Unit size);
 
 uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
-  TPE_Unit mass1, TPE_Unit mass2, TPE_Unit elasticity, TPE_Unit friction);
+  TPE_Unit mass1, TPE_Unit mass2, TPE_Unit elasticity, TPE_Unit friction,
+  TPE_ClosestPointFunction env);
 
 /** Tests and potentially resolves a collision between a joint and environment,
   returns 0 if no collision happened, 1 if it happened and was resolved normally
@@ -321,7 +322,8 @@ void TPE_bodyGetBSphere(const TPE_Body *body, TPE_Vec3 *center,
 uint8_t TPE_checkOverlapAABB(TPE_Vec3 v1Min, TPE_Vec3 v1Max, TPE_Vec3 v2Min,
   TPE_Vec3 v2Max);
 
-uint8_t TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2);
+uint8_t TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2,
+  TPE_ClosestPointFunction env);
 
 /** Pins a joint of a body to specified location in space. */
 void TPE_jointPin(TPE_Joint *joint, TPE_Vec3 position);
@@ -349,7 +351,10 @@ void TPE_makeTriangle(TPE_Joint joints[3], TPE_Connection connections[3],
   TPE_Unit sideLength, TPE_Unit jointSize);
 
 void TPE_makeCenterRect(TPE_Joint joints[5], TPE_Connection connections[8],
-  TPE_Unit width, TPE_Unit depth,  TPE_Unit jointSize);
+  TPE_Unit width, TPE_Unit depth, TPE_Unit jointSize);
+
+void TPE_makeCenterRectFull(TPE_Joint joints[5], TPE_Connection connections[10],
+  TPE_Unit width, TPE_Unit depth, TPE_Unit jointSize);
 
 void TPE_make2Line(TPE_Joint joints[2], TPE_Connection connections[1],
   TPE_Unit length, TPE_Unit jointSize);
@@ -480,6 +485,11 @@ TPE_Unit TPE_atan(TPE_Unit x);
 void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
   TPE_Vec3 camPos, TPE_Vec3 camRot, TPE_Vec3 camView, uint16_t envGridRes,
   TPE_Unit envGridSize);
+
+#define TPE_DEBUG_COLOR_CONNECTION 0
+#define TPE_DEBUG_COLOR_JOINT 1
+#define TPE_DEBUG_COLOR_ENVIRONMENT 2
+#define TPE_DEBUG_COLOR_INACTIVE 3
 
 //------------------------------------------------------------------------------
 // privates:
@@ -663,13 +673,21 @@ void TPE_makeRect(TPE_Joint joints[4], TPE_Connection connections[6],
 }
 
 void TPE_makeCenterRect(TPE_Joint joints[5], TPE_Connection connections[8],
-  TPE_Unit width, TPE_Unit depth,  TPE_Unit jointSize)
+  TPE_Unit width, TPE_Unit depth, TPE_Unit jointSize)
 {
   TPE_makeRect(joints,connections,width,depth,jointSize);
 
   joints[4] = TPE_joint(TPE_vec3(0,0,0),jointSize);
 
   C(6, 0,4) C(7, 3,4)
+}
+
+void TPE_makeCenterRectFull(TPE_Joint joints[5], TPE_Connection connections[10],
+  TPE_Unit width, TPE_Unit depth, TPE_Unit jointSize)
+{
+  TPE_makeCenterRect(joints,connections,width,depth,jointSize);
+
+  C(8, 1,4) C(9, 2,4)
 }
 
 void TPE_makeTriangle(TPE_Joint joints[3], TPE_Connection connections[3],
@@ -762,30 +780,7 @@ void TPE_worldStep(TPE_World *world)
     TPE_bodyGetAABB(body,&aabbMin,&aabbMax);
         
     _TPE_body1Index = i;
- 
-    for (uint16_t j = 0; j < world->bodyCount; ++j)
-    {
-      if (j > i ||  (world->bodies[j].flags & TPE_BODY_FLAG_DEACTIVATED))
-      {
-        // firstly quick-check collision of body AA bounding boxes
-
-        TPE_Vec3 aabbMin2, aabbMax2;
-        TPE_bodyGetAABB(&world->bodies[j],&aabbMin2,&aabbMax2);
-
-        _TPE_body2Index = j;
-
-        if (TPE_checkOverlapAABB(aabbMin,aabbMax,aabbMin2,aabbMax2) &&
-          TPE_bodiesResolveCollision(body,world->bodies + j))
-        {
-          TPE_bodyActivate(body);
-          body->deactivateCount = TPE_LIGHT_DEACTIVATION; 
-
-          TPE_bodyActivate(world->bodies + j);
-          world->bodies[j].deactivateCount = TPE_LIGHT_DEACTIVATION;
-        }
-      }
-    }
- 
+  
     _TPE_body2Index = _TPE_body1Index;
 
     uint8_t collided =    
@@ -812,7 +807,7 @@ void TPE_worldStep(TPE_World *world)
         TPE_bodyEnvironmentCollide(body,world->environmentFunction))
         TPE_bodyMove(body,TPE_vec3Minus(origPos,body->joints[0].position));
     }
-    else
+    else // normal, rotating bodies
     {
       TPE_Unit bodyTension = 0;
 
@@ -867,6 +862,29 @@ void TPE_worldStep(TPE_World *world)
         if (bodyTension > TPE_RESHAPE_TENSION_LIMIT)
           for (uint8_t k = 0; k < TPE_RESHAPE_ITERATIONS; ++k) 
             TPE_bodyReshape(body,world->environmentFunction);
+      }
+    }
+
+    for (uint16_t j = 0; j < world->bodyCount; ++j)
+    {
+      if (j > i || (world->bodies[j].flags & TPE_BODY_FLAG_DEACTIVATED))
+      {
+        // firstly quick-check collision of body AA bounding boxes
+
+        TPE_Vec3 aabbMin2, aabbMax2;
+        TPE_bodyGetAABB(&world->bodies[j],&aabbMin2,&aabbMax2);
+
+        _TPE_body2Index = j;
+
+        if (TPE_checkOverlapAABB(aabbMin,aabbMax,aabbMin2,aabbMax2) &&
+          TPE_bodiesResolveCollision(body,world->bodies + j,world->environmentFunction))
+        {
+          TPE_bodyActivate(body);
+          body->deactivateCount = TPE_LIGHT_DEACTIVATION; 
+
+          TPE_bodyActivate(world->bodies + j);
+          world->bodies[j].deactivateCount = TPE_LIGHT_DEACTIVATION;
+        }
       }
     }
 
@@ -1248,7 +1266,8 @@ TPE_Unit TPE_sin(TPE_Unit x)
   #undef _PI2
 }
 
-uint8_t TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2)
+uint8_t TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2,
+  TPE_ClosestPointFunction env)
 {
   uint8_t r = 0;
 
@@ -1263,7 +1282,7 @@ uint8_t TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2)
 
       if (TPE_jointsResolveCollision(&(b1->joints[i]),&(b2->joints[j]),
         b1->jointMass,b2->jointMass,(b1->elasticity + b2->elasticity) / 2,
-        (b1->friction + b2->friction) / 2))
+        (b1->friction + b2->friction) / 2,env))
       {
         r = 1;
 
@@ -1279,7 +1298,8 @@ uint8_t TPE_bodiesResolveCollision(TPE_Body *b1, TPE_Body *b2)
 }
 
 uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
-  TPE_Unit mass1, TPE_Unit mass2, TPE_Unit elasticity, TPE_Unit friction)
+  TPE_Unit mass1, TPE_Unit mass2, TPE_Unit elasticity, TPE_Unit friction,
+  TPE_ClosestPointFunction env)
 {
   TPE_Vec3 dir = TPE_vec3Minus(j2->position,j1->position);
 
@@ -1287,12 +1307,16 @@ uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
 
   if (d < 0) // collision?
   {
-    if (_TPE_collisionCallback != 0)
+    if (_TPE_collisionCallback != 0) // TODO: unnest if
       if (!_TPE_collisionCallback(_TPE_body1Index,_TPE_joint1Index,
         _TPE_body2Index,_TPE_joint2Index,TPE_vec3Plus(j1->position,dir)))
         return 0;
+
+TPE_Vec3
+  pos1Backup = j1->position,
+  pos2Backup = j2->position;
   
-    // separate bodies, the shift distance will depend on the weight ratio:
+    // separate joints, the shift distance will depend on the weight ratio:
 
     d = -1 * d + TPE_COLLISION_RESOLUTION_MARGIN;
 
@@ -1371,6 +1395,17 @@ uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
     assignVec(j2,2,z,-)
 
 #undef assignVec
+
+    if (env != 0)
+    {
+      // ensure the joints aren't colliding with environment
+
+      if (TPE_jointEnvironmentResolveCollision(j1,elasticity,friction,env) == 2)
+        j1->position = pos1Backup;
+
+      if (TPE_jointEnvironmentResolveCollision(j2,elasticity,friction,env) == 2)
+        j2->position = pos2Backup;
+    }
 
     return 1;
   }
@@ -1803,9 +1838,10 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
           {
 // TODO: accel. by testing cheb dist first?
             r = _TPE_project3DPoint(r,camPos,camRot,camView);
-        
+ 
             if (r.z > Z_LIMIT)
-              _TPE_drawDebugPixel(r.x,r.y,camView.x,camView.y,2,drawFunc);
+              _TPE_drawDebugPixel(r.x,r.y,camView.x,camView.y,
+                TPE_DEBUG_COLOR_ENVIRONMENT,drawFunc);
           }
 
           testPoint.z += envGridSize;
@@ -1836,12 +1872,16 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
       TPE_Vec3 diff = TPE_vec3Minus(p2,p1);
 
 #define SEGS 16
+
+      uint8_t c = (world->bodies[i].flags & TPE_BODY_FLAG_DEACTIVATED) ?
+        TPE_DEBUG_COLOR_INACTIVE : TPE_DEBUG_COLOR_CONNECTION;
+
       for (uint16_t k = 0; k < SEGS; ++k)
       {
         p2.x = p1.x + (diff.x * k) / SEGS;
         p2.y = p1.y + (diff.y * k) / SEGS;
 
-        _TPE_drawDebugPixel(p2.x,p2.y,camView.x,camView.y,0,drawFunc);
+        _TPE_drawDebugPixel(p2.x,p2.y,camView.x,camView.y,c,drawFunc);
       }
 #undef SEGS
     }
@@ -1854,7 +1894,10 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
 
       if (p.z > Z_LIMIT)
       {
-        _TPE_drawDebugPixel(p.x,p.y,camView.x,camView.y,1,drawFunc);
+        uint8_t color = (world->bodies[i].flags & TPE_BODY_FLAG_DEACTIVATED) ?
+          TPE_DEBUG_COLOR_INACTIVE : TPE_DEBUG_COLOR_JOINT;
+
+        _TPE_drawDebugPixel(p.x,p.y,camView.x,camView.y,color,drawFunc);
 
         TPE_Unit size = TPE_JOINT_SIZE(world->bodies[i].joints[j]) / 2;
         size = (size * camView.x) / TPE_FRACTIONS_PER_UNIT;
@@ -1870,7 +1913,7 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
               / TPE_FRACTIONS_PER_UNIT;
 
 #define dp(a,b,c,d) \
-  _TPE_drawDebugPixel(p.x a b,p.y c d,camView.x,camView.y,1,drawFunc);
+  _TPE_drawDebugPixel(p.x a b,p.y c d,camView.x,camView.y,color,drawFunc);
           dp(+,dx,+,dy) dp(+,dx,-,dy) dp(-,dx,+,dy) dp(-,dx,-,dy)
           dp(+,dy,+,dx) dp(+,dy,-,dx) dp(-,dy,+,dx) dp(-,dy,-,dx)
 #undef dp

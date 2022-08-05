@@ -1,3 +1,5 @@
+// #define FPS 50
+
 #include "helper.h"
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
@@ -54,7 +56,8 @@ int main(void)
         for (int i = 0; i < tpe_world.bodyCount; ++i)
         {
           TPE_bodyActivate(&tpe_world.bodies[i]);
-          TPE_bodyAccelerate(&tpe_world.bodies[i],TPE_vec3(0,500,0));
+          TPE_bodyAccelerate(&tpe_world.bodies[i],
+            TPE_vec3(0,(500 * 30) / FPS,0));
         }
 
       printf("world update (us): %lu\n",timeMeasure / 16);
@@ -74,7 +77,7 @@ timeMeasure += helper_getMicroSecs() - t1;
 
     for (int i = 0; i < tpe_world.bodyCount; ++i)
     {
-      TPE_bodyApplyGravity(&tpe_world.bodies[i],5);
+      TPE_bodyApplyGravity(&tpe_world.bodies[i],(5 * 30) / FPS);
 
       TPE_Joint *joints = tpe_world.bodies[i].joints;
       TPE_Vec3 pos = TPE_bodyGetCenterOfMass(&tpe_world.bodies[i]);

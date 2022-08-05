@@ -41,20 +41,17 @@ uint8_t collisionCallback(uint16_t b1, uint16_t j1, uint16_t b2, uint16_t j2,
 
 int main(void)
 {
-
-
-
   helper_init();
 
   helper_debugDrawOn = 1;
 
   updateDirection();
 
-ballRot = TPE_vec3(0,0,0);
+  ballRot = TPE_vec3(0,0,0);
 
   tpe_world.environmentFunction = environmentDistance;
 
-tpe_world.collisionCallback = collisionCallback;
+  tpe_world.collisionCallback = collisionCallback;
 
   s3l_scene.camera.transform.translation.z -= ROOM_SIZE / 2;
   s3l_scene.camera.transform.translation.y += ROOM_SIZE / 3;
