@@ -1,5 +1,8 @@
 #define SCALE_3D_RENDERING 1
 
+#define S3L_NEAR_CROSS_STRATEGY 2
+#define S3L_PERSPECTIVE_CORRECTION 1
+
 #include "helper.h"
 
 #define ROOM_SIZE 10000
@@ -42,8 +45,6 @@ uint8_t collisionCallback(uint16_t b1, uint16_t j1, uint16_t b2, uint16_t j2,
 int main(void)
 {
   helper_init();
-
-  helper_debugDrawOn = 1;
 
   updateDirection();
 
@@ -159,8 +160,9 @@ ballPreviousPos = tpe_world.bodies[1].joints[0].position;
 
     updateDirection();
 
-    helper_set3dColor(100,100,100);
+    helper_set3dColor(180,180,180);
     helper_draw3dBoxInside(TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE),TPE_vec3(0,0,0));
+    helper_set3dColor(100,200,180);
     helper_draw3dBox(TPE_vec3(4000,160,4000),TPE_vec3(2000,320,2000),TPE_vec3(0,0,0));
     helper_draw3dBox(TPE_vec3(4000,80,2500),TPE_vec3(2000,160,1000),TPE_vec3(0,0,0));
     helper_draw3dBox(TPE_vec3(-1000,270,4500),TPE_vec3(8000,540,500),TPE_vec3(0,0,0));
@@ -194,7 +196,7 @@ for (int i = 0; i < tpe_world.bodyCount; ++i)
     TPE_bodyApplyGravity(&tpe_world.bodies[i],5);
 
     if (helper_debugDrawOn)
-      helper_debugDraw();
+      helper_debugDraw(1);
 
     helper_frameEnd();
   }

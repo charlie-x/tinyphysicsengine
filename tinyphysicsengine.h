@@ -401,7 +401,8 @@ TPE_Vec3 TPE_envInfiniteCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
   direction, TPE_Unit radius);
 
 #define TPE_ENV_START(test,point) TPE_Vec3 _pBest = test, _pTest; \
-  TPE_Unit _dBest = TPE_DISTANCE(_pBest,point), _dTest;
+  TPE_Unit _dBest = TPE_DISTANCE(_pBest,point), _dTest; \
+  (void)(_pBest); (void)(_dBest); (void)(_dTest); (void)(_pTest); // supress war
 
 #define TPE_ENV_NEXT(test,point) \
  { if (_pBest.x == point.x && _pBest.y == point.y && _pBest.z == point.z) \

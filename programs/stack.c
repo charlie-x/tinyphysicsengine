@@ -20,8 +20,9 @@ int main(void)
 
   tpe_world.environmentFunction = environmentDistance;
 
-  s3l_scene.camera.transform.translation.y = 3000;
-  s3l_scene.camera.transform.translation.z = -1000;
+  s3l_scene.camera.transform.translation.y = 6000;
+  s3l_scene.camera.transform.translation.z = -2000;
+  s3l_scene.camera.transform.rotation.x = -70;
 
   for (int i = 0; i < 16; ++i)
   {
@@ -71,7 +72,6 @@ unsigned long t1 = helper_getMicroSecs();
 
 timeMeasure += helper_getMicroSecs() - t1;
 
-    helper_set3dColor(180,10,10); 
 
 
 
@@ -96,6 +96,9 @@ timeMeasure += helper_getMicroSecs() - t1;
       }
 
       TPE_Vec3 orient = TPE_rotationFromVecs(forw,right);
+    
+    
+helper_set3dColor(100 + i * 5,16 - i,100 - i * 5); 
 
       switch (i % 5)
       {
@@ -116,7 +119,7 @@ timeMeasure += helper_getMicroSecs() - t1;
     helper_draw3dTriangle(TPE_vec3(0,0,0),TPE_vec3(-5000,5000,-10000),TPE_vec3(5000,5000,0));
 
     if (helper_debugDrawOn)
-      helper_debugDraw();
+      helper_debugDraw(1);
 
     helper_frameEnd();
   }
