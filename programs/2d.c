@@ -13,6 +13,7 @@ TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
   return TPE_envAABoxInside(p,TPE_vec3(0,0,0),TPE_vec3(ROOM_W,ROOM_H,ROOM_W));
 }
 
+inactiveCount = 0;
 
 int main(void)
 {
@@ -67,6 +68,11 @@ else
     for (int i = 0; i < tpe_world.bodyCount; ++i)
       TPE_bodyApplyGravity(&tpe_world.bodies[i],5);
 
+
+TPE_Unit speed, speedMax = 0;
+
+int anyActive = 0;
+
 for (int i = 0; i < tpe_world.bodyCount; ++i)
 {
   for (int j = 0; j < tpe_world.bodies[i].jointCount; ++j)
@@ -74,8 +80,31 @@ for (int i = 0; i < tpe_world.bodyCount; ++i)
     tpe_world.bodies[i].joints[j].position.z = 0;
     tpe_world.bodies[i].joints[j].velocity[2] = 0;
   }
+
+if (!(tpe_world.bodies[i].flags & TPE_BODY_FLAG_DEACTIVATED))
+  anyActive = 1;
+
+
+speed = TPE_bodyGetAverageSpeed(&tpe_world.bodies[i]);
+
+if (speed > speedMax)
+  speedMax = speed;
+
+
+
 }
 
+
+if (anyActive && speedMax < 50)
+  inactiveCount++;
+else
+  inactiveCount = 0;
+
+if (inactiveCount > 100)
+{
+  TPE_worldDeactivateAll(&tpe_world);
+  inactiveCount = 0;
+}
 
 
 

@@ -415,8 +415,12 @@ TPE_Vec3 TPE_envInfiniteCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
 
 void TPE_worldStep(TPE_World *world);
 
-TPE_Unit TPE_bodyNetSpeed(const TPE_Body *body);
-TPE_Unit TPE_bodyAverageSpeed(const TPE_Body *body);
+void TPE_worldDeactivateAll(TPE_World *world);
+
+TPE_Unit TPE_worldGetNetSpeed(const TPE_World *world);
+
+TPE_Unit TPE_bodyGetNetSpeed(const TPE_Body *body);
+TPE_Unit TPE_bodyGetAverageSpeed(const TPE_Body *body);
 
 void TPE_bodyDeactivate(TPE_Body *body);
 
@@ -897,7 +901,7 @@ void TPE_worldStep(TPE_World *world)
       body->deactivateCount = 0;
       body->flags |= TPE_BODY_FLAG_DEACTIVATED;
     }
-    else if (TPE_bodyAverageSpeed(body) <= TPE_LOW_SPEED) // TODO: optimize
+    else if (TPE_bodyGetAverageSpeed(body) <= TPE_LOW_SPEED) // TODO: optimize
       body->deactivateCount++;
     else
       body->deactivateCount = 0;
@@ -916,7 +920,7 @@ void TPE_bodyActivate(TPE_Body *body)
   }
 }
 
-TPE_Unit TPE_bodyNetSpeed(const TPE_Body *body)
+TPE_Unit TPE_bodyGetNetSpeed(const TPE_Body *body)
 {
   TPE_Unit velocity = 0;
 
@@ -933,9 +937,9 @@ TPE_Unit TPE_bodyNetSpeed(const TPE_Body *body)
   return velocity;
 }
 
-TPE_Unit TPE_bodyAverageSpeed(const TPE_Body *body)
+TPE_Unit TPE_bodyGetAverageSpeed(const TPE_Body *body)
 {
-  return TPE_bodyNetSpeed(body) / body->jointCount;
+  return TPE_bodyGetNetSpeed(body) / body->jointCount;
 }
 
 void TPE_bodyMultiplyNetSpeed(TPE_Body *body, TPE_Unit factor)
@@ -958,7 +962,7 @@ void TPE_bodyLimitAverageSpeed(TPE_Body *body, TPE_Unit speedMin,
 {
   for (uint8_t i = 0; i < 16; ++i)
   {
-    TPE_Unit speed = TPE_bodyAverageSpeed(body);
+    TPE_Unit speed = TPE_bodyGetAverageSpeed(body);
 
     if (speed >= speedMin && speed <= speedMax)
       return;
@@ -2474,6 +2478,22 @@ TPE_Vec3 TPE_castBodyRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir, int16_t excludeBody,
   }
 
   return bestP;
+}
+
+void TPE_worldDeactivateAll(TPE_World *world)
+{
+  for (uint16_t i = 0; i < world->bodyCount; ++i)
+    TPE_bodyDeactivate(&world->bodies[i]);
+}
+
+TPE_Unit TPE_worldGetNetSpeed(const TPE_World *world)
+{
+  TPE_Unit result = 0;
+
+  for (uint16_t i = 0; i < world->bodyCount; ++i)
+    result += TPE_bodyGetNetSpeed(world->bodies + i);
+
+  return result;
 }
 
 #endif // guard
