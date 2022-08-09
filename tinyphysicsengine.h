@@ -283,6 +283,9 @@ TPE_Unit TPE_keepInRange(TPE_Unit x, TPE_Unit xMin, TPE_Unit xMax);
 TPE_Vec3 TPE_vec3KeepWithinBox(TPE_Vec3 point, TPE_Vec3 boxCenter,
   TPE_Vec3 boxMaxVect);
 
+TPE_Vec3 TPE_vec3KeepWithinDistanceBand(TPE_Vec3 point, TPE_Vec3 center,
+  TPE_Unit minDistance, TPE_Unit maxDistance);
+
 /** Computes orientation/rotation (see docs for orientation format) from two
   vectors (which should be at least a close to being perpensicular and do NOT
   need to be normalized). */
@@ -310,6 +313,10 @@ uint8_t TPE_bodyEnvironmentCollide(const TPE_Body *body,
 
 uint8_t TPE_bodyEnvironmentResolveCollision(TPE_Body *body, 
   TPE_ClosestPointFunction env);
+
+
+
+TPE_Vec3 TPE_bodyGetLinearVelocity(const TPE_Body *body);
 
 void TPE_bodyGetAABB(const TPE_Body *body, TPE_Vec3 *vMin, TPE_Vec3 *vMax);
 
@@ -2240,6 +2247,27 @@ TPE_Unit TPE_keepInRange(TPE_Unit x, TPE_Unit xMin, TPE_Unit xMax)
   return x > xMin ? (x < xMax ? x : xMax) : xMin;
 }
 
+TPE_Vec3 TPE_vec3KeepWithinDistanceBand(TPE_Vec3 point, TPE_Vec3 center,
+  TPE_Unit minDistance, TPE_Unit maxDistance)
+{
+  TPE_Vec3 toPoint = TPE_vec3Minus(point,center);
+
+  TPE_Unit l = TPE_LENGTH(toPoint);
+
+  if (l <= maxDistance)
+  {
+    if (l >= minDistance)
+      return point;
+ 
+    l = minDistance;
+  }
+  else
+    l = maxDistance;
+
+  return TPE_vec3Plus(center,
+    TPE_vec3Times(TPE_vec3Normalized(toPoint),l));
+}
+
 TPE_Vec3 TPE_vec3KeepWithinBox(TPE_Vec3 point, TPE_Vec3 boxCenter,
   TPE_Vec3 boxMaxVect)
 {
@@ -2495,6 +2523,11 @@ TPE_Unit TPE_worldGetNetSpeed(const TPE_World *world)
     result += TPE_bodyGetNetSpeed(world->bodies + i);
 
   return result;
+}
+
+TPE_Vec3 TPE_bodyGetLinearVelocity(const TPE_Body *body)
+{
+  // TODO
 }
 
 #endif // guard
