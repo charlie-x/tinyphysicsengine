@@ -8,7 +8,7 @@
 #include "carModel.h"
 
 #define ACCELERATION 32
-#define TURN_RADIUS 3500
+#define TURN_RADIUS 3000
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
@@ -100,7 +100,7 @@ wheelSize = TPE_JOINT_SIZE(tpe_world.bodies[0].joints[0]) + 30;
 TPE_bodyMove(carBody,TPE_vec3(3000,1000,0));
 
 tpe_world.bodies[0].elasticity = 64; 
-tpe_world.bodies[0].friction = 100; 
+tpe_world.bodies[0].friction = 64; 
 
   while (helper_running)
   {
@@ -196,13 +196,23 @@ carPos = TPE_vec3KeepWithinBox(carPos,
  carBody->joints[4].position,TPE_vec3(20,20,20));
 
 
-
 //S3L_lookAt(toCar,&s3l_scene.camera.transform);
 
 
-carForw = TPE_vec3Normalized( 
+carForw = 
+
+TPE_vec3Plus(
+  TPE_vec3Normalized( 
   TPE_vec3Minus(carBody->joints[2].position,
-  carBody->joints[0].position));
+  carBody->joints[0].position)),
+
+  TPE_vec3Normalized( 
+  TPE_vec3Minus(carBody->joints[3].position,
+  carBody->joints[1].position)) );
+
+carForw.x /= 2;
+carForw.y /= 2;
+carForw.z /= 2;
 
 carSide = TPE_vec3Normalized( 
   TPE_vec3Minus(carBody->joints[1].position,
@@ -252,24 +262,28 @@ TPE_bodySpinWithCenter(carBody,TPE_vec3Times(carUp,
 if (backOnGround)
 {
 
+TPE_Unit acc = ACCELERATION + speed;
+
 #define AAAA 16
 if (sdl_keyboard[SDL_SCANCODE_W])
 {
-  carBody->joints[0].velocity[0] += (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[0].velocity[1] += (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[0].velocity[2] += (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[0] += (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[1] += (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[2] += (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  TPE_bodyActivate(carBody);
+  carBody->joints[0].velocity[0] += (carForw.x * acc) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[1] += (carForw.y * acc) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[2] += (carForw.z * acc) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[0] += (carForw.x * acc) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[1] += (carForw.y * acc) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[2] += (carForw.z * acc) / TPE_FRACTIONS_PER_UNIT;
 }
 else if (sdl_keyboard[SDL_SCANCODE_S])
 {
-  carBody->joints[0].velocity[0] -= (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[0].velocity[1] -= (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[0].velocity[2] -= (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[0] -= (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[1] -= (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[2] -= (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  TPE_bodyActivate(carBody);
+  carBody->joints[0].velocity[0] -= (carForw.x * acc) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[1] -= (carForw.y * acc) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[2] -= (carForw.z * acc) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[0] -= (carForw.x * acc) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[1] -= (carForw.y * acc) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[2] -= (carForw.z * acc) / TPE_FRACTIONS_PER_UNIT;
 }
 
 //TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3Times(carForw,BBB) );
