@@ -1,21 +1,40 @@
 #define SCALE_3D_RENDERING 1
 
 #define S3L_NEAR_CROSS_STRATEGY 2
-#define S3L_PERSPECTIVE_CORRECTION 1
+#define S3L_PERSPECTIVE_CORRECTION 2
 
 #include "helper.h"
+#include "carArenaModel.h"
+#include "carModel.h"
 
-#define ROOM_SIZE 10000
-#define CUBE_SIZE 800
+#define ACCELERATION 32
+#define TURN_RADIUS 3500
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
-//  TPE_ENV_START( TPE_envAABoxInside(p,TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE)),p )
 TPE_ENV_START( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(0,512,0)),p )
-  TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,-2000),TPE_vec3(0,255,255)),p )
-  
-TPE_ENV_NEXT( TPE_envSphere(p,TPE_vec3(5000,-1000,0),2000),p )
+//  TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,-2000),TPE_vec3(0,255,255)),p )
+
+TPE_ENV_NEXT( TPE_envSphereInside(p,TPE_vec3(0,10000,0),20000),p )
+ 
+ TPE_ENV_NEXT( TPE_envSphere(p,TPE_vec3(0,-200,0),1700),p )
   TPE_ENV_END
+
+}
+
+uint8_t steering = 0;
+
+uint8_t jointCollisions;
+TPE_Vec3 jointPreviousPositions[4];
+
+uint8_t collisionCallback(uint16_t b1, uint16_t j1, uint16_t b2, uint16_t j2,
+  TPE_Vec3 p)
+{
+  if (b1 == 0 && b1 == b2 && j1 < 4)
+  {
+    jointCollisions |= 0x01 << j1;
+    jointPreviousPositions[j1] = tpe_world.bodies[0].joints[j1].position;
+  }
 }
 
 TPE_Vec3 ballRot, ballPreviousPos;
@@ -27,17 +46,25 @@ TPE_Body *carBody;
 TPE_Vec3 carForw, carSide, carUp, carPos;
 TPE_Vec3 carVelocity;
 
-int onGroundCount = 0;
+int backOnGround, frontOnGround;
 
-uint8_t collisionCallback(uint16_t b1, uint16_t j1, uint16_t b2, uint16_t j2,
-  TPE_Vec3 p)
-{
-  if (b1 == 0 && b1 == b2 && (j1 == 0 || j1 == 1))
-    onGroundCount = 10;
-}
+TPE_Unit wheelSize;
 
 int main(void)
 {
+  arenaModelInit();
+  carModelInit();
+/*
+TPE_Vec3 aaa = TPE_vec3(512,0,0);
+TPE_Vec3 mmm = TPE_vec3(10,0,0);
+TPE_Vec3 ffff = wheelFriction(aaa,mmm,512);
+
+TPE_PRINTF_VEC3(ffff)
+
+putchar('\n');
+
+return 0;
+*/
   helper_init();
 
   ballRot = TPE_vec3(0,0,0);
@@ -47,14 +74,11 @@ carPos = TPE_vec3(0,0,0);
 helper_debugDrawOn = 1;
 
   tpe_world.environmentFunction = environmentDistance;
-  tpe_world.collisionCallback = collisionCallback;
 
-  s3l_scene.camera.transform.translation.z -= ROOM_SIZE / 2;
-  s3l_scene.camera.transform.translation.y += ROOM_SIZE / 3;
-  s3l_scene.camera.transform.translation.x -= ROOM_SIZE / 4;
-  s3l_scene.camera.transform.rotation.y = -1 * TPE_FRACTIONS_PER_UNIT / 16;
+tpe_world.collisionCallback = collisionCallback;
 
-  helper_addCenterRectFull(1000,1800,400,400);
+
+  helper_addCenterRectFull(1000,1800,400,2000);
 
 tpe_world.bodies[0].joints[4].position.y += 600;
 tpe_world.bodies[0].joints[4].sizeDivided *= 3;
@@ -70,26 +94,69 @@ tpe_world.bodies[0].connections,
 tpe_world.bodies[0].connectionCount,
 300
 );
-  
-TPE_bodyMove(&tpe_world.bodies[0],TPE_vec3(0,1000,0));
 
-tpe_world.bodies[0].elasticity = 250; 
-tpe_world.bodies[0].friction = 200; 
+wheelSize = TPE_JOINT_SIZE(tpe_world.bodies[0].joints[0]) + 30;
+  
+TPE_bodyMove(carBody,TPE_vec3(3000,1000,0));
+
+tpe_world.bodies[0].elasticity = 64; 
+tpe_world.bodies[0].friction = 100; 
 
   while (helper_running)
   {
-    if (onGroundCount > 0)
-      onGroundCount--;
 
     helper_frameStart();
+
+jointCollisions = 0;
 
     TPE_worldStep(&tpe_world);
 
 
+for (int i = 0; i < 4; ++i)
+{
+  if (jointCollisions & (0x01 << i))
+  {
+TPE_Vec3 axis = carSide;
+
+if (i >= 2 && steering)
+{
+  if (steering == 1)
+    axis = TPE_vec3Plus(carSide,carForw);
+  else
+    axis = TPE_vec3Minus(carSide,carForw);
+
+  axis = TPE_vec3Normalized(axis);
+}
+
+
+  }
+}
+
+
 S3L_Vec4 toCar;
 
+backOnGround =
+TPE_DISTANCE( tpe_world.environmentFunction(
+carBody->joints[0].position,wheelSize),
+carBody->joints[0].position ) <= wheelSize ||
 
-s3l_scene.camera.transform.translation.y = carPos.y + 450;
+TPE_DISTANCE( tpe_world.environmentFunction(
+carBody->joints[1].position,wheelSize),
+carBody->joints[1].position ) <= wheelSize;
+
+frontOnGround =
+TPE_DISTANCE( tpe_world.environmentFunction(
+carBody->joints[2].position,wheelSize),
+carBody->joints[2].position ) <= wheelSize ||
+
+TPE_DISTANCE( tpe_world.environmentFunction(
+carBody->joints[3].position,wheelSize),
+carBody->joints[3].position ) <= wheelSize;
+
+
+
+
+s3l_scene.camera.transform.translation.y = carPos.y + 800;
 
 TPE_Vec3 cPos = TPE_vec3KeepWithinDistanceBand(
   TPE_vec3(
@@ -149,59 +216,117 @@ carUp = TPE_vec3Cross(carForw,carSide);
 
 //helper_cameraFreeMovement();
 
-
 carVelocity.x = carBody->joints[4].velocity[0];
 carVelocity.y = carBody->joints[4].velocity[1];
 carVelocity.z = carBody->joints[4].velocity[2];
 
-if (onGroundCount > 0)
-{
-      if (sdl_keyboard[SDL_SCANCODE_W])
-TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3Times(carForw,BBB) );
-      else if (sdl_keyboard[SDL_SCANCODE_S])
-TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3Times(carForw,-1 * BBB) );
+if (sdl_keyboard[SDL_SCANCODE_D])
+  steering = 1;
+else if (sdl_keyboard[SDL_SCANCODE_A])
+  steering = 2;
+else
+  steering = 0;
 
-TPE_Unit speed = TPE_LENGTH(carVelocity);
+TPE_Unit speed = TPE_vec3Dot(carVelocity,carForw);
 
-speed -= 40;
-
-if (speed < 0)
-  speed = 0;
-else if (speed > CCC)
+if (speed > CCC)
   speed = CCC;
+else if (speed < -1 * CCC)
+  speed = -1 * CCC;
+
+speed /= 4;
+
+if (frontOnGround && steering)
+{
+
+TPE_Vec3 ccc = TPE_vec3Minus(
+carBody->joints[4].position,
+TPE_vec3Times(carForw,TURN_RADIUS)
+);
+
+TPE_bodySpinWithCenter(carBody,TPE_vec3Times(carUp,
+(AAA * speed * (steering == 1 ? -1 : 1)  ) / CCC),ccc);
+ 
+}
+
+if (backOnGround)
+{
+
+#define AAAA 16
+if (sdl_keyboard[SDL_SCANCODE_W])
+{
+  carBody->joints[0].velocity[0] += (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[1] += (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[2] += (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[0] += (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[1] += (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[2] += (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+}
+else if (sdl_keyboard[SDL_SCANCODE_S])
+{
+  carBody->joints[0].velocity[0] -= (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[1] -= (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[2] -= (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[0] -= (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[1] -= (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[2] -= (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+}
+
+//TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3Times(carForw,BBB) );
+//      else if (sdl_keyboard[SDL_SCANCODE_S])
+//TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3Times(carForw,-1 * BBB) );
 
 
-      if (sdl_keyboard[SDL_SCANCODE_D])
-TPE_bodySpin(&tpe_world.bodies[0],TPE_vec3Times(carUp,
-(-1 * AAA * speed) / CCC ) );
-      if (sdl_keyboard[SDL_SCANCODE_A])
-TPE_bodySpin(&tpe_world.bodies[0],TPE_vec3Times(carUp,
-(AAA * speed) / CCC ) );
+
+
 }
 
 #undef AAA
 
     helper_set3dColor(180,180,180);
 //    helper_draw3dBoxInside(TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE),TPE_vec3(0,0,0));
+
+/*
 helper_draw3dPlane(
 TPE_vec3(0,0,0),
-TPE_vec3(8000,8000,8000),
+TPE_vec3(30000,30000,30000),
 TPE_vec3(0,0,0));
-
+*/
+/*
 helper_draw3dPlane(
 TPE_vec3(0,1500,-3500),
 TPE_vec3(10000,512,4000),
 TPE_vec3(-64,0,0));
-    
+*/
+
+helper_set3dColor(20,150,50);
+
+helper_drawModel(&arenaModel,TPE_vec3(0,0,0),TPE_vec3(512 * 32,512 * 32,512 * 32), 
+  TPE_vec3(0,0,0));
+
+/*
+helper_draw3dSphereInside(
+TPE_vec3(0,20000,0),TPE_vec3(30000,30000,30000),TPE_vec3(0,0,0));
+*/
+S3L_zBufferClear();
+  
 helper_set3dColor(200,50,0);
 
+
+helper_drawModel(&carModel,
+TPE_vec3Minus(carPos,TPE_vec3Times(carUp,400)),
+TPE_vec3(600,600,600), 
+TPE_bodyGetRotation(&tpe_world.bodies[0],0,2,1)
+);
+
+/*
 helper_draw3dBox(
 carPos,
 TPE_vec3(1200,800,1200),
 TPE_bodyGetRotation(&tpe_world.bodies[0],0,2,1)
 
 );
-
+*/
     
 
 

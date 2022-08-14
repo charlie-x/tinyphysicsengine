@@ -4,15 +4,16 @@
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
-TPE_ENV_START( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(256,256,0)),p )
-TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(-256,256,-256)),p )
-TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(-256,256,256)),p )
-TPE_ENV_END
+  TPE_ENV_START( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(256,256,0)),p )
+  TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(-256,256,-256)),p )
+  TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(-256,256,256)),p )
+  TPE_ENV_END
 }
 
-uint8_t debugDrawOn = 1;
-
 unsigned long timeMeasure = 0;
+
+TPE_Vec3 bodyPositions[16];
+TPE_Vec3 bodyOrientations[16];
 
 int main(void)
 {
@@ -37,9 +38,6 @@ int main(void)
     }
 
     TPE_bodyMove(&tpe_world.bodies[tpe_world.bodyCount - 1],TPE_vec3((1 - (i % 4)) * 1200,8000,(2 - (i / 4)) * 1200));
-
-//if (i % 2)
-//tpe_world.bodies[tpe_world.bodyCount - 1].flags |= TPE_BODY_FLAG_NONROTATING;
   } 
 
   while (helper_running)
@@ -50,8 +48,7 @@ int main(void)
 
     if (helper_frame % 16 == 0)
     {
-      //helper_printCPU();
-      //helper_printCamera();
+      helper_printCPU();
 
       if (sdl_keyboard[SDL_SCANCODE_L])
         for (int i = 0; i < tpe_world.bodyCount; ++i)
@@ -66,14 +63,11 @@ int main(void)
       timeMeasure = 0;
     }
 
-unsigned long t1 = helper_getMicroSecs();
+    unsigned long t1 = helper_getMicroSecs();
 
     TPE_worldStep(&tpe_world);
 
-timeMeasure += helper_getMicroSecs() - t1;
-
-
-
+    timeMeasure += helper_getMicroSecs() - t1;
 
     for (int i = 0; i < tpe_world.bodyCount; ++i)
     {
@@ -84,7 +78,7 @@ timeMeasure += helper_getMicroSecs() - t1;
       TPE_Vec3 right = TPE_vec3(512,0,0);
       TPE_Vec3 forw = TPE_vec3(0,0,512);
 
-      if (i % 5 != 2 && i % 5 != 1)
+      if (i % 5 != 2 && i % 5 != 1) // don't mind the ugly code
       { 
         if (i % 5 != 4)
         {
@@ -97,16 +91,34 @@ timeMeasure += helper_getMicroSecs() - t1;
 
       TPE_Vec3 orient = TPE_rotationFromVecs(forw,right);
     
-    
-helper_set3dColor(100 + i * 5,16 - i,100 - i * 5); 
+      helper_set3dColor(100 + i * 5,16 - i,100 - i * 5); 
+
+bodyPositions[i] =
+TPE_vec3KeepWithinBox(
+bodyPositions[i],
+TPE_bodyGetCenterOfMass(&tpe_world.bodies[i]),
+TPE_vec3(20,20,20)
+);
+
+bodyOrientations[i].x = 
+(TPE_abs(bodyOrientations[i].x - orient.x) < 20) ?
+((bodyOrientations[i].x + orient.x) / 2) : orient.x;
+
+bodyOrientations[i].y = 
+(TPE_abs(bodyOrientations[i].y - orient.y) < 20) ?
+((bodyOrientations[i].y + orient.y) / 2) : orient.y;
+
+bodyOrientations[i].z = 
+(TPE_abs(bodyOrientations[i].z - orient.z) < 20) ?
+((bodyOrientations[i].z + orient.z) / 2) : orient.z;
 
       switch (i % 5)
       {
-        case 0: helper_draw3dBox(pos,TPE_vec3(1200,1200,1200),orient); break;
-        case 1: helper_draw3dTriangle(joints[0].position,joints[1].position,joints[2].position); break;
-        case 2: helper_draw3dSphere(pos,TPE_vec3(500,500,500),orient); break;
-        case 3: helper_draw3dBox(pos,TPE_vec3(1200,400,1200),orient); break; 
-        case 4: helper_draw3dBox(pos,TPE_vec3(200,200,1200),orient); break;
+        case 0: helper_draw3dBox(bodyPositions[i],TPE_vec3(1200,1200,1200),bodyOrientations[i]); break;
+        case 1: helper_draw3dTriangle(bodyPositions[i],joints[1].position,joints[2].position); break;
+        case 2: helper_draw3dSphere(bodyPositions[i],TPE_vec3(500,500,500),bodyOrientations[i]); break;
+        case 3: helper_draw3dBox(bodyPositions[i],TPE_vec3(1200,400,1200),bodyOrientations[i]); break; 
+        case 4: helper_draw3dBox(bodyPositions[i],TPE_vec3(200,200,1200),bodyOrientations[i]); break;
         default: break;
       }
     }

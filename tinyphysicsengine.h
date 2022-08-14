@@ -180,6 +180,8 @@ typedef struct
 #define TPE_BODY_FLAG_SOFT 8         /**< Soft connections, effort won't be made
                                           to keep the body's shape. */
 
+static inline TPE_Unit TPE_abs(TPE_Unit x);
+
 /** Function used for defining static environment, working similarly to an SDF
   (signed distance function). The parameters are: 3D point P, max distance D.
   The function should behave like this: if P is inside the solid environment
@@ -419,6 +421,14 @@ TPE_Vec3 TPE_envInfiniteCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
 
 #define TPE_ENV_END return _pBest;
 
+#define TPE_ENV_BCUBE_TEST(bodyBCubeC,bodyBCubeR,envBCubeC,envBCubeR) ( \
+  (TPE_abs(envBCubeC.x - bodyBCubeC.x) <= ((bodyBCubeR) + (envBCubeR))) && \
+  (TPE_abs(envBCubeC.y - bodyBCubeC.y) <= ((bodyBCubeR) + (envBCubeR))) && \
+  (TPE_abs(envBCubeC.z - bodyBCubeC.z) <= ((bodyBCubeR) + (envBCubeR))))
+
+#define TPE_ENV_BSPHERE_TEST(bodyBSphereC,bodyBSphereR,envBSphereC,envBSphereR)\
+  (TPE_DISTANCE(bodyBCubeC,envBSphereC) <= ((bodyBSphereR) + (envBSphereR)))
+
 //---------------------------
 
 void TPE_worldStep(TPE_World *world);
@@ -464,6 +474,8 @@ void TPE_bodyApplyGravity(TPE_Body *body, TPE_Unit downwardsAccel);
   per tick to a point in the distance of TPE_FRACTIONS_PER_UNIT from the
   rotation axis). */
 void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation);
+
+void TPE_bodySpinWithCenter(TPE_Body *body, TPE_Vec3 rotation, TPE_Vec3 center);
 
 /** Instantly rotate soft body about an axis (see library conventions for
   the rotation format). */
@@ -1105,10 +1117,8 @@ TPE_Vec3 TPE_bodyGetCenterOfMass(const TPE_Body *body)
   return result;
 }
 
-void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation)
+void TPE_bodySpinWithCenter(TPE_Body *body, TPE_Vec3 rotation, TPE_Vec3 center)
 {
-  TPE_Vec3 center = TPE_bodyGetCenterOfMass(body);
-
   for (uint16_t i = 0; i < body->jointCount; ++i)
   {
     TPE_Joint *j = body->joints + i;
@@ -1124,6 +1134,11 @@ void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation)
     j->velocity[1] += toPoint.y;
     j->velocity[2] += toPoint.z;
   }
+}
+
+void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation)
+{
+  TPE_bodySpinWithCenter(body,rotation,TPE_bodyGetCenterOfMass(body));
 }
 
 TPE_Vec3 _TPE_rotateByAxis(TPE_Vec3 p, TPE_Vec3 axisNormalized, TPE_Unit angle)
@@ -2528,6 +2543,11 @@ TPE_Unit TPE_worldGetNetSpeed(const TPE_World *world)
 TPE_Vec3 TPE_bodyGetLinearVelocity(const TPE_Body *body)
 {
   // TODO
+}
+
+TPE_Unit TPE_abs(TPE_Unit x)
+{
+  return x >= 0 ? x : (-1 * x);
 }
 
 #endif // guard
