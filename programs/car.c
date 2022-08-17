@@ -7,7 +7,7 @@
 #include "carArenaModel.h"
 #include "carModel.h"
 
-#define ACCELERATION 32
+#define ACCELERATION 40
 #define TURN_RADIUS 3000
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
@@ -22,7 +22,19 @@ TPE_ENV_NEXT( TPE_envSphereInside(p,TPE_vec3(0,10000,0),20000),p )
 
 }
 
+TPE_Unit averageRot(TPE_Unit a1, TPE_Unit a2)
+{
+  TPE_Unit d = a2 - a1;
+
+  if (d > 100 || d < -100)
+    return a2;
+
+  return a1 + d / 2;
+}
+
 uint8_t steering = 0;
+
+TPE_Vec3 carRot;
 
 uint8_t jointCollisions;
 TPE_Vec3 jointPreviousPositions[4];
@@ -313,7 +325,7 @@ TPE_vec3(10000,512,4000),
 TPE_vec3(-64,0,0));
 */
 
-helper_set3dColor(20,150,50);
+helper_set3dColor(20,150,150);
 
 helper_drawModel(&arenaModel,TPE_vec3(0,0,0),TPE_vec3(512 * 32,512 * 32,512 * 32), 
   TPE_vec3(0,0,0));
@@ -324,13 +336,24 @@ TPE_vec3(0,20000,0),TPE_vec3(30000,30000,30000),TPE_vec3(0,0,0));
 */
 S3L_zBufferClear();
   
-helper_set3dColor(200,50,0);
+helper_set3dColor(200,200,200);
 
+TPE_Vec3 newRot = 
+TPE_bodyGetRotation(&tpe_world.bodies[0],0,2,1);
+
+carRot.x = (TPE_abs(carRot.x - newRot.x) < 50) ?
+(carRot.x + newRot.x) / 2 : newRot.x;
+
+
+carRot.x = averageRot(carRot.x,newRot.x);
+carRot.y = averageRot(carRot.y,newRot.y);
+carRot.z = averageRot(carRot.z,newRot.z);
 
 helper_drawModel(&carModel,
 TPE_vec3Minus(carPos,TPE_vec3Times(carUp,400)),
 TPE_vec3(600,600,600), 
-TPE_bodyGetRotation(&tpe_world.bodies[0],0,2,1)
+
+carRot
 );
 
 /*

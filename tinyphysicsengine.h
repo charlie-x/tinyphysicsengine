@@ -86,6 +86,12 @@ typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
   #define TPE_LOW_SPEED 30
 #endif
 
+#ifndef TPE_CANCEL_OUT_VELOCITIES
+/** Greatly improves stability and reduces shake by cancelling out opposing
+  velocities in body connectionsa, however can slow the simulation down. */
+  #define TPE_CANCEL_OUT_VELOCITIES 1
+#endif
+
 #ifndef TPE_RESHAPE_TENSION_LIMIT
 /** Tension limit, in TPE_Units, after which a non-soft body will be reshaped.
   Smaller number will keep more stable shapes but will cost more performance. */
@@ -249,6 +255,9 @@ void TPE_vec3Normalize(TPE_Vec3 *v);
 TPE_Vec3 TPE_pointRotate(TPE_Vec3 point, TPE_Vec3 rotation);
 
 TPE_Vec3 TPE_rotationInverse(TPE_Vec3 rotation);
+
+static inline TPE_Unit TPE_connectionTension(TPE_Unit length,
+  TPE_Unit desiredLength);
 
 /** Rotates a rotation specified in Euler angles by given axis + angle (see
   rotation conventions). Returns a rotation in Eurler angles. */
@@ -455,6 +464,8 @@ void TPE_bodyMultiplyNetSpeed(TPE_Body *body, TPE_Unit factor);
 void TPE_bodyReshape(TPE_Body *body, TPE_ClosestPointFunction
   environmentFunction);
 
+void TPE_bodyCancelOutVelocities(TPE_Body *body);
+
 /** Move a body by certain offset. */
 void TPE_bodyMove(TPE_Body *body, TPE_Vec3 offset);
 
@@ -527,6 +538,13 @@ TPE_CollisionCallback _TPE_collisionCallback;
 static inline TPE_Unit TPE_nonZero(TPE_Unit x)
 {
   return x != 0 ? x : 1;
+}
+
+static inline TPE_Unit TPE_connectionTension(TPE_Unit length,
+  TPE_Unit desiredLength)
+{
+  return (length * TPE_FRACTIONS_PER_UNIT) / desiredLength
+    - TPE_FRACTIONS_PER_UNIT;
 }
 
 TPE_Joint TPE_joint(TPE_Vec3 position, TPE_Unit size)
@@ -845,15 +863,13 @@ void TPE_worldStep(TPE_World *world)
 
         TPE_Vec3 dir = TPE_vec3Minus(joint2->position,joint->position);
 
-        TPE_Unit len = TPE_LENGTH(dir);
+        TPE_Unit tension = TPE_connectionTension(TPE_LENGTH(dir),
+          connection->length);
 
-        len = (len * TPE_FRACTIONS_PER_UNIT) /
-          connection->length - TPE_FRACTIONS_PER_UNIT;
+        bodyTension += tension > 0 ? tension : -tension;
 
-        bodyTension += len > 0 ? len : -len;
-
-        if (len > TPE_TENSION_ACCELERATION_THRESHOLD || 
-          len < -1 * TPE_TENSION_ACCELERATION_THRESHOLD)
+        if (tension > TPE_TENSION_ACCELERATION_THRESHOLD || 
+          tension < -1 * TPE_TENSION_ACCELERATION_THRESHOLD)
         {
           TPE_vec3Normalize(&dir);
 
@@ -861,7 +877,7 @@ void TPE_worldStep(TPE_World *world)
           dir.y /= TPE_TENSION_ACCELERATION_DIVIDER;
           dir.z /= TPE_TENSION_ACCELERATION_DIVIDER;
 
-          if (len < 0)
+          if (tension < 0)
           {
             dir.x *= -1;
             dir.y *= -1;
@@ -887,8 +903,14 @@ void TPE_worldStep(TPE_World *world)
         bodyTension /= body->connectionCount;
       
         if (bodyTension > TPE_RESHAPE_TENSION_LIMIT)
-          for (uint8_t k = 0; k < TPE_RESHAPE_ITERATIONS; ++k) 
+        {
+          for (uint8_t k = 0; k < TPE_RESHAPE_ITERATIONS; ++k)
             TPE_bodyReshape(body,world->environmentFunction);
+        }
+#if TPE_CANCEL_OUT_VELOCITIES
+        else
+          TPE_bodyCancelOutVelocities(body);
+#endif
       }
     }
 
@@ -992,6 +1014,48 @@ void TPE_bodyLimitAverageSpeed(TPE_Body *body, TPE_Unit speedMin,
       TPE_nonZero(speed);
     
     TPE_bodyMultiplyNetSpeed(body,fraction);
+  }
+}
+
+void TPE_bodyCancelOutVelocities(TPE_Body *body)
+{
+  for (uint16_t i = 0; i < body->connectionCount; ++i)
+  {
+    TPE_Connection *c = &body->connections[i];
+
+    TPE_Joint *j1 = &(body->joints[c->joint1]);
+    TPE_Joint *j2 = &(body->joints[c->joint2]);
+    
+    TPE_Vec3 dir = TPE_vec3Minus(j2->position,j1->position);
+
+    TPE_Unit tension = TPE_connectionTension(TPE_LENGTH(dir),c->length);
+
+    if (tension <= TPE_TENSION_ACCELERATION_THRESHOLD ||
+      tension >= -1 * TPE_TENSION_ACCELERATION_THRESHOLD)
+    {
+      TPE_Vec3
+        v1 = TPE_vec3(j1->velocity[0],j1->velocity[1],j1->velocity[2]),
+        v2 = TPE_vec3(j2->velocity[0],j2->velocity[1],j2->velocity[2]);
+
+      TPE_vec3Normalize(&dir);
+
+      v1 = TPE_vec3ProjectNormalized(v1,dir);
+      v2 = TPE_vec3ProjectNormalized(v2,dir);
+
+      TPE_Vec3 avg = TPE_vec3Plus(v1,v2);
+
+      avg.x /= 2;
+      avg.y /= 2;
+      avg.z /= 2;
+
+      j1->velocity[0] = j1->velocity[0] - v1.x + avg.x;
+      j1->velocity[1] = j1->velocity[1] - v1.y + avg.y;
+      j1->velocity[2] = j1->velocity[2] - v1.z + avg.z;
+
+      j2->velocity[0] = j2->velocity[0] - v2.x + avg.x;
+      j2->velocity[1] = j2->velocity[1] - v2.y + avg.y;
+      j2->velocity[2] = j2->velocity[2] - v2.z + avg.z;
+    }
   }
 }
 
