@@ -31,7 +31,7 @@ int main(void)
     switch (i)
     {
       case 0: helper_addBox(800,800,800,400,700); break;
-      case 1: helper_addBall(500,700); break;
+      case 1: helper_addBall(500,1100); break;
       case 2: helper_addRect(800,800,400,800); break;
       case 3: helper_add2Line(900,200,600); break;
       default: break;

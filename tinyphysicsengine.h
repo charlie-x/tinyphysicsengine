@@ -86,12 +86,6 @@ typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
   #define TPE_LOW_SPEED 30
 #endif
 
-#ifndef TPE_CANCEL_OUT_VELOCITIES
-/** Greatly improves stability and reduces shake by cancelling out opposing
-  velocities in body connectionsa, however can slow the simulation down. */
-  #define TPE_CANCEL_OUT_VELOCITIES 1
-#endif
-
 #ifndef TPE_RESHAPE_TENSION_LIMIT
 /** Tension limit, in TPE_Units, after which a non-soft body will be reshaped.
   Smaller number will keep more stable shapes but will cost more performance. */
@@ -464,7 +458,7 @@ void TPE_bodyMultiplyNetSpeed(TPE_Body *body, TPE_Unit factor);
 void TPE_bodyReshape(TPE_Body *body, TPE_ClosestPointFunction
   environmentFunction);
 
-void TPE_bodyCancelOutVelocities(TPE_Body *body);
+void TPE_bodyCancelOutVelocities(TPE_Body *body, uint8_t strong);
 
 /** Move a body by certain offset. */
 void TPE_bodyMove(TPE_Body *body, TPE_Vec3 offset);
@@ -898,26 +892,20 @@ void TPE_worldStep(TPE_World *world)
 
       if (body->connectionCount > 0)
       {
-        if (body->flags & TPE_BODY_FLAG_SOFT)
-        {
-          TPE_bodyCancelOutVelocities(body);
-        }
-        else
+        uint8_t hard = !(body->flags & TPE_BODY_FLAG_SOFT);
+
+        if (hard)
         {
           TPE_bodyReshape(body,world->environmentFunction);
 
           bodyTension /= body->connectionCount;
         
           if (bodyTension > TPE_RESHAPE_TENSION_LIMIT)
-          {
             for (uint8_t k = 0; k < TPE_RESHAPE_ITERATIONS; ++k)
               TPE_bodyReshape(body,world->environmentFunction);
-          }
-      #if TPE_CANCEL_OUT_VELOCITIES
-          else
-            TPE_bodyCancelOutVelocities(body);
-      #endif
         }
+          
+        TPE_bodyCancelOutVelocities(body,hard);
       }
     }
 
@@ -1024,7 +1012,7 @@ void TPE_bodyLimitAverageSpeed(TPE_Body *body, TPE_Unit speedMin,
   }
 }
 
-void TPE_bodyCancelOutVelocities(TPE_Body *body)
+void TPE_bodyCancelOutVelocities(TPE_Body *body, uint8_t strong)
 {
   for (uint16_t i = 0; i < body->connectionCount; ++i)
   {
@@ -1035,16 +1023,27 @@ void TPE_bodyCancelOutVelocities(TPE_Body *body)
     
     TPE_Vec3 dir = TPE_vec3Minus(j2->position,j1->position);
 
-    TPE_Unit tension = TPE_connectionTension(TPE_LENGTH(dir),c->length);
+    TPE_Unit len = TPE_nonZero(TPE_LENGTH(dir));
 
-    if (tension <= TPE_TENSION_ACCELERATION_THRESHOLD &&
-      tension >= -1 * TPE_TENSION_ACCELERATION_THRESHOLD)
+    uint8_t cancel = 1;
+
+    if (strong)
+    {
+      TPE_Unit tension = TPE_connectionTension(len,c->length);
+
+      cancel = tension <= TPE_TENSION_ACCELERATION_THRESHOLD &&
+        tension >= -1 * TPE_TENSION_ACCELERATION_THRESHOLD;
+    }
+
+    if (cancel)
     {
       TPE_Vec3
         v1 = TPE_vec3(j1->velocity[0],j1->velocity[1],j1->velocity[2]),
         v2 = TPE_vec3(j2->velocity[0],j2->velocity[1],j2->velocity[2]);
 
-      TPE_vec3Normalize(&dir);
+      dir.x = (dir.x * TPE_FRACTIONS_PER_UNIT) / len; // normalize
+      dir.y = (dir.y * TPE_FRACTIONS_PER_UNIT) / len;
+      dir.z = (dir.z * TPE_FRACTIONS_PER_UNIT) / len;
 
       v1 = TPE_vec3ProjectNormalized(v1,dir);
       v2 = TPE_vec3ProjectNormalized(v2,dir);
@@ -1055,15 +1054,29 @@ void TPE_bodyCancelOutVelocities(TPE_Body *body)
       avg.y /= 2;
       avg.z /= 2;
 
-      j1->velocity[0] = j1->velocity[0] - v1.x + avg.x;
-      j1->velocity[1] = j1->velocity[1] - v1.y + avg.y;
-      j1->velocity[2] = j1->velocity[2] - v1.z + avg.z;
+      if (strong)
+      {
+        j1->velocity[0] = j1->velocity[0] - v1.x + avg.x;
+        j1->velocity[1] = j1->velocity[1] - v1.y + avg.y;
+        j1->velocity[2] = j1->velocity[2] - v1.z + avg.z;
 
-      j2->velocity[0] = j2->velocity[0] - v2.x + avg.x;
-      j2->velocity[1] = j2->velocity[1] - v2.y + avg.y;
-      j2->velocity[2] = j2->velocity[2] - v2.z + avg.z;
+        j2->velocity[0] = j2->velocity[0] - v2.x + avg.x;
+        j2->velocity[1] = j2->velocity[1] - v2.y + avg.y;
+        j2->velocity[2] = j2->velocity[2] - v2.z + avg.z;
+      }
+      else
+      {
+        j1->velocity[0] = j1->velocity[0] - v1.x + (v1.x * 3 + avg.x) / 4;
+        j1->velocity[1] = j1->velocity[1] - v1.y + (v1.y * 3 + avg.y) / 4;
+        j1->velocity[2] = j1->velocity[2] - v1.z + (v1.z * 3 + avg.z) / 4;
+
+        j2->velocity[0] = j2->velocity[0] - v2.x + (v2.x * 3 + avg.x) / 4;
+        j2->velocity[1] = j2->velocity[1] - v2.y + (v2.y * 3 + avg.y) / 4;
+        j2->velocity[2] = j2->velocity[2] - v2.z + (v2.z * 3 + avg.z) / 4;
+      }
     }
   }
+
 }
 
 void TPE_bodyReshape(TPE_Body *body, 
