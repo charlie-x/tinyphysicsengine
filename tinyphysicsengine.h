@@ -896,21 +896,28 @@ void TPE_worldStep(TPE_World *world)
         connection++;
       }
 
-      if (body->connectionCount > 0 && !(body->flags & TPE_BODY_FLAG_SOFT))
+      if (body->connectionCount > 0)
       {
-        TPE_bodyReshape(body,world->environmentFunction);
-
-        bodyTension /= body->connectionCount;
-      
-        if (bodyTension > TPE_RESHAPE_TENSION_LIMIT)
+        if (body->flags & TPE_BODY_FLAG_SOFT)
         {
-          for (uint8_t k = 0; k < TPE_RESHAPE_ITERATIONS; ++k)
-            TPE_bodyReshape(body,world->environmentFunction);
-        }
-#if TPE_CANCEL_OUT_VELOCITIES
-        else
           TPE_bodyCancelOutVelocities(body);
-#endif
+        }
+        else
+        {
+          TPE_bodyReshape(body,world->environmentFunction);
+
+          bodyTension /= body->connectionCount;
+        
+          if (bodyTension > TPE_RESHAPE_TENSION_LIMIT)
+          {
+            for (uint8_t k = 0; k < TPE_RESHAPE_ITERATIONS; ++k)
+              TPE_bodyReshape(body,world->environmentFunction);
+          }
+      #if TPE_CANCEL_OUT_VELOCITIES
+          else
+            TPE_bodyCancelOutVelocities(body);
+      #endif
+        }
       }
     }
 
@@ -1030,7 +1037,7 @@ void TPE_bodyCancelOutVelocities(TPE_Body *body)
 
     TPE_Unit tension = TPE_connectionTension(TPE_LENGTH(dir),c->length);
 
-    if (tension <= TPE_TENSION_ACCELERATION_THRESHOLD ||
+    if (tension <= TPE_TENSION_ACCELERATION_THRESHOLD &&
       tension >= -1 * TPE_TENSION_ACCELERATION_THRESHOLD)
     {
       TPE_Vec3
