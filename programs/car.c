@@ -8,7 +8,7 @@
 #include "carModel.h"
 
 #define ACCELERATION 40
-#define TURN_RADIUS 3000
+#define TURN_RADIUS 5000
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
@@ -16,6 +16,8 @@ TPE_ENV_START( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(0,512,0)),p )
 //  TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,-2000),TPE_vec3(0,255,255)),p )
 
 TPE_ENV_NEXT( TPE_envSphereInside(p,TPE_vec3(0,10000,0),20000),p )
+
+TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(-8700,100,-800),TPE_vec3(2200,1000,800)),p )
  
  TPE_ENV_NEXT( TPE_envSphere(p,TPE_vec3(0,-200,0),1700),p )
   TPE_ENV_END
@@ -270,6 +272,8 @@ TPE_bodySpinWithCenter(carBody,TPE_vec3Times(carUp,
 (AAA * speed * (steering == 1 ? -1 : 1)  ) / CCC),ccc);
  
 }
+  
+TPE_bodyActivate(carBody);
 
 if (backOnGround)
 {
@@ -279,7 +283,6 @@ TPE_Unit acc = ACCELERATION + speed;
 #define AAAA 16
 if (sdl_keyboard[SDL_SCANCODE_W])
 {
-  TPE_bodyActivate(carBody);
   carBody->joints[0].velocity[0] += (carForw.x * acc) / TPE_FRACTIONS_PER_UNIT;
   carBody->joints[0].velocity[1] += (carForw.y * acc) / TPE_FRACTIONS_PER_UNIT;
   carBody->joints[0].velocity[2] += (carForw.z * acc) / TPE_FRACTIONS_PER_UNIT;
@@ -289,7 +292,6 @@ if (sdl_keyboard[SDL_SCANCODE_W])
 }
 else if (sdl_keyboard[SDL_SCANCODE_S])
 {
-  TPE_bodyActivate(carBody);
   carBody->joints[0].velocity[0] -= (carForw.x * acc) / TPE_FRACTIONS_PER_UNIT;
   carBody->joints[0].velocity[1] -= (carForw.y * acc) / TPE_FRACTIONS_PER_UNIT;
   carBody->joints[0].velocity[2] -= (carForw.z * acc) / TPE_FRACTIONS_PER_UNIT;
@@ -364,7 +366,20 @@ TPE_bodyGetRotation(&tpe_world.bodies[0],0,2,1)
 
 );
 */
-    
+  
+
+
+if (TPE_vec3Dot(carUp,TPE_vec3Minus(carBody->joints[4].position,carBody->joints[0].position)
+) < 0)
+{
+
+carBody->joints[4].position =
+TPE_vec3Plus(TPE_vec3Times(carUp,300),carBody->joints[0].position);
+
+printf("car geometry flipped over, fixing...\n");
+}
+
+  
 
 
     helper_set3dColor(200,10,10);

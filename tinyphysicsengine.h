@@ -44,7 +44,7 @@
   work. Should any waiver of such right be judged legally invalid or
   ineffective under applicable law, the contributor hereby grants to each
   affected person a royalty-free, non transferable, non sublicensable, non
-  exclusive, irrevocable and unconditional license to this right.
+  exclusive, irrevocable and unconditional license to this right. 
 */
 
 #include <stdint.h>
@@ -410,6 +410,8 @@ TPE_Vec3 TPE_envSphere(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
 TPE_Vec3 TPE_envSphereInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
 TPE_Vec3 TPE_envHalfPlane(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 normal);
 TPE_Vec3 TPE_envInfiniteCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
+  direction, TPE_Unit radius);
+TPE_Vec3 TPE_envCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
   direction, TPE_Unit radius);
 
 #define TPE_ENV_START(test,point) TPE_Vec3 _pBest = test, _pTest; \
@@ -2400,6 +2402,32 @@ TPE_Vec3 TPE_envInfiniteCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
   d.z = (d.z * radius) / l;
     
   return TPE_vec3Minus(point,d);
+}
+
+TPE_Vec3 TPE_envCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
+  direction, TPE_Unit radius)
+{
+  point = TPE_vec3Minus(point,center);
+
+  TPE_Vec3 projected = TPE_vec3Project(point,direction);
+
+  point = TPE_envInfiniteCylinder(point,TPE_vec3(0,0,0),direction,radius);
+
+  TPE_Unit lDir = TPE_nonZero(TPE_LENGTH(direction));
+
+  TPE_Unit lDiff = TPE_LENGTH(projected) - lDir;
+
+  if (lDiff > 0)
+  {
+    direction.x = (direction.x * lDiff) / lDir;
+    direction.y = (direction.y * lDiff) / lDir;
+    direction.z = (direction.z * lDiff) / lDir;
+
+    point = (TPE_vec3Dot(projected,direction)) >= 0 ?
+      TPE_vec3Minus(point,direction) : TPE_vec3Plus(point,direction);
+  }
+
+  return TPE_vec3Plus(center,point);
 }
 
 TPE_Vec3 TPE_fakeSphereRotation(TPE_Vec3 position1, TPE_Vec3 position2,
