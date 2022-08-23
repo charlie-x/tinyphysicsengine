@@ -8,6 +8,7 @@
 #include "../tinyphysicsengine.h"
 #include <SDL2/SDL.h>
 #include <math.h>
+#include <stdio.h>
 #include <sys/time.h> // for measuring time
 
 #ifndef RES_X
@@ -26,6 +27,10 @@
   #define CAMERA_STEP 100
 #endif
 
+#ifndef DEBUG_DRAW_DIVIDE
+  #define DEBUG_DRAW_DIVIDE 1
+#endif
+
 #ifndef CAMERA_ROT_STEP
   #define CAMERA_ROT_STEP 5
 #endif
@@ -42,20 +47,16 @@
 
 #define S3L_NEAR (S3L_FRACTIONS_PER_UNIT / (4 * SCALE_3D_RENDERING))
 
-#ifndef S3L_SORT
-  #define S3L_SORT 0
-#endif
-
 #ifndef S3L_Z_BUFFER
   #define S3L_Z_BUFFER 1
 #endif
 
 #ifndef S3L_PERSPECTIVE_CORRECTION
-  #define S3L_PERSPECTIVE_CORRECTION 2
+  #define S3L_PERSPECTIVE_CORRECTION 0
 #endif
 
 #ifndef S3L_NEAR_CROSS_STRATEGY
-  #define S3L_NEAR_CROSS_STRATEGY 2
+  #define S3L_NEAR_CROSS_STRATEGY 1
 #endif
 
 #define S3L_USE_WIDER_TYPES 1
@@ -84,8 +85,8 @@ S3L_Unit planeVerices[] =
 #undef b
 };
 
-S3L_Index planeTriangles[] = 
-{ 0,2,1, 1,2,3 };
+S3L_Index planeTriangles[] = { 0,2,1, 1,2,3 };
+
 S3L_Model3D planeModel;
 
 #define SPHERE_VERTEX_COUNT 42
@@ -383,6 +384,15 @@ void helper_addCenterRect(TPE_Unit w, TPE_Unit d, TPE_Unit jointSize, TPE_Unit m
   _helper_bodyAdded(5,8,mass);
 }
 
+void helper_addCenterRectFull(TPE_Unit w, TPE_Unit d, TPE_Unit jointSize, TPE_Unit mass)
+{
+  TPE_makeCenterRectFull(
+    tpe_joints + helper_jointsUsed,
+    tpe_connections + helper_connectionsUsed,w,d,jointSize);
+
+  _helper_bodyAdded(5,10,mass);
+}
+
 void helper_addRect(TPE_Unit w, TPE_Unit d, TPE_Unit jointSize, TPE_Unit mass)
 {
   TPE_makeRect(
@@ -412,7 +422,7 @@ void helper_printCamera(void)
 
 void helper_printCPU(void)
 {
-  printf("CPU (%d FPS): %d \n",FPS,((MSPF - helper_frameMsLeft) * 100) / MSPF);
+  printf("CPU (%d FPS): %d%% load\n",FPS,((MSPF - helper_frameMsLeft) * 100) / MSPF);
 }
 
 void helper_cameraFreeMovement(void)
@@ -459,6 +469,10 @@ void sdl_drawPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b)
 void helper_drawLine2D(int x1, int y1, int x2, int y2, uint8_t r, uint8_t g,
   uint8_t b)
 {
+  if (x1 < 0 || x2 < 0 || y1 < 0 || y2 < 0 ||
+    x1 >= RES_X || x2 >= RES_X || y1 >= RES_Y || y2 >= RES_Y)
+    return;
+
   // stupid algorithm
 
   x2 -= x1;
@@ -512,6 +526,9 @@ void helper_drawLine3D(TPE_Vec3 p1, TPE_Vec3 p2, uint8_t rr, uint8_t gg,
 
 void tpe_debugDrawPixel(uint16_t x, uint16_t y, uint8_t color)
 {
+  x /= DEBUG_DRAW_DIVIDE;
+  y /= DEBUG_DRAW_DIVIDE;
+
   if (x < S3L_RESOLUTION_X - 2 && y < S3L_RESOLUTION_Y - 2)
   {
     uint8_t r, g, b;
@@ -521,6 +538,7 @@ void tpe_debugDrawPixel(uint16_t x, uint16_t y, uint8_t color)
       case 0:  r = 100; g = 255; b = 200; break;
       case 1:  r = 255; g = 100; b = 100; break;
       case 2:  r = 0; g = 50; b = 50; break;
+      case 3:  r = 100; g = 100; b = 100; break;
       default: r = 0; g = 0; b = 0; break;
     }
 
@@ -530,7 +548,7 @@ void tpe_debugDrawPixel(uint16_t x, uint16_t y, uint8_t color)
   }
 }
 
-void helper_debugDraw(void)
+void helper_debugDraw(int drawEnv)
 {
   TPE_Vec3 camPos = 
     TPE_vec3(
@@ -545,22 +563,54 @@ void helper_debugDraw(void)
       s3l_scene.camera.transform.rotation.z);
 
   TPE_worldDebugDraw(&tpe_world,tpe_debugDrawPixel,camPos,camRot,
-    TPE_vec3(S3L_RESOLUTION_X,S3L_RESOLUTION_Y,s3l_scene.camera.focalLength),
-    16,256);
+    TPE_vec3(S3L_RESOLUTION_X * DEBUG_DRAW_DIVIDE,S3L_RESOLUTION_Y * DEBUG_DRAW_DIVIDE,s3l_scene.camera.focalLength),
+    drawEnv ? 16 : 0,drawEnv ? 256 : 0);
 }
 
 uint8_t s3l_r = 0, s3l_g = 255, s3l_b = 0;
 uint8_t s3l_rr = 0, s3l_gg = 255, s3l_bb = 0; 
 
-int s3l_previousTriangleID = -1;
+unsigned int s3l_previousTriangleID = 10000;
+
+S3L_Model3D *_helper_drawnModel;
+
+TPE_Vec3 helper_lightDir;
 
 void s3l_drawPixel(S3L_PixelInfo *p)
 {
   if (p->triangleIndex != s3l_previousTriangleID)
   {
-    s3l_rr = s3l_r + ((p->triangleIndex * 5) % 128) * (((s3l_r < 128) * 2) - 1);
-    s3l_gg = s3l_g + ((p->triangleIndex * 3) % 128) * (((s3l_g < 128) * 2) - 1);
-    s3l_bb = s3l_b + ((p->triangleIndex * 7) % 128) * (((s3l_b < 128) * 2) - 1);
+    S3L_Index *v = _helper_drawnModel->triangles 
+      + 3 * p->triangleIndex;
+
+    TPE_Vec3 a = TPE_vec3(
+      _helper_drawnModel->vertices[(*v) * 3],
+      _helper_drawnModel->vertices[(*v) * 3 + 1],
+      _helper_drawnModel->vertices[(*v) * 3 + 2]);
+
+    v++;
+
+    TPE_Vec3 b = TPE_vec3(
+      _helper_drawnModel->vertices[(*v) * 3],
+      _helper_drawnModel->vertices[(*v) * 3 + 1],
+      _helper_drawnModel->vertices[(*v) * 3 + 2]);
+
+    v++;
+
+    TPE_Vec3 c = TPE_vec3(
+      _helper_drawnModel->vertices[(*v) * 3],
+      _helper_drawnModel->vertices[(*v) * 3 + 1],
+      _helper_drawnModel->vertices[(*v) * 3 + 2]);
+
+    TPE_Vec3 normal = TPE_vec3Normalized(TPE_vec3Cross(
+      TPE_vec3Minus(c,a),TPE_vec3Minus(c,b)));
+
+    TPE_Unit intensity = 190 + TPE_vec3Dot(normal,
+      helper_lightDir) / 8;
+
+    s3l_rr = (s3l_r * intensity) / 256;
+    s3l_gg = (s3l_g * intensity) / 256;
+    s3l_bb = (s3l_b * intensity) / 256;
 
     s3l_previousTriangleID = p->triangleIndex;
   }
@@ -578,6 +628,8 @@ void helper_set3dColor(uint8_t r, uint8_t g, uint8_t b)
 void helper_drawModel(S3L_Model3D *model, TPE_Vec3 pos, TPE_Vec3 scale, 
   TPE_Vec3 rot)
 {
+  _helper_drawnModel = model;
+
   s3l_previousTriangleID = -1;
 
   model->transform.translation.x = pos.x;  
@@ -666,11 +718,20 @@ void helper_draw3dPlane(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
 
 void helper_draw3dSphere(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
 {
+  sphereModel.config.backfaceCulling = 2;
+  helper_drawModel(&sphereModel,pos,scale,rot);
+}
+
+void helper_draw3dSphereInside(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
+{
+  sphereModel.config.backfaceCulling = 1;
   helper_drawModel(&sphereModel,pos,scale,rot);
 }
 
 void helper_init(void)
 {
+  helper_lightDir = TPE_vec3Normalized(TPE_vec3(300,200,100));
+
   sdl_window = SDL_CreateWindow("program",SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED,S3L_RESOLUTION_X,S3L_RESOLUTION_Y,SDL_WINDOW_SHOWN); 
   sdl_renderer = SDL_CreateRenderer(sdl_window,-1,0);
   sdl_texture = SDL_CreateTexture(sdl_renderer,SDL_PIXELFORMAT_RGBX8888,SDL_TEXTUREACCESS_STATIC,S3L_RESOLUTION_X,S3L_RESOLUTION_Y);
