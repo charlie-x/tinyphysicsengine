@@ -411,8 +411,16 @@ TPE_Vec3 TPE_envSphereInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
 TPE_Vec3 TPE_envHalfPlane(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 normal);
 TPE_Vec3 TPE_envInfiniteCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
   direction, TPE_Unit radius);
-TPE_Vec3 TPE_envCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
-  direction, TPE_Unit radius);
+TPE_Vec3 TPE_envCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 direction,
+  TPE_Unit radius);
+
+/** Environment function for triagnular prism, e.g. for ramps. The sides array
+  contains three 2D coordinates of points of the triangle in given plane with
+  respect to the center. WARNING: the points must be specified in counter
+  clowckwise direction! The direction var specified axis direction (0, 1 or
+  2).*/
+TPE_Vec3 TPE_envAATriPrism(TPE_Vec3 point, TPE_Vec3 center,
+  const TPE_Unit sides[6], TPE_Unit depth, uint8_t direction);
 
 #define TPE_ENV_START(test,point) TPE_Vec3 _pBest = test, _pTest; \
   TPE_Unit _dBest = TPE_DISTANCE(_pBest,point), _dTest; \
@@ -2404,8 +2412,8 @@ TPE_Vec3 TPE_envInfiniteCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
   return TPE_vec3Minus(point,d);
 }
 
-TPE_Vec3 TPE_envCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
-  direction, TPE_Unit radius)
+TPE_Vec3 TPE_envCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 direction,
+  TPE_Unit radius)
 {
   point = TPE_vec3Minus(point,center);
 
@@ -2660,6 +2668,81 @@ TPE_Vec3 TPE_bodyGetLinearVelocity(const TPE_Body *body)
 TPE_Unit TPE_abs(TPE_Unit x)
 {
   return x >= 0 ? x : (-1 * x);
+}
+
+TPE_Vec3 TPE_envAATriPrism(TPE_Vec3 point, TPE_Vec3 center,
+  const TPE_Unit sides[6], TPE_Unit depth, uint8_t direction)
+{
+  point = TPE_vec3Minus(point,center);
+
+  if (direction == 1)
+  {
+    TPE_Unit tmp = point.z;
+    point.z = point.y;
+    point.y = tmp;
+  }
+  else if (direction == 2)
+  {
+    TPE_Unit tmp = point.z;
+    point.z = point.x;
+    point.x = tmp;
+  }
+
+  depth /= 2;
+
+  if (point.z > depth)
+    point.z = depth;
+  else
+  {
+    depth *= -1;
+
+    if (point.z < depth)
+      point.z = depth;
+  }
+
+  for (uint8_t i = 0; i < 6; i += 2)
+  {
+    uint8_t i2 = i < 4 ? i + 2 : 0;
+
+    TPE_Vec3 p =
+      TPE_envHalfPlane(point,TPE_vec3(sides[i],sides[i + 1],0),
+      TPE_vec3(sides[i2 + 1] - sides[i + 1],sides[i] - sides[i2],0));
+
+    if (p.x != point.x || p.y != point.y)
+    {
+      point = p;
+
+      if ( // dot product to determine which side the point is on 
+        (sides[i2] - sides[i]) * (point.x - sides[i]) +
+        (sides[i2 + 1] - sides[i + 1]) * (point.y - sides[i + 1]) < 0)
+      {
+        point.x = sides[i]; point.y = sides[i + 1];
+      }
+      else if ( // same but for the other vertex
+        (sides[i] - sides[i2]) * (point.x - sides[i2]) +
+        (sides[i + 1] - sides[i2 + 1]) * (point.y - sides[i2 + 1]) < 0)
+      {
+        point.x = sides[i2]; point.y = sides[i2 + 1];
+      }
+
+      break;
+    }
+  }
+
+  if (direction == 1)
+  {
+    TPE_Unit tmp = point.z;
+    point.z = point.y;
+    point.y = tmp;
+  }
+  else if (direction == 2)
+  {
+    TPE_Unit tmp = point.z;
+    point.z = point.x;
+    point.x = tmp;
+  }
+
+  return TPE_vec3Plus(point,center);
 }
 
 #endif // guard

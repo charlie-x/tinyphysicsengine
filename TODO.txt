@@ -1,29 +1,44 @@
 TODO:
+- body being pushed (e.g. by gravity) onto a sharp edge will likely not resist
+  (due to only linear forces in connections) and will very easily be split very
+  wide -- TRY AND FIX! Fix could be e.g. in a special function that checks
+  whether any connection is over some tension limit and if so inverts velocities
+  of its joints? OR MAYBE RATHER start applying proportional (as opposed to
+  current linear) acceleration due to tension after some tension limit.
+- demo: angry-birds-like game
+- function that tests a validity of an environemnt function, i.e. if it behaves
+  mathematically correct + test built in env functions with it
+- demo: testing different frictions on skewed plane, also different elasticities
 - zero weight joints should behave how?
-- debug draw inactive bodies with different color?
 - test different tick lengths (demo)
 - test env functions with a single distinct point near camera
-- test/handle: collision where the velocity goes "away" from the collision (can
-  happen e.g. if one body is hit by a faster body OR by manual manipulation with
-  velocities)
-- demo: momentum conservation
-- demo: 2D physics
+- env function: heightmap
+- demo: soft net (water surface?)
+- demo: car
 - bounding box/sphere test functions/macros for optimization of environment
-  building
+  building, plus a demo that tests if it actually accelerates it
 - test ray casting (e.g. the hit of an outside ray should always be outside)
 - ray casting against bodies
-- check if using fastBBSphere vs normal BBSphere doesn't affect the simulation
+- check if using fastBSphere vs normal BSphere doesn't affect the simulation
   result (it shouldn't)
+- world state hash? for testing determinism etc.
+- fine tune the number of reshapes needed for nice behavior
+- bug? bodies stuck inside each other resist falling down by gravity (stack.c)
 
 DONE:
+- try this: when reshaping body, also try to subtract velocities of joints that
+  go against each other along a connection, i.e. velocities that should cancel
+  out... maybe this reduces shaking?
 - air friction (can be done by multiplying energy)
 - collision callbacks, ability to custom handle collision response
 - zero sized joints should never collide (can be useful) <- NO because 0 size
   can also mean just small size (due to size being stored divided)
+- debug draw inactive bodies with different color?
 - when waking a body by collision, maybe set the disable count to lower values,
   to handle situations in which two touching bodies wouldn't allow each other
   to ever get disabled
 - non-rotating bodies
+- demo: 2D physics
 - unify naming: rotation vs orientation
 - function for "faking" rotation of a single-joint body (ball): it will simply
   rotate by the axis perpendicular to its linear velocity vec
@@ -31,3 +46,8 @@ DONE:
   only hard to see
 - tip: body center can quickly be approximated by just averaging two extreme
   points rather than averaging all points -- write this somewhere
+- test/handle: collision where the velocity goes "away" from the collision (can
+  happen e.g. if one body is hit by a faster body OR by manual manipulation with
+  velocities) <-- seemed OK
+- orthographics projection for debug draw
+- demo: momentum conservation
