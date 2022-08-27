@@ -8,8 +8,21 @@
 #define ROOM_H ((RES_Y * ROOM_W) / RES_X)
 #define SQUARE_SIZE 500
 
+TPE_Unit sss[6] =
+{
+  500,0,
+  0,2000,
+  -500,0
+};
+
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
+/*
+TPE_ENV_START( TPE_envAABoxInside(p,TPE_vec3(0,0,0),TPE_vec3(ROOM_W,ROOM_H,ROOM_W)), p )
+TPE_ENV_NEXT(TPE_envAATriPrism(p,TPE_vec3(-ROOM_W / 4,-ROOM_H / 2,0),sss,1000,0),p)
+
+TPE_ENV_END
+*/
   return TPE_envAABoxInside(p,TPE_vec3(0,0,0),TPE_vec3(ROOM_W,ROOM_H,ROOM_W));
 }
 
@@ -35,16 +48,21 @@ if (i != 2)
     helper_addCenterRectFull(SQUARE_SIZE,SQUARE_SIZE,100,100);
     TPE_bodyRotateByAxis(&tpe_world.bodies[i],TPE_vec3(TPE_FRACTIONS_PER_UNIT / 4,0,0));
     tpe_world.bodies[i].joints[4].sizeDivided = 300 / TPE_JOINT_SIZE_MULTIPLIER;
+/*
+helper_addRect(SQUARE_SIZE,SQUARE_SIZE,100,100);
+TPE_bodyRotateByAxis(&tpe_world.bodies[i],TPE_vec3(TPE_FRACTIONS_PER_UNIT / 4,0,0));
+*/
 }
 else
     helper_addBall(600,100);
 
 
     tpe_world.bodies[i].friction = 400;
+//tpe_world.bodies[i].friction = 0;
    
 
 
-tpe_world.bodies[i].flags |= TPE_BODY_FLAG_SOFT; // comment or uncomment
+//tpe_world.bodies[i].flags |= TPE_BODY_FLAG_SOFT; // comment or uncomment
  
 tpe_world.bodies[i].elasticity = 100;
 

@@ -10,6 +10,13 @@
 #define ACCELERATION 40
 #define TURN_RADIUS 5000
 
+TPE_Unit rampPoits[6] =
+{
+  0,0,
+  -2400,1400,
+  -2400,0
+};
+
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
 TPE_ENV_START( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(0,512,0)),p )
@@ -18,9 +25,11 @@ TPE_ENV_START( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(0,512,0)),p )
 TPE_ENV_NEXT( TPE_envSphereInside(p,TPE_vec3(0,10000,0),20000),p )
 
 TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(-8700,100,-800),TPE_vec3(2200,1000,800)),p )
+
+TPE_ENV_NEXT( TPE_envAATriPrism(p,TPE_vec3(8700,0,0),rampPoits,5000,2),p)
  
- TPE_ENV_NEXT( TPE_envSphere(p,TPE_vec3(0,-200,0),1700),p )
-  TPE_ENV_END
+TPE_ENV_NEXT( TPE_envSphere(p,TPE_vec3(0,-200,0),1700),p )
+TPE_ENV_END
 
 }
 
@@ -66,29 +75,6 @@ TPE_Unit wheelSize;
 
 int main(void)
 {
-
-TPE_Unit a[2],b[2],c[2],d[2],xx,yy;
-
-a[0] = -1000;
-a[1] = 100;
-
-b[0] = -100;
-b[1] = 100;
-
-c[0] = -100;
-c[1] = -200;
-
-d[0] = -100;
-d[1] = 5000;
-
-_TPE_lines2DIntersect(a,b,c,d,&xx,&yy);
-
-printf("%d %d\n",xx,yy);
-
-
-return 0;
-
-
   arenaModelInit();
   carModelInit();
 /*

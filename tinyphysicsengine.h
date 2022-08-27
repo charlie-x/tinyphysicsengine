@@ -128,6 +128,14 @@ typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
   #define TPE_TENSION_ACCELERATION_THRESHOLD 5
 #endif
 
+#ifndef TPE_TENSION_GREATER_ACCELERATION_THRESHOLD
+/** Connection tension threshold after which twice as much acceleration will
+  be applied. This helps prevent diverting joints that are "impaled" by
+  environment.*/
+  #define TPE_TENSION_GREATER_ACCELERATION_THRESHOLD \
+    (TPE_TENSION_ACCELERATION_THRESHOLD * 3)
+#endif
+
 #ifndef TPE_COLLISION_RESOLUTION_ITERATIONS
 /** Maximum number of iterations to try to uncollide two colliding bodies. */
   #define TPE_COLLISION_RESOLUTION_ITERATIONS 3
@@ -876,6 +884,14 @@ void TPE_worldStep(TPE_World *world)
           tension < -1 * TPE_TENSION_ACCELERATION_THRESHOLD)
         {
           TPE_vec3Normalize(&dir);
+
+          if (tension > TPE_TENSION_GREATER_ACCELERATION_THRESHOLD ||
+            tension < -1 * TPE_TENSION_GREATER_ACCELERATION_THRESHOLD)
+          { // TODO: not so elegant :)
+            dir.x *= 2;
+            dir.y *= 2;
+            dir.z *= 2;
+          }
 
           dir.x /= TPE_TENSION_ACCELERATION_DIVIDER;
           dir.y /= TPE_TENSION_ACCELERATION_DIVIDER;
