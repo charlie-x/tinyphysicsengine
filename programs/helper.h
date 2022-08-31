@@ -65,6 +65,8 @@
 
 #define PIXELS_SIZE (S3L_RESOLUTION_X * S3L_RESOLUTION_Y * 4)
 
+#define helper_lastBody tpe_world.bodies[tpe_world.bodyCount - 1]
+
 S3L_Unit cubeVertices[] = { S3L_CUBE_VERTICES(TPE_FRACTIONS_PER_UNIT) };  
 S3L_Index cubeTriangles[] = { S3L_CUBE_TRIANGLES };
 S3L_Model3D cubeModel;

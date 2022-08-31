@@ -1,11 +1,7 @@
 TODO:
-- body being pushed (e.g. by gravity) onto a sharp edge will likely not resist
-  (due to only linear forces in connections) and will very easily be split very
-  wide -- TRY AND FIX! Fix could be e.g. in a special function that checks
-  whether any connection is over some tension limit and if so inverts velocities
-  of its joints? OR MAYBE RATHER start applying proportional (as opposed to
-  current linear) acceleration due to tension after some tension limit.
 - demo: angry-birds-like game
+- elasticity doesn't really work in cases when there is an opposing joint to the
+  colliding joint, the speeds always cancel out -- leave as is or somehow fix?
 - function that tests a validity of an environemnt function, i.e. if it behaves
   mathematically correct + test built in env functions with it
 - demo: testing different frictions on skewed plane, also different elasticities
@@ -14,7 +10,6 @@ TODO:
 - test env functions with a single distinct point near camera
 - env function: heightmap
 - demo: soft net (water surface?)
-- demo: car
 - bounding box/sphere test functions/macros for optimization of environment
   building, plus a demo that tests if it actually accelerates it
 - test ray casting (e.g. the hit of an outside ray should always be outside)
@@ -26,6 +21,13 @@ TODO:
 - bug? bodies stuck inside each other resist falling down by gravity (stack.c)
 
 DONE:
+- demo: car
+- body being pushed (e.g. by gravity) onto a sharp edge will likely not resist
+  (due to only linear forces in connections) and will very easily be split very
+  wide -- TRY AND FIX! Fix could be e.g. in a special function that checks
+  whether any connection is over some tension limit and if so inverts velocities
+  of its joints? OR MAYBE RATHER start applying proportional (as opposed to
+  current linear) acceleration due to tension after some tension limit.
 - try this: when reshaping body, also try to subtract velocities of joints that
   go against each other along a connection, i.e. velocities that should cancel
   out... maybe this reduces shaking?

@@ -138,7 +138,7 @@ typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
 
 #ifndef TPE_COLLISION_RESOLUTION_ITERATIONS
 /** Maximum number of iterations to try to uncollide two colliding bodies. */
-  #define TPE_COLLISION_RESOLUTION_ITERATIONS 3
+  #define TPE_COLLISION_RESOLUTION_ITERATIONS 16
 #endif
 
 #ifndef TPE_COLLISION_RESOLUTION_MARGIN
@@ -417,6 +417,7 @@ TPE_Vec3 TPE_envBox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec,
 TPE_Vec3 TPE_envSphere(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
 TPE_Vec3 TPE_envSphereInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
 TPE_Vec3 TPE_envHalfPlane(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 normal);
+TPE_Vec3 TPE_envGround(TPE_Vec3 point, TPE_Unit height);
 TPE_Vec3 TPE_envInfiniteCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
   direction, TPE_Unit radius);
 TPE_Vec3 TPE_envCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 direction,
@@ -2759,6 +2760,14 @@ TPE_Vec3 TPE_envAATriPrism(TPE_Vec3 point, TPE_Vec3 center,
   }
 
   return TPE_vec3Plus(point,center);
+}
+
+TPE_Vec3 TPE_envGround(TPE_Vec3 point, TPE_Unit height)
+{
+  if (point.y > height)
+    point.y = height;
+
+  return point;
 }
 
 #endif // guard
