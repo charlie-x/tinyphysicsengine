@@ -66,6 +66,10 @@ int main(void)
   addBody(8800,5000,0,255)
   addBody(10600,5000,0,0)
 
+  helper_addBox(5000,5000,5000,2000,2000); // big box
+  TPE_bodyMove(&helper_lastBody,TPE_vec3(-20000,10000,8000));
+  TPE_bodySpin(&helper_lastBody,TPE_vec3(100,200,-20));
+
   // two colliding spheres:
 
   helper_addBall(800,2000);
@@ -80,7 +84,7 @@ int main(void)
   helper_lastBody.friction = 255;
   helper_lastBody.joints[0].velocity[0] = -300;
 
-  helper_addBall(500,200);
+  helper_addBall(1000,1000);
   controlledBody = &helper_lastBody;
   TPE_bodyMove(&helper_lastBody,TPE_vec3(200,2000,-3000));
 
@@ -110,7 +114,7 @@ if (simulating)
 {
     TPE_worldStep(&tpe_world);
 
-for (int i = 0; i < 11; ++i)
+for (int i = 0; i < 12; ++i)
   TPE_bodyApplyGravity(&tpe_world.bodies[i],5);
 }
 

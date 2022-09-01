@@ -174,7 +174,7 @@ typedef struct
 typedef struct
 {
   uint8_t joint1;
-  uint16_t joint2;
+  uint8_t joint2;
   uint16_t length;     ///< connection's preferred length, uint16_t saves space
 } TPE_Connection;
 
@@ -541,6 +541,15 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
 #define TPE_DEBUG_COLOR_JOINT 1
 #define TPE_DEBUG_COLOR_ENVIRONMENT 2
 #define TPE_DEBUG_COLOR_INACTIVE 3
+
+uint32_t TPE_jointHash(const TPE_Joint *joint);
+uint32_t TPE_connectionHash(const TPE_Connection *connection);
+uint32_t TPE_bodyHash(const TPE_Body *body);
+
+/** Compute 32 bit hash of the world, useful for checking if two states of the
+  world differ. The function takes into account most of the relevant state but
+  possibly not all , for details check the code. */
+uint32_t TPE_worldHash(const TPE_World *world);
 
 //------------------------------------------------------------------------------
 // privates:
@@ -2768,6 +2777,67 @@ TPE_Vec3 TPE_envGround(TPE_Vec3 point, TPE_Unit height)
     point.y = height;
 
   return point;
+}
+
+uint32_t _TPE_hash(uint32_t n)
+{
+  // parameters found by hash-prospector project
+  n = 250009959 * (n ^ (n >> 17));
+  n = 2626308659 * (n ^ (n >> 15));
+  return n ^ (n >> 16);
+}
+
+uint32_t TPE_jointHash(const TPE_Joint *joint)
+{
+  uint32_t 
+    r = _TPE_hash(joint->position.x);
+    r = _TPE_hash(r + joint->position.y);
+    r = _TPE_hash(r + joint->position.z);
+    r = _TPE_hash(r +
+      (((uint32_t) joint->velocity[0]) |
+      (((uint32_t) joint->velocity[1]) << 16)));
+    r = _TPE_hash(r + 
+      (((uint32_t) joint->velocity[2]) |
+      ((uint32_t) joint->sizeDivided)));
+  
+  return r;
+}
+
+uint32_t TPE_connectionHash(const TPE_Connection *connection)
+{
+  return _TPE_hash(
+   ((uint32_t) connection->length) |
+   (((uint32_t) connection->joint1) << 16) |
+   (((uint32_t) connection->joint2) << 24));
+}
+
+uint32_t TPE_bodyHash(const TPE_Body *body)
+{
+  uint32_t r = _TPE_hash(
+    ((uint32_t) body->jointMass) |
+    (((uint32_t) body->flags) << 16) |
+    (((uint32_t) body->deactivateCount) << 24)) ^
+      _TPE_hash(
+    ((uint32_t) body->friction) |
+    (((uint32_t) body->elasticity) << 16));
+
+  for (uint8_t i = 0; i < body->jointCount; ++i)
+    r = _TPE_hash(r + TPE_jointHash(&body->joints[i]));
+
+  for (uint8_t i = 0; i < body->connectionCount; ++i)
+    r = _TPE_hash(r + TPE_connectionHash(&body->connections[i]));
+
+  return r;
+}
+
+uint32_t TPE_worldHash(const TPE_World *world)
+{
+  uint8_t r = 0;
+
+  for (uint8_t i = 0; i < world->bodyCount; ++i)
+    r = _TPE_hash(r + TPE_bodyHash(&world->bodies[i]));
+
+  return r;
 }
 
 #endif // guard
