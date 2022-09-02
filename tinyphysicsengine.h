@@ -327,8 +327,6 @@ uint8_t TPE_bodyEnvironmentCollide(const TPE_Body *body,
 uint8_t TPE_bodyEnvironmentResolveCollision(TPE_Body *body, 
   TPE_ClosestPointFunction env);
 
-
-
 TPE_Vec3 TPE_bodyGetLinearVelocity(const TPE_Body *body);
 
 void TPE_bodyGetAABB(const TPE_Body *body, TPE_Vec3 *vMin, TPE_Vec3 *vMax);
@@ -634,7 +632,19 @@ TPE_Unit TPE_sqrt(TPE_Unit value)
 
 TPE_Unit TPE_vec3Len(TPE_Vec3 v)
 {
-  return TPE_sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+#define ANTI_OVERFLOW 25000
+  if  (v.x < ANTI_OVERFLOW && v.x > -1 * ANTI_OVERFLOW &&
+       v.y < ANTI_OVERFLOW && v.y > -1 * ANTI_OVERFLOW &&
+       v.z < ANTI_OVERFLOW && v.z > -1 * ANTI_OVERFLOW)
+  {
+    return  TPE_sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+  }
+  else
+  {
+    v.x /= 32; v.y /= 32; v.z /= 32;
+    return  TPE_sqrt(v.x * v.x + v.y * v.y + v.z * v.z) * 32;
+  }
+#undef ANTI_OVERFLOW
 }
 
 TPE_Unit TPE_vec3LenApprox(TPE_Vec3 v)
@@ -1185,23 +1195,22 @@ void TPE_vec3Normalize(TPE_Vec3 *v)
 {
   TPE_Unit l = TPE_LENGTH(*v);
 
-if (l == 0)
-  *v = TPE_vec3(TPE_FRACTIONS_PER_UNIT,0,0);
-else
-{
-  if (l < 16) // TODO: const, for too short
+  if (l == 0)
+    *v = TPE_vec3(TPE_FRACTIONS_PER_UNIT,0,0);
+  else
   {
-v->x *= 8;
-v->y *= 8;
-v->z *= 8;
-l = TPE_LENGTH(*v);
+    if (l < 16) // too short vec would cause inacurracte normalization
+    {
+      v->x *= 8;
+      v->y *= 8;
+      v->z *= 8;
+      l = TPE_LENGTH(*v);
+    }
+
+    v->x = (v->x * TPE_FRACTIONS_PER_UNIT) / l;
+    v->y = (v->y * TPE_FRACTIONS_PER_UNIT) / l;
+    v->z = (v->z * TPE_FRACTIONS_PER_UNIT) / l;
   }
-
-  v->x = (v->x * TPE_FRACTIONS_PER_UNIT) / l;
-  v->y = (v->y * TPE_FRACTIONS_PER_UNIT) / l;
-  v->z = (v->z * TPE_FRACTIONS_PER_UNIT) / l;
-}
-
 }
 
 TPE_Vec3 TPE_bodyGetRotation(const TPE_Body *body, uint16_t joint1, 
