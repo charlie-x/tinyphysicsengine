@@ -13,15 +13,15 @@ TODO:
 - bounding box/sphere test functions/macros for optimization of environment
   building, plus a demo that tests if it actually accelerates it
 - test ray casting (e.g. the hit of an outside ray should always be outside)
-- ray casting against bodies
 - check if using fastBSphere vs normal BSphere doesn't affect the simulation
   result (it shouldn't)
-- world state hash? for testing determinism etc.
 - fine tune the number of reshapes needed for nice behavior
 - bug? bodies stuck inside each other resist falling down by gravity (stack.c)
 
 DONE:
 - demo: car
+- ray casting against bodies
+- world state hash? for testing determinism etc.
 - body being pushed (e.g. by gravity) onto a sharp edge will likely not resist
   (due to only linear forces in connections) and will very easily be split very
   wide -- TRY AND FIX! Fix could be e.g. in a special function that checks
