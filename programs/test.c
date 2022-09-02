@@ -10,6 +10,8 @@ int main(void)
   puts("== testing tinyphysicsengine ==");
 
   {
+    ass(TPE_vec2Angle(-100,0) == TPE_FRACTIONS_PER_UNIT / 2,"vec2 angle")
+
     TPE_Unit l;
 
     l = TPE_LENGTH(TPE_vec3Normalized(TPE_vec3(100,0,0)));

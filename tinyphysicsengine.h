@@ -254,10 +254,16 @@ TPE_Vec3 TPE_bodyGetRotation(const TPE_Body *body, uint16_t joint1,
 
 void TPE_vec3Normalize(TPE_Vec3 *v);
 
+/** Rotates a 3D point by given Euler angle rotation (see rotation
+  conventions). */
 TPE_Vec3 TPE_pointRotate(TPE_Vec3 point, TPE_Vec3 rotation);
 
+/** Returns an inverse rotation to given rotation, in Euler angles (see rotation
+  conventions). */
 TPE_Vec3 TPE_rotationInverse(TPE_Vec3 rotation);
 
+/** Returns a connection tension, i.e. a signed percentage difference against
+  desired length (TPE_FRACTIONS_PER_UNIT means 100%). */
 static inline TPE_Unit TPE_connectionTension(TPE_Unit length,
   TPE_Unit desiredLength);
 
@@ -265,12 +271,14 @@ static inline TPE_Unit TPE_connectionTension(TPE_Unit length,
   rotation conventions). Returns a rotation in Eurler angles. */
 TPE_Vec3 TPE_rotationRotateByAxis(TPE_Vec3 rotation, TPE_Vec3 rotationByAxis);
 
-/** Computes the formula of a 1 dimensional collision of rigid bodies. */
+/** Computes the formula of a 1D collision of rigid bodies. */
 void TPE_getVelocitiesAfterCollision(TPE_Unit *v1, TPE_Unit *v2, TPE_Unit m1,
   TPE_Unit m2, TPE_Unit elasticity);
 
 TPE_Unit TPE_sqrt(TPE_Unit value);
 
+/** Returns an angle in TPE_Units (see angle conventions) of a 2D vector with
+  the X axis, CCW. */
 TPE_Unit TPE_vec2Angle(TPE_Unit x, TPE_Unit y);
 
 TPE_Vec3 TPE_vec3(TPE_Unit x, TPE_Unit y, TPE_Unit z);
@@ -280,7 +288,7 @@ TPE_Vec3 TPE_vec3Cross(TPE_Vec3 v1, TPE_Vec3 v2);
 TPE_Vec3 TPE_vec3Project(TPE_Vec3 v, TPE_Vec3 base);
 TPE_Vec3 TPE_vec3ProjectNormalized(TPE_Vec3 v, TPE_Vec3 baseNormalized);
 TPE_Vec3 TPE_vec3Times(TPE_Vec3 v, TPE_Unit units);
-TPE_Vec3 TPE_vec3TimesNonNormalized(TPE_Vec3 v, TPE_Unit q);
+TPE_Vec3 TPE_vec3TimesPlain(TPE_Vec3 v, TPE_Unit q);
 TPE_Vec3 TPE_vec3Normalized(TPE_Vec3 v);
 
 TPE_Unit TPE_vec3Dot(TPE_Vec3 v1, TPE_Vec3 v2);
@@ -477,20 +485,23 @@ void TPE_bodyReshape(TPE_Body *body, TPE_ClosestPointFunction
 
 void TPE_bodyCancelOutVelocities(TPE_Body *body, uint8_t strong);
 
-/** Move a body by certain offset. */
-void TPE_bodyMove(TPE_Body *body, TPE_Vec3 offset);
+/** Moves a body by certain offset. */
+void TPE_bodyMoveBy(TPE_Body *body, TPE_Vec3 offset);
 
-/** Zero velocities of all soft body joints. */
+/** Moves a body (its center of mass) to given position). */
+void TPE_bodyMoveTo(TPE_Body *body, TPE_Vec3 position);
+
+/** Zeros velocities of all soft body joints. */
 void TPE_bodyStop(TPE_Body *body);
 
 void TPE_bodyActivate(TPE_Body *body);
 
-/** Add velocity to a soft body. */
+/** Adds velocity to a soft body. */
 void TPE_bodyAccelerate(TPE_Body *body, TPE_Vec3 velocity);
 
 void TPE_bodyApplyGravity(TPE_Body *body, TPE_Unit downwardsAccel);
 
-/** Add angular velocity to a soft body. The rotation vector specifies the axis
+/** Adds angular velocity to a soft body. The rotation vector specifies the axis
   of rotation by its direction and angular velocity by its magnitude (magnitude
   of TPE_FRACTIONS_PER_UNIT will add linear velocity of TPE_FRACTIONS_PER_UNIT
   per tick to a point in the distance of TPE_FRACTIONS_PER_UNIT from the
@@ -499,14 +510,14 @@ void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation);
 
 void TPE_bodySpinWithCenter(TPE_Body *body, TPE_Vec3 rotation, TPE_Vec3 center);
 
-/** Instantly rotate soft body about an axis (see library conventions for
+/** Instantly rotates a body about an axis (see library conventions for
   the rotation format). */
 void TPE_bodyRotateByAxis(TPE_Body *body, TPE_Vec3 rotation);
 
-/** Compute the center of mass of a soft body. This averages the position of
-  all joints; note that if you need, you may estimate the center of the body
-  faster, e.g. by taking a position of a single "center joint", or averaging
-  just 2 extreme points. */ 
+/** Computes the center of mass of a body. This averages the position of all
+  joints; note that if you need, you may estimate the center of the body faster,
+  e.g. by taking a position of a single "center joint", or averaging just 2
+  extreme points. */ 
 TPE_Vec3 TPE_bodyGetCenterOfMass(const TPE_Body *body);
 
 /** Compute sine, TPE_FRACTIONS_PER_UNIT as argument corresponds to 2 * PI
@@ -882,7 +893,7 @@ void TPE_worldStep(TPE_World *world)
 
       if (collided &&
         TPE_bodyEnvironmentCollide(body,world->environmentFunction))
-        TPE_bodyMove(body,TPE_vec3Minus(origPos,body->joints[0].position));
+        TPE_bodyMoveBy(body,TPE_vec3Minus(origPos,body->joints[0].position));
     }
     else // normal, rotating bodies
     {
@@ -1332,7 +1343,7 @@ TPE_Vec3 TPE_vec3Project(TPE_Vec3 v, TPE_Vec3 base)
   return TPE_vec3ProjectNormalized(v,base);
 }
 
-void TPE_bodyMove(TPE_Body *body, TPE_Vec3 offset)
+void TPE_bodyMoveBy(TPE_Body *body, TPE_Vec3 offset)
 {
   for (uint16_t i = 0; i < body->jointCount; ++i)
     body->joints[i].position = TPE_vec3Plus(body->joints[i].position,
@@ -1581,7 +1592,7 @@ TPE_Vec3 TPE_vec3Times(TPE_Vec3 v, TPE_Unit units)
   return v;
 }
 
-TPE_Vec3 TPE_vec3TimesNonNormalized(TPE_Vec3 v, TPE_Unit q)
+TPE_Vec3 TPE_vec3TimesPlain(TPE_Vec3 v, TPE_Unit q)
 {
   v.x *= q;
   v.y *= q;
@@ -2847,6 +2858,14 @@ uint32_t TPE_worldHash(const TPE_World *world)
     r = _TPE_hash(r + TPE_bodyHash(&world->bodies[i]));
 
   return r;
+}
+
+void TPE_bodyMoveTo(TPE_Body *body, TPE_Vec3 position)
+{
+  position = TPE_vec3Minus(position,TPE_bodyGetCenterOfMass(body));
+
+  for (uint8_t i = 0; i < body->jointCount; ++i)
+    body->joints[i].position = TPE_vec3Plus(body->joints[i].position,position);
 }
 
 #endif // guard

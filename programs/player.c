@@ -48,7 +48,7 @@ int main(void)
 
   playerBody = &(tpe_world.bodies[0]);
 
-  TPE_bodyMove(&tpe_world.bodies[0],TPE_vec3(0,1000,0));
+  TPE_bodyMoveBy(&tpe_world.bodies[0],TPE_vec3(0,1000,0));
   TPE_bodyRotateByAxis(&tpe_world.bodies[0],TPE_vec3(0,0,TPE_FRACTIONS_PER_UNIT / 4));
   playerBody->elasticity = 0;
   playerBody->friction = 0;   
@@ -56,14 +56,14 @@ int main(void)
   groundDist = TPE_JOINT_SIZE(playerBody->joints[0]) + 30;
 
   helper_addBall(1000,100);
-  TPE_bodyMove(&tpe_world.bodies[1],TPE_vec3(-1000,1000,0));
+  TPE_bodyMoveBy(&tpe_world.bodies[1],TPE_vec3(-1000,1000,0));
   tpe_world.bodies[1].elasticity = 400;
   tpe_world.bodies[1].friction = 100;
 
   ballPreviousPos = tpe_world.bodies[1].joints[0].position;
 
   helper_addCenterRect(600,600,400,50);
-  TPE_bodyMove(&tpe_world.bodies[2],TPE_vec3(-3000,1000,2000));
+  TPE_bodyMoveBy(&tpe_world.bodies[2],TPE_vec3(-3000,1000,2000));
   tpe_world.bodies[2].elasticity = 100;
   tpe_world.bodies[2].friction = 50;
  

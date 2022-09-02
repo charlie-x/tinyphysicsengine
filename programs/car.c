@@ -120,7 +120,7 @@ tpe_world.bodies[0].connectionCount,
 
 wheelSize = TPE_JOINT_SIZE(tpe_world.bodies[0].joints[0]) + 30;
   
-TPE_bodyMove(carBody,TPE_vec3(3000,1000,0));
+TPE_bodyMoveBy(carBody,TPE_vec3(3000,1000,0));
 
 tpe_world.bodies[0].elasticity = 64; 
 tpe_world.bodies[0].friction = 64; 

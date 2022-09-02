@@ -39,7 +39,7 @@ int main(void)
 
 #define addBody(x,y,z,f) \
   helper_addBox(700,700,700,300,500); \
-  TPE_bodyMove(&helper_lastBody,TPE_vec3(x,y,z)); \
+  TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(x,y,z)); \
   helper_lastBody.elasticity = 255; \
   helper_lastBody.friction = f;
 
@@ -57,7 +57,7 @@ int main(void)
 
 #define addBody(x,y,z,e) \
   helper_addRect(700,700,300,500); \
-  TPE_bodyMove(&helper_lastBody,TPE_vec3(x,y,z)); \
+  TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(x,y,z)); \
   helper_lastBody.elasticity = e;
 
   // falling bodies
@@ -67,38 +67,38 @@ int main(void)
   addBody(10600,5000,0,0)
 
   helper_addBox(5000,5000,5000,2000,2000); // big box
-  TPE_bodyMove(&helper_lastBody,TPE_vec3(-20000,10000,8000));
+  TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(-20000,10000,8000));
   TPE_bodySpin(&helper_lastBody,TPE_vec3(100,200,-20));
 
   // two colliding spheres:
 
   helper_addBall(800,2000);
-  TPE_bodyMove(&helper_lastBody,TPE_vec3(200,4000,-4800));
+  TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(200,4000,-4800));
   helper_lastBody.elasticity = 255;
   helper_lastBody.friction = 255;
   helper_lastBody.joints[0].velocity[0] = 10;
   
   helper_addBall(800,200);
-  TPE_bodyMove(&helper_lastBody,TPE_vec3(3200,3800,-4800));
+  TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(3200,3800,-4800));
   helper_lastBody.elasticity = 255;
   helper_lastBody.friction = 255;
   helper_lastBody.joints[0].velocity[0] = -300;
 
   helper_addBall(1000,1000);
   controlledBody = &helper_lastBody;
-  TPE_bodyMove(&helper_lastBody,TPE_vec3(200,2000,-3000));
+  TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(200,2000,-3000));
 
   // two colliding bodies:
 
   helper_addCenterBox(700,700,700,300,500);
-  TPE_bodyMove(&helper_lastBody,TPE_vec3(-4000,5000,-3000));
+  TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(-4000,5000,-3000));
   helper_lastBody.elasticity = 255;
   helper_lastBody.friction = 255;
   //helper_lastBody.flags |= TPE_BODY_FLAG_SOFT;
   TPE_bodyAccelerate(&helper_lastBody,TPE_vec3(-300,0,0));
 
   helper_addCenterBox(700,700,700,300,500);
-  TPE_bodyMove(&helper_lastBody,TPE_vec3(-8000,5000,-3000));
+  TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(-8000,5000,-3000));
   helper_lastBody.elasticity = 255;
   helper_lastBody.friction = 255;
   helper_lastBody.flags |= TPE_BODY_FLAG_SOFT;

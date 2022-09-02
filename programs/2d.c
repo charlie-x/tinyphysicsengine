@@ -66,7 +66,7 @@ else
  
 tpe_world.bodies[i].elasticity = 100;
 
-    TPE_bodyMove(&tpe_world.bodies[i],TPE_vec3(-1000 + i * 800,0,0));
+    TPE_bodyMoveBy(&tpe_world.bodies[i],TPE_vec3(-1000 + i * 800,0,0));
   }
 
 
