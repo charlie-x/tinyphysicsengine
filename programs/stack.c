@@ -37,7 +37,7 @@ int main(void)
       default: break;
     }
 
-    TPE_bodyMove(&tpe_world.bodies[tpe_world.bodyCount - 1],TPE_vec3((1 - (i % 4)) * 1200,8000,(2 - (i / 4)) * 1200));
+    TPE_bodyMoveBy(&tpe_world.bodies[tpe_world.bodyCount - 1],TPE_vec3((1 - (i % 4)) * 1200,8000,(2 - (i / 4)) * 1200));
   } 
 
   while (helper_running)
@@ -68,6 +68,9 @@ int main(void)
     TPE_worldStep(&tpe_world);
 
     timeMeasure += helper_getMicroSecs() - t1;
+
+if (helper_frame == 200)
+  printf("hash: %lu\n",TPE_worldHash(&tpe_world));
 
     for (int i = 0; i < tpe_world.bodyCount; ++i)
     {

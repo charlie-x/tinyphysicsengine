@@ -9,25 +9,26 @@ TODO:
 - test different tick lengths (demo)
 - test env functions with a single distinct point near camera
 - env function: heightmap
-- demo: soft net (water surface?)
 - bounding box/sphere test functions/macros for optimization of environment
   building, plus a demo that tests if it actually accelerates it
 - test ray casting (e.g. the hit of an outside ray should always be outside)
-- check if using fastBSphere vs normal BSphere doesn't affect the simulation
-  result (it shouldn't)
-- fine tune the number of reshapes needed for nice behavior
-- bug? bodies stuck inside each other resist falling down by gravity (stack.c)
 
 DONE:
 - demo: car
+- bug? bodies stuck inside each other resist falling down by gravity (stack.c)
+  ^ Seems to be okay now?
 - ray casting against bodies
 - world state hash? for testing determinism etc.
+- check if using fastBSphere vs normal BSphere doesn't affect the simulation
+  result (it shouldn't) <-- on stacks.c gave the same world hash
+- fine tune the number of reshapes needed for nice behavior
 - body being pushed (e.g. by gravity) onto a sharp edge will likely not resist
   (due to only linear forces in connections) and will very easily be split very
   wide -- TRY AND FIX! Fix could be e.g. in a special function that checks
   whether any connection is over some tension limit and if so inverts velocities
   of its joints? OR MAYBE RATHER start applying proportional (as opposed to
   current linear) acceleration due to tension after some tension limit.
+- demo: soft net (water surface?)
 - try this: when reshaping body, also try to subtract velocities of joints that
   go against each other along a connection, i.e. velocities that should cancel
   out... maybe this reduces shaking?
