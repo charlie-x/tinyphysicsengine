@@ -1,3 +1,5 @@
+//#define FPS 60
+
 #define CAMERA_STEP 200
 
 #include "helper.h"
@@ -135,9 +137,10 @@ for (int index = 0; index < WATER_JOINTS; ++index)
 
     TPE_worldStep(&tpe_world);
 
-    TPE_bodyApplyGravity(&tpe_world.bodies[1], bodies[1].joints[0].position.y > 0 ? 5 : -10);
+    #define G ((5 * 30) / FPS)
+    TPE_bodyApplyGravity(&tpe_world.bodies[1], bodies[1].joints[0].position.y > 0 ? G : (-2 * G));
 
-    #define ACC 25
+    #define ACC ((25 * 30) / FPS )
     if (sdl_keyboard[SDL_SCANCODE_W])
       TPE_bodyAccelerate(&bodies[1],TPE_vec3(0,0,ACC));
     else if (sdl_keyboard[SDL_SCANCODE_S])

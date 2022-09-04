@@ -4,9 +4,7 @@ TODO:
   colliding joint, the speeds always cancel out -- leave as is or somehow fix?
 - function that tests a validity of an environemnt function, i.e. if it behaves
   mathematically correct + test built in env functions with it
-- demo: testing different frictions on skewed plane, also different elasticities
 - zero weight joints should behave how?
-- test different tick lengths (demo)
 - test env functions with a single distinct point near camera
 - env function: heightmap
 - bounding box/sphere test functions/macros for optimization of environment
@@ -15,8 +13,10 @@ TODO:
 
 DONE:
 - demo: car
+- demo: testing different frictions on skewed plane, also different elasticities
 - bug? bodies stuck inside each other resist falling down by gravity (stack.c)
   ^ Seems to be okay now?
+- test different tick lengths (demo) <-- seems OK
 - ray casting against bodies
 - world state hash? for testing determinism etc.
 - check if using fastBSphere vs normal BSphere doesn't affect the simulation

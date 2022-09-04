@@ -1,4 +1,4 @@
-// #define FPS 50
+//#define FPS 10
 
 #include "helper.h"
 
