@@ -620,7 +620,7 @@ void s3l_drawPixel(S3L_PixelInfo *p)
   sdl_drawPixel(p->x,p->y,s3l_rr,s3l_gg,s3l_bb);
 }
 
-void helper_set3dColor(uint8_t r, uint8_t g, uint8_t b)
+void helper_set3DColor(uint8_t r, uint8_t g, uint8_t b)
 {
   s3l_r = r;
   s3l_g = g;
@@ -679,7 +679,7 @@ void helper_drawModel(S3L_Model3D *model, TPE_Vec3 pos, TPE_Vec3 scale,
 #endif
 }
 
-void helper_draw3dTriangle(TPE_Vec3 v1, TPE_Vec3 v2, TPE_Vec3 v3)
+void helper_draw3DTriangle(TPE_Vec3 v1, TPE_Vec3 v2, TPE_Vec3 v3)
 {
   triangleVertices[0] = v1.x; 
   triangleVertices[1] = v1.y; 
@@ -696,35 +696,35 @@ void helper_draw3dTriangle(TPE_Vec3 v1, TPE_Vec3 v2, TPE_Vec3 v3)
     TPE_vec3(0,0,0)); 
 }
 
-void helper_draw3dBox(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
+void helper_draw3DBox(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
 {
   cubeModel.config.backfaceCulling = 2;
   helper_drawModel(&cubeModel,pos,scale,rot);
 }
 
-void helper_draw3dCylinder(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
+void helper_draw3DCylinder(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
 {
   helper_drawModel(&cylinderModel,pos,scale,rot);
 }
 
-void helper_draw3dBoxInside(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
+void helper_draw3DBoxInside(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
 {
   cubeModel.config.backfaceCulling = 1;
   helper_drawModel(&cubeModel,pos,scale,rot);
 }
 
-void helper_draw3dPlane(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
+void helper_draw3DPlane(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
 {
   helper_drawModel(&planeModel,pos,scale,rot);
 }
 
-void helper_draw3dSphere(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
+void helper_draw3DSphere(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
 {
   sphereModel.config.backfaceCulling = 2;
   helper_drawModel(&sphereModel,pos,scale,rot);
 }
 
-void helper_draw3dSphereInside(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
+void helper_draw3DSphereInside(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
 {
   sphereModel.config.backfaceCulling = 1;
   helper_drawModel(&sphereModel,pos,scale,rot);

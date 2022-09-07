@@ -5,6 +5,37 @@
 
 #define ass(cond,text) { printf(text ": "); if (!(cond)) { puts("ERROR"); return 1; } else puts("OK"); }
 
+TPE_Unit rampPoits[6] =
+{
+  0,0,
+  -2400,1400,
+  -2400,0
+};
+
+TPE_Vec3 envFunc(TPE_Vec3 p, TPE_Unit maxD)
+{
+  TPE_ENV_START( TPE_envAABoxInside(p,TPE_vec3(0,1000,0),TPE_vec3(3000,2500,3000)),p )
+  TPE_ENV_NEXT( TPE_envAATriPrism(p,TPE_vec3(100,200,-10),rampPoits,3000,2),p)
+//TPE_ENV_NEXT( TPE_envBox(p,TPE_vec3(-100,300,200),TPE_vec3(500,600,700),TPE_vec3(10,30,50)), p)
+  TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(-100,300,200),TPE_vec3(500,600,700)), p)
+
+  TPE_ENV_END
+}
+
+TPE_Vec3 envFuncBad(TPE_Vec3 p, TPE_Unit maxD)
+{
+  p.x += 200;
+  return p;
+}
+
+TPE_Vec3 envFuncBad2(TPE_Vec3 p, TPE_Unit maxD)
+{
+  if (p.y > p.x)
+    p.x = p.y;
+
+  return p;
+}
+
 int main(void)
 {
   puts("== testing tinyphysicsengine ==");
@@ -87,6 +118,20 @@ int main(void)
     for (int i = 0; i < 4; ++i)
       for (int j = i + 1; j < 4; ++j)
         ass(wHashes[i] != wHashes[j],"world hash");
+  }
+ 
+  {
+    puts("-- environment functions --");
+
+    ass(TPE_testClosestPointFunction(envFunc,TPE_vec3(-3000,-3000,-3000),
+      TPE_vec3(3000,3000,3000),32,10,0),"env function");
+
+    ass(!TPE_testClosestPointFunction(envFuncBad,TPE_vec3(-1000,-1000,-1000),
+      TPE_vec3(2000,3000,100),32,10,0),"env function bad");
+
+    ass(!TPE_testClosestPointFunction(envFuncBad2,TPE_vec3(-1000,-2000,-200),
+      TPE_vec3(1000,1000,2000),32,10,0),"env function bad");
+
   }
 
 

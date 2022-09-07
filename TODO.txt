@@ -1,19 +1,19 @@
 TODO:
 - demo: angry-birds-like game
-- elasticity doesn't really work in cases when there is an opposing joint to the
-  colliding joint, the speeds always cancel out -- leave as is or somehow fix?
-- function that tests a validity of an environemnt function, i.e. if it behaves
+- function that tests validity of an environemnt function, i.e. if it behaves
   mathematically correct + test built in env functions with it
-- zero weight joints should behave how?
-- test env functions with a single distinct point near camera
 - env function: heightmap
+- BUG: envBox function doesn't pass the env function test!
 - bounding box/sphere test functions/macros for optimization of environment
   building, plus a demo that tests if it actually accelerates it
 - test ray casting (e.g. the hit of an outside ray should always be outside)
+- try to make better car physics
 
 DONE:
 - demo: car
+- zero weight joints should behave how? <-- disallowed 0 mass
 - demo: testing different frictions on skewed plane, also different elasticities
+- test env functions with a single distinct point near camera
 - bug? bodies stuck inside each other resist falling down by gravity (stack.c)
   ^ Seems to be okay now?
 - test different tick lengths (demo) <-- seems OK
@@ -22,6 +22,9 @@ DONE:
 - check if using fastBSphere vs normal BSphere doesn't affect the simulation
   result (it shouldn't) <-- on stacks.c gave the same world hash
 - fine tune the number of reshapes needed for nice behavior
+- elasticity doesn't really work in cases when there is an opposing joint to the
+  colliding joint, the speeds always cancel out -- leave as is or somehow fix?
+  ^ let's just ignore it
 - body being pushed (e.g. by gravity) onto a sharp edge will likely not resist
   (due to only linear forces in connections) and will very easily be split very
   wide -- TRY AND FIX! Fix could be e.g. in a special function that checks

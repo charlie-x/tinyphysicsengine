@@ -189,6 +189,7 @@ typedef struct
                                           to keep the body's shape. */
 
 static inline TPE_Unit TPE_abs(TPE_Unit x);
+static inline TPE_Unit TPE_max(TPE_Unit a, TPE_Unit b);
 
 /** Function used for defining static environment, working similarly to an SDF
   (signed distance function). The parameters are: 3D point P, max distance D.
@@ -235,6 +236,24 @@ typedef struct
   TPE_ClosestPointFunction environmentFunction;
   TPE_CollisionCallback collisionCallback;
 } TPE_World;
+
+/** Tests the mathematical validity of given closest point function (function
+  representing the physics environment), i.e. whether for example approaching
+  some closest point in a straight line keeps approximately the same closest
+  point. Note that this function may take a long time to complete, especially
+  with higher gridResolution values and more complex environment functions. You
+  should use this function to test your environment function, especially if you
+  create functions for your own shapes etc. The cornerFrom and cornerTo points
+  are corners of an axis-aligned box within which testing will take place, 
+  gridResolution defines numbers of points (i.e. step length) along each
+  dimension to test (recommended e.g. 64), allowedError says error within which
+  points will be considered the same (recommended range approx. 10 to 200). If
+  testing is successful, 1 is returned, otherwise 0 is returned and the point
+  around which error was detected is returned in errorPoint (unless the pointer
+  is 0 in which case it is ignored). */
+uint8_t TPE_testClosestPointFunction(TPE_ClosestPointFunction f,
+  TPE_Vec3 cornerFrom, TPE_Vec3 cornerTo, uint8_t gridResolution,
+  TPE_UnitReduced allowedError, TPE_Vec3 *errorPoint);
 
 void TPE_bodyInit(TPE_Body *body, 
   TPE_Joint *joints, uint8_t jointCount, 
@@ -705,10 +724,7 @@ void TPE_bodyInit(TPE_Body *body,
 
   body->flags = 0;
 
-  body->jointMass = mass / jointCount;
- 
-  if (body->jointMass == 0)
-    body->jointMass = 1;
+  body->jointMass = TPE_nonZero(mass / jointCount);
 
   for (uint32_t i = 0; i < connectionCount; ++i)
   {
@@ -2716,6 +2732,11 @@ TPE_Unit TPE_abs(TPE_Unit x)
   return x >= 0 ? x : (-1 * x);
 }
 
+TPE_Unit TPE_max(TPE_Unit a, TPE_Unit b)
+{
+  return (a > b) ? a : b;
+}
+
 TPE_Vec3 TPE_envAATriPrism(TPE_Vec3 point, TPE_Vec3 center,
   const TPE_Unit sides[6], TPE_Unit depth, uint8_t direction)
 {
@@ -2866,6 +2887,95 @@ void TPE_bodyMoveTo(TPE_Body *body, TPE_Vec3 position)
 
   for (uint8_t i = 0; i < body->jointCount; ++i)
     body->joints[i].position = TPE_vec3Plus(body->joints[i].position,position);
+}
+
+uint8_t TPE_testClosestPointFunction(TPE_ClosestPointFunction f,
+  TPE_Vec3 cornerFrom, TPE_Vec3 cornerTo, uint8_t gridResolution,
+  TPE_UnitReduced allowedError, TPE_Vec3 *errorPoint)
+{
+  TPE_Vec3 p;
+
+  cornerTo = TPE_vec3Minus(cornerTo,cornerFrom);
+
+  for (uint16_t z = 0; z < gridResolution; ++z)
+  {
+    p.z = cornerFrom.z + (z * cornerTo.z) / gridResolution;
+
+    for (uint16_t y = 0; y < gridResolution; ++y)
+    {
+      p.y = cornerFrom.y + (y * cornerTo.y) / gridResolution;
+
+      for (uint16_t x = 0; x < gridResolution; ++x)
+      {
+        p.x = cornerFrom.x + (x * cornerTo.x) / gridResolution;
+
+        TPE_Vec3 p2 = f(p,TPE_INFINITY);
+
+        if (p.x != p2.x || p.y != p2.y || p.z != p2.z) // only test outside
+        {
+          // 1st try to approach the closest point and see if it stays the same:
+
+          TPE_Vec3 p3 = p;
+
+          for (uint8_t i = 0; i < 3; ++i)
+          {
+            p3 =
+              TPE_vec3((p3.x + p2.x) / 2,(p3.y + p2.y) / 2,(p3.z + p2.z) / 2);
+
+            TPE_Vec3 p4 = f(p3,TPE_INFINITY);
+
+            if (TPE_abs(p4.x - p2.x) + TPE_abs(p4.y - p2.y) 
+              + TPE_abs(p4.z - p2.z) > allowedError) // taxicab dist. for speed
+            {
+              if (errorPoint != 0)
+                *errorPoint = p;
+
+              return 0;
+            }
+          }
+ 
+          // now test 8 points inside the sphere of radius:
+
+          TPE_Unit d = TPE_DISTANCE(p,p2);
+
+          p3.z = p.z - d / 2;
+         
+          for (uint8_t zz = 0; zz < 2; ++zz)
+          {
+            p3.y = p.y - d / 2;
+
+            for (uint8_t yy = 0; yy < 2; ++yy)
+            {
+              p3.x = p.x - d / 2;
+
+              for (uint8_t zz = 0; zz < 2; ++zz)
+              {
+                if (TPE_DISTANCE(p,f(p3,TPE_INFINITY)) + allowedError < d)
+                {
+                  /* In the sphere of distance radius to the original point's
+                     closest point we've gotten a closer point which should
+                     never happen. */
+
+                  if (errorPoint != 0)
+                    *errorPoint = p;
+
+                  return 0;
+                }
+
+                p3.x += d;
+              }
+
+              p3.y += d;
+            }
+ 
+            p3.z += d;
+          }
+        }
+      }
+    }
+  }
+
+  return 1;
 }
 
 #endif // guard

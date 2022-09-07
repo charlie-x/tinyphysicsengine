@@ -69,6 +69,11 @@ int main(void)
 
     timeMeasure += helper_getMicroSecs() - t1;
 
+
+
+
+
+
 if (helper_frame == 200)
   printf("hash: %lu\n",TPE_worldHash(&tpe_world));
 
@@ -94,7 +99,7 @@ if (helper_frame == 200)
 
       TPE_Vec3 orient = TPE_rotationFromVecs(forw,right);
     
-      helper_set3dColor(100 + i * 5,16 - i,100 - i * 5); 
+      helper_set3DColor(100 + i * 5,16 - i,100 - i * 5); 
 
 bodyPositions[i] =
 TPE_vec3KeepWithinBox(
@@ -117,21 +122,21 @@ bodyOrientations[i].z =
 
       switch (i % 5)
       {
-        case 0: helper_draw3dBox(bodyPositions[i],TPE_vec3(1200,1200,1200),bodyOrientations[i]); break;
-        case 1: helper_draw3dTriangle(bodyPositions[i],joints[1].position,joints[2].position); break;
-        case 2: helper_draw3dSphere(bodyPositions[i],TPE_vec3(500,500,500),bodyOrientations[i]); break;
-        case 3: helper_draw3dBox(bodyPositions[i],TPE_vec3(1200,400,1200),bodyOrientations[i]); break; 
-        case 4: helper_draw3dBox(bodyPositions[i],TPE_vec3(200,200,1200),bodyOrientations[i]); break;
+        case 0: helper_draw3DBox(bodyPositions[i],TPE_vec3(1200,1200,1200),bodyOrientations[i]); break;
+        case 1: helper_draw3DTriangle(bodyPositions[i],joints[1].position,joints[2].position); break;
+        case 2: helper_draw3DSphere(bodyPositions[i],TPE_vec3(500,500,500),bodyOrientations[i]); break;
+        case 3: helper_draw3DBox(bodyPositions[i],TPE_vec3(1200,400,1200),bodyOrientations[i]); break; 
+        case 4: helper_draw3DBox(bodyPositions[i],TPE_vec3(200,200,1200),bodyOrientations[i]); break;
         default: break;
       }
     }
 
-    helper_set3dColor(100,100,100); 
-    helper_draw3dTriangle(TPE_vec3(0,0,0),TPE_vec3(-5000,5000,-10000),TPE_vec3(-5000,5000,10000));
-    helper_set3dColor(140,140,140);
-    helper_draw3dTriangle(TPE_vec3(0,0,0),TPE_vec3(-5000,5000,10000),TPE_vec3(5000,5000,0));
-    helper_set3dColor(80,80,80);
-    helper_draw3dTriangle(TPE_vec3(0,0,0),TPE_vec3(-5000,5000,-10000),TPE_vec3(5000,5000,0));
+    helper_set3DColor(100,100,100); 
+    helper_draw3DTriangle(TPE_vec3(0,0,0),TPE_vec3(-5000,5000,-10000),TPE_vec3(-5000,5000,10000));
+    helper_set3DColor(140,140,140);
+    helper_draw3DTriangle(TPE_vec3(0,0,0),TPE_vec3(-5000,5000,10000),TPE_vec3(5000,5000,0));
+    helper_set3DColor(80,80,80);
+    helper_draw3DTriangle(TPE_vec3(0,0,0),TPE_vec3(-5000,5000,-10000),TPE_vec3(5000,5000,0));
 
     if (helper_debugDrawOn)
       helper_debugDraw(1);
