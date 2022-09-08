@@ -3,7 +3,6 @@ TODO:
 - function that tests validity of an environemnt function, i.e. if it behaves
   mathematically correct + test built in env functions with it
 - env function: heightmap
-- BUG: envBox function doesn't pass the env function test!
 - bounding box/sphere test functions/macros for optimization of environment
   building, plus a demo that tests if it actually accelerates it
 - test ray casting (e.g. the hit of an outside ray should always be outside)
@@ -17,6 +16,8 @@ DONE:
 - bug? bodies stuck inside each other resist falling down by gravity (stack.c)
   ^ Seems to be okay now?
 - test different tick lengths (demo) <-- seems OK
+- BUG: envBox function doesn't pass the env function test! <-- just needed a
+  bigger epsilon
 - ray casting against bodies
 - world state hash? for testing determinism etc.
 - check if using fastBSphere vs normal BSphere doesn't affect the simulation

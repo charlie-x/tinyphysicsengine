@@ -16,8 +16,20 @@ TPE_Vec3 envFunc(TPE_Vec3 p, TPE_Unit maxD)
 {
   TPE_ENV_START( TPE_envAABoxInside(p,TPE_vec3(0,1000,0),TPE_vec3(3000,2500,3000)),p )
   TPE_ENV_NEXT( TPE_envAATriPrism(p,TPE_vec3(100,200,-10),rampPoits,3000,2),p)
-//TPE_ENV_NEXT( TPE_envBox(p,TPE_vec3(-100,300,200),TPE_vec3(500,600,700),TPE_vec3(10,30,50)), p)
+  TPE_ENV_NEXT( TPE_envBox(p,TPE_vec3(30,200,-10),TPE_vec3(500,600,700),TPE_vec3(10,20,30)), p)
   TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(-100,300,200),TPE_vec3(500,600,700)), p)
+  TPE_ENV_END
+}
+
+TPE_Vec3 envFunc2(TPE_Vec3 p, TPE_Unit maxD)
+{
+  TPE_ENV_START( TPE_envSphereInside(p,TPE_vec3(100,20,-3),5000), p)
+  TPE_ENV_NEXT( TPE_envGround(p,-500), p)
+
+  if (TPE_ENV_BCUBE_TEST(p,maxD,TPE_vec3(300,-40,50),1100) )
+  {
+    TPE_ENV_NEXT( TPE_envCylinder(p, TPE_vec3(300,-40,50), TPE_vec3(-400,-200,-50), 751), p)
+  }
 
   TPE_ENV_END
 }
@@ -34,6 +46,13 @@ TPE_Vec3 envFuncBad2(TPE_Vec3 p, TPE_Unit maxD)
     p.x = p.y;
 
   return p;
+}
+
+TPE_Vec3 envSimple(TPE_Vec3 p, TPE_Unit maxD)
+{
+  TPE_ENV_START( TPE_envAABoxInside(p,TPE_vec3(0,0,0),TPE_vec3(10000,10000,10000)), p)
+  TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,-5000,0),TPE_vec3(500,500,0)), p)
+  TPE_ENV_END
 }
 
 int main(void)
@@ -124,16 +143,65 @@ int main(void)
     puts("-- environment functions --");
 
     ass(TPE_testClosestPointFunction(envFunc,TPE_vec3(-3000,-3000,-3000),
-      TPE_vec3(3000,3000,3000),32,10,0),"env function");
+      TPE_vec3(3000,3000,3000),32,40,0),"env function");
+
+    ass(TPE_testClosestPointFunction(envFunc2,TPE_vec3(-2000,-1000,-5000),
+      TPE_vec3(5000,6000,7000),32,30,0),"env function");
 
     ass(!TPE_testClosestPointFunction(envFuncBad,TPE_vec3(-1000,-1000,-1000),
-      TPE_vec3(2000,3000,100),32,10,0),"env function bad");
+      TPE_vec3(2000,3000,100),32,40,0),"env function bad");
 
     ass(!TPE_testClosestPointFunction(envFuncBad2,TPE_vec3(-1000,-2000,-200),
-      TPE_vec3(1000,1000,2000),32,10,0),"env function bad");
+      TPE_vec3(1000,1000,2000),32,40,0),"env function bad");
 
   }
 
+  {
+    puts("-- simulation --");
+
+    TPE_World w;
+    TPE_Joint j[64];
+    TPE_Connection c[128];
+    TPE_Body b[4];
+
+    j[0] = TPE_joint(TPE_vec3(0,0,0),320);
+    TPE_bodyInit(&b[0],j,1,0,0,2124);
+    TPE_bodyMoveBy(&b[0],TPE_vec3(-2000,3000,3000));
+
+    TPE_makeBox(j + 1,c,800,900,850,320);
+    TPE_bodyInit(&b[1],j + 1,8,c,16,1300);
+    b[1].friction = 400;
+    b[1].elasticity = 350;
+    TPE_bodyMoveBy(&b[1],TPE_vec3(-2000,3800,1500));
+
+    TPE_make2Line(j + 20,c + 32,1000,300);
+    TPE_bodyInit(&b[2],j + 20,2,c + 32,1,1300);
+    b[2].flags |= TPE_BODY_FLAG_NONROTATING;
+    TPE_bodyMoveBy(&b[2],TPE_vec3(-3000,4100,-1500));
+
+    TPE_makeCenterBox(j + 32,c + 64,600,500,510,300);
+    TPE_bodyInit(&b[3],j + 32,9,c + 64,18,1200);
+    b[3].flags |= TPE_BODY_FLAG_SOFT;
+    TPE_bodyMoveBy(&b[3],TPE_vec3(-1500,3500,-3000));
+
+    TPE_worldInit(&w,b,4,envSimple);
+
+    puts("dropping bodies onto a ramp...");
+
+    for (int i = 0; i < 300; ++i)
+    {
+      for (uint8_t j = 0; j < w.bodyCount; ++j)
+        TPE_bodyApplyGravity(&w.bodies[j],8);
+
+      TPE_worldStep(&w);
+    }
+
+    for (int i = 0; i < w.bodyCount; ++i)
+    {
+      ass(TPE_bodyGetCenterOfMass(&w.bodies[i]).x > 0,"x position > 0");
+      ass(w.bodies[i].flags & TPE_BODY_FLAG_DEACTIVATED,"deactivated?");
+    }
+  }
 
   return 0;
 }
