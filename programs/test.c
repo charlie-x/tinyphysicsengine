@@ -3,7 +3,7 @@
 #include "../tinyphysicsengine.h"
 #include <stdio.h>
 
-#define ass(cond,text) { printf(text ": "); if (!(cond)) { puts("ERROR"); return 1; } else puts("OK"); }
+#define ass(cond,text) { printf("[CHECKING] " text ": "); if (!(cond)) { puts("ERROR"); return 1; } else puts("OK"); }
 
 TPE_Unit rampPoits[6] =
 {
@@ -186,6 +186,12 @@ int main(void)
 
     TPE_worldInit(&w,b,4,envSimple);
 
+    int16_t bi;
+
+    TPE_castBodyRay(TPE_vec3(-1857,3743,-4800),TPE_vec3(0,0,100),-1,&w,&bi,0);
+
+    ass(bi >= 0,"body ray hit");
+
     puts("dropping bodies onto a ramp...");
 
     for (int i = 0; i < 300; ++i)
@@ -193,13 +199,52 @@ int main(void)
       for (uint8_t j = 0; j < w.bodyCount; ++j)
         TPE_bodyApplyGravity(&w.bodies[j],8);
 
+      if (i == 100)
+        ass(TPE_worldGetNetSpeed(&w) > 100,"world net speed");
+
       TPE_worldStep(&w);
     }
+
+    puts("simulation finished");
+
+    uint32_t hash = TPE_worldHash(&w);
+
+    printf("world hash: %lu\n",hash);
+ 
+    // change the hash if functionality changes:
+    ass(hash == 3862131191,"world hash");
 
     for (int i = 0; i < w.bodyCount; ++i)
     {
       ass(TPE_bodyGetCenterOfMass(&w.bodies[i]).x > 0,"x position > 0");
       ass(w.bodies[i].flags & TPE_BODY_FLAG_DEACTIVATED,"deactivated?");
+    }
+
+    ass(TPE_worldGetNetSpeed(&w) < 100,"world net speed");
+
+    TPE_bodyAccelerate(&w.bodies[0],TPE_vec3(200,300,-20));
+    TPE_bodyAccelerate(&w.bodies[1],TPE_vec3(-700,400,0));
+    TPE_bodyAccelerate(&w.bodies[2],TPE_vec3(20,-300,-100));
+    TPE_bodyAccelerate(&w.bodies[3],TPE_vec3(0,30,-900));
+
+    puts("exploding bodies...");
+
+    for (int i = 0; i < 100; ++i)
+    {
+      for (uint8_t j = 0; j < w.bodyCount; ++j)
+        TPE_bodyApplyGravity(&w.bodies[j],8);
+
+      TPE_worldStep(&w);
+    }
+
+    // check if within environment
+
+    for (int i = 0; i < w.bodyCount; ++i)
+    {
+      TPE_Vec3 p = TPE_bodyGetCenterOfMass(&w.bodies[i]);
+
+      ass(p.x < 5000 && p.x > -5000 && p.y < 5000 && p.y > -5000 &&
+          p.z < 5000 && p.z > -5000,"body within environment");
     }
   }
 

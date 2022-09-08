@@ -2672,6 +2672,12 @@ TPE_Vec3 TPE_castBodyRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir, int16_t excludeBody,
             {
               // joint hit, compute exact coordinates:
 
+              if (bodyIndex != 0)
+                *bodyIndex = i;
+
+              if (jointIndex != 0)
+                *jointIndex = j;
+
               c = TPE_vec3Times(rayDir,TPE_sqrt(js * js - d * d));
               // ^ offset vector to two intersections
               p = TPE_vec3Plus(p,rayPos);
@@ -2832,12 +2838,12 @@ uint32_t TPE_jointHash(const TPE_Joint *joint)
 {
   uint32_t 
     r = _TPE_hash(joint->position.x);
-    r = _TPE_hash(r + joint->position.y);
-    r = _TPE_hash(r + joint->position.z);
-    r = _TPE_hash(r +
+    r = _TPE_hash(r ^ joint->position.y);
+    r = _TPE_hash(r ^ joint->position.z);
+    r = _TPE_hash(r ^
       (((uint32_t) joint->velocity[0]) |
       (((uint32_t) joint->velocity[1]) << 16)));
-    r = _TPE_hash(r + 
+    r = _TPE_hash(r ^ 
       (((uint32_t) joint->velocity[2]) |
       ((uint32_t) joint->sizeDivided)));
   
@@ -2863,20 +2869,20 @@ uint32_t TPE_bodyHash(const TPE_Body *body)
     (((uint32_t) body->elasticity) << 16));
 
   for (uint8_t i = 0; i < body->jointCount; ++i)
-    r = _TPE_hash(r + TPE_jointHash(&body->joints[i]));
+    r = _TPE_hash(r ^ TPE_jointHash(&body->joints[i]));
 
   for (uint8_t i = 0; i < body->connectionCount; ++i)
-    r = _TPE_hash(r + TPE_connectionHash(&body->connections[i]));
+    r = _TPE_hash(r ^ TPE_connectionHash(&body->connections[i]));
 
   return r;
 }
 
 uint32_t TPE_worldHash(const TPE_World *world)
 {
-  uint8_t r = 0;
+  uint32_t r = 0;
 
   for (uint8_t i = 0; i < world->bodyCount; ++i)
-    r = _TPE_hash(r + TPE_bodyHash(&world->bodies[i]));
+    r = _TPE_hash(r ^ TPE_bodyHash(&world->bodies[i]));
 
   return r;
 }
