@@ -1,11 +1,9 @@
 TODO:
 - demo: angry-birds-like game
-- function that tests validity of an environemnt function, i.e. if it behaves
-  mathematically correct + test built in env functions with it
+- add/remove log with TPE_LOG so that its nice, usefuly and not spammy
 - env function: heightmap
 - bounding box/sphere test functions/macros for optimization of environment
   building, plus a demo that tests if it actually accelerates it
-- test ray casting (e.g. the hit of an outside ray should always be outside)
 - try to make better car physics
 
 DONE:
@@ -13,9 +11,12 @@ DONE:
 - zero weight joints should behave how? <-- disallowed 0 mass
 - demo: testing different frictions on skewed plane, also different elasticities
 - test env functions with a single distinct point near camera
+- function that tests validity of an environemnt function, i.e. if it behaves
+  mathematically correct + test built in env functions with it
 - bug? bodies stuck inside each other resist falling down by gravity (stack.c)
   ^ Seems to be okay now?
 - test different tick lengths (demo) <-- seems OK
+- test ray casting (e.g. the hit of an outside ray should always be outside)
 - BUG: envBox function doesn't pass the env function test! <-- just needed a
   bigger epsilon
 - ray casting against bodies

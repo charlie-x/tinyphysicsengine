@@ -411,14 +411,15 @@ void TPE_make2Line(TPE_Joint joints[2], TPE_Connection connections[1],
   returned. The function internally works differently for outside rays (rays
   cast from the outside of the environment) and inside rays. Outside rays can
   be traced with raymarching and will be processed very quickly and precisely;
-  in this case if any intersection is found, the function will return a point
-  outside the environment that's just in front of the hit surface. Inside rays
-  are difficult and slow to trace because environment function won't provide
-  distance, so the results aren't guaranteed to be precise (the ray may miss
-  some intersections); here rays will be traced by given step (insideStepSize)
-  and eventually iterated a bit towards the intersection -- if any intersection
-  is found, the function will return a point inside the environment just before
-  the hit surface. */
+  in this case if any intersection is found, the function will try to return a
+  point outside (not guaranteed) the environment that's just in front of the hit
+  surface. Inside rays are difficult and slow to trace because environment
+  function won't provide distance, so the results aren't guaranteed to be
+  precise (the ray may miss some intersections); here rays will be traced by
+  given step (insideStepSize) and eventually iterated a bit towards the
+  intersection -- if any intersection is found, the function will try to return
+  a point inside (not guaranteed) the environment just before the hit
+  surface. */
 TPE_Vec3 TPE_castEnvironmentRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir,
   TPE_ClosestPointFunction environment, TPE_Unit insideStepSize,
   TPE_Unit rayMarchMaxStep, uint32_t maxSteps);
@@ -431,7 +432,7 @@ TPE_Vec3 TPE_castEnvironmentRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir,
   excluded with excludeBody (negative value will just make this parameter
   ignored). */
 TPE_Vec3 TPE_castBodyRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir, int16_t excludeBody,
-  const TPE_World *world, uint16_t *bodyIndex, uint16_t *jointIndex);
+  const TPE_World *world, int16_t *bodyIndex, int16_t *jointIndex);
 
 // environment building functions:
 
@@ -610,7 +611,9 @@ TPE_Joint TPE_joint(TPE_Vec3 position, TPE_Unit size)
   size /= TPE_JOINT_SIZE_MULTIPLIER;
 
   if (size > 0xff)
+  {
     TPE_LOG("WARNING: joint size too big in TPE_joint");
+  }
 
   result.sizeDivided = size;
 
@@ -733,7 +736,9 @@ void TPE_bodyInit(TPE_Body *body,
       joints[connections[i].joint2].position);
 
     if (d > 0xffff)
+    {
       TPE_LOG("WARNING: joint distance too long in TPE_bodyInit");
+    }
 
     connections[i].length = d != 0 ? d : 1; // prevent later division by zero
   }
@@ -2624,7 +2629,7 @@ TPE_Vec3 TPE_castEnvironmentRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir,
 }
 
 TPE_Vec3 TPE_castBodyRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir, int16_t excludeBody,
-  const TPE_World *world, uint16_t *bodyIndex, uint16_t *jointIndex)
+  const TPE_World *world, int16_t *bodyIndex, int16_t *jointIndex)
 {
   TPE_Vec3 bestP = TPE_vec3(TPE_INFINITY,TPE_INFINITY,TPE_INFINITY);
   TPE_Unit bestD = TPE_INFINITY;

@@ -14,7 +14,7 @@ TPE_Unit rampPoits[6] =
 
 TPE_Vec3 envFunc(TPE_Vec3 p, TPE_Unit maxD)
 {
-  TPE_ENV_START( TPE_envAABoxInside(p,TPE_vec3(0,1000,0),TPE_vec3(3000,2500,3000)),p )
+  TPE_ENV_START( TPE_envAABoxInside(p,TPE_vec3(0,1000,0),TPE_vec3(7000,6000,7000)),p )
   TPE_ENV_NEXT( TPE_envAATriPrism(p,TPE_vec3(100,200,-10),rampPoits,3000,2),p)
   TPE_ENV_NEXT( TPE_envBox(p,TPE_vec3(30,200,-10),TPE_vec3(500,600,700),TPE_vec3(10,20,30)), p)
   TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(-100,300,200),TPE_vec3(500,600,700)), p)
@@ -209,7 +209,7 @@ int main(void)
 
     uint32_t hash = TPE_worldHash(&w);
 
-    printf("world hash: %lu\n",hash);
+    printf("world hash: %du\n",hash);
  
     // change the hash if functionality changes:
     ass(hash == 3862131191,"world hash");
@@ -247,6 +247,42 @@ int main(void)
           p.z < 5000 && p.z > -5000,"body within environment");
     }
   }
+
+  {
+    /* Here we'll be casting environment rays and checking if inside rays return
+    inside results and outside rays return outside results. The function doesn't
+    guarantee this but at least mostly this should hold. */
+
+    int correct = 0;
+    int incorrect = 0;
+
+    for (int y = -3200; y < 1000; y += 52)
+      for (int x = -4000; x < 3000; x += 40)
+      {
+        TPE_Vec3 p = TPE_vec3(x,y,x / 16);
+        TPE_Vec3 p2 = envFunc(p,300);
+
+        uint8_t inside = p.x == p2.x && p.y == p2.y && p.z == p2.z;
+
+        TPE_Vec3 p3 = TPE_castEnvironmentRay(p,TPE_vec3(x / 64 + 1,y / 32 -2,3),
+          envFunc,30,100,32);
+
+        p2 = envFunc(p3,300);
+
+        uint8_t inside2 = p3.x == p2.x && p3.y == p2.y && p3.z == p2.z;
+
+        if (inside != inside2)
+          incorrect++;
+        else
+          correct++;
+      }
+
+    ass(correct > incorrect * 5,"environment rays behave kind of OK?");
+    printf("(%d OK, %d not so OK)\n",correct,incorrect);
+
+  }
+
+  puts("DONE, all OK");
 
   return 0;
 }
