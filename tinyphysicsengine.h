@@ -2735,7 +2735,19 @@ TPE_Unit TPE_worldGetNetSpeed(const TPE_World *world)
 
 TPE_Vec3 TPE_bodyGetLinearVelocity(const TPE_Body *body)
 {
-  // TODO
+  TPE_Vec3 r = TPE_vec3(0,0,0);
+
+  for (uint16_t i = 0; i < body->jointCount; ++i)
+  {
+    TPE_UnitReduced *v = body->joints[i].velocity;
+    r = TPE_vec3Plus(r,TPE_vec3(v[0],v[1],v[2]));
+  }
+
+  r.x /= body->jointCount;
+  r.y /= body->jointCount;
+  r.z /= body->jointCount;
+    
+  return r;
 }
 
 TPE_Unit TPE_abs(TPE_Unit x)

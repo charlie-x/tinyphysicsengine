@@ -155,23 +155,23 @@ int main(void)
 
     // draw the 3D environment
 
-    helper_set3dColor(180,180,180);
-    helper_draw3dBoxInside(TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE),TPE_vec3(0,0,0));
-    helper_set3dColor(100,200,180);
-    helper_draw3dBox(TPE_vec3(4000,160,4000),TPE_vec3(2000,320,2000),TPE_vec3(0,0,0));
-    helper_draw3dBox(TPE_vec3(4000,80,2500),TPE_vec3(2000,160,1000),TPE_vec3(0,0,0));
-    helper_draw3dBox(TPE_vec3(-1000,270,4500),TPE_vec3(8000,540,500),TPE_vec3(0,0,0));
-    helper_draw3dBox(TPE_vec3(-4000,elevatorHeight,0),TPE_vec3(2000,2 * elevatorHeight,2000),TPE_vec3(0,0,0));
-    helper_draw3dCylinder(TPE_vec3(2000,5000,-1100),TPE_vec3(400,10000,400),TPE_vec3(0,0,0));
+    helper_set3DColor(180,180,180);
+    helper_draw3DBoxInside(TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE),TPE_vec3(0,0,0));
+    helper_set3DColor(100,200,180);
+    helper_draw3DBox(TPE_vec3(4000,160,4000),TPE_vec3(2000,320,2000),TPE_vec3(0,0,0));
+    helper_draw3DBox(TPE_vec3(4000,80,2500),TPE_vec3(2000,160,1000),TPE_vec3(0,0,0));
+    helper_draw3DBox(TPE_vec3(-1000,270,4500),TPE_vec3(8000,540,500),TPE_vec3(0,0,0));
+    helper_draw3DBox(TPE_vec3(-4000,elevatorHeight,0),TPE_vec3(2000,2 * elevatorHeight,2000),TPE_vec3(0,0,0));
+    helper_draw3DCylinder(TPE_vec3(2000,5000,-1100),TPE_vec3(400,10000,400),TPE_vec3(0,0,0));
 
-    helper_draw3dPlane(TPE_vec3(0,1500,-3500),TPE_vec3(10000,512,4000),TPE_vec3(-64,0,0));
+    helper_draw3DPlane(TPE_vec3(0,1500,-3500),TPE_vec3(10000,512,4000),TPE_vec3(-64,0,0));
     
-    helper_set3dColor(200,50,0);
+    helper_set3DColor(200,50,0);
 
-    helper_draw3dBox(TPE_bodyGetCenterOfMass(&tpe_world.bodies[2]),
+    helper_draw3DBox(TPE_bodyGetCenterOfMass(&tpe_world.bodies[2]),
       TPE_vec3(1200,800,1200),TPE_bodyGetRotation(&tpe_world.bodies[2],0,2,1));
 
-    helper_draw3dSphere(tpe_world.bodies[1].joints[0].position,
+    helper_draw3DSphere(tpe_world.bodies[1].joints[0].position,
       TPE_vec3(1000,1000,1000),ballRot);
 
     if (helper_debugDrawOn)

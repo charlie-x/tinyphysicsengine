@@ -19,7 +19,8 @@ TPE_Unit rampPoits[6] =
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
-TPE_ENV_START( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(0,512,0)),p )
+TPE_ENV_START( TPE_envGround(p,0),p )
+//TPE_ENV_START( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(0,512,0)),p )
 //  TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,-2000),TPE_vec3(0,255,255)),p )
 
 TPE_ENV_NEXT( TPE_envSphereInside(p,TPE_vec3(0,10000,0),20000),p )
@@ -50,21 +51,24 @@ TPE_Vec3 carRot;
 uint8_t jointCollisions;
 TPE_Vec3 jointPreviousPositions[4];
 
+TPE_Body *carBody;
+
 uint8_t collisionCallback(uint16_t b1, uint16_t j1, uint16_t b2, uint16_t j2,
   TPE_Vec3 p)
 {
   if (b1 == 0 && b1 == b2 && j1 < 4)
   {
     jointCollisions |= 0x01 << j1;
-    jointPreviousPositions[j1] = tpe_world.bodies[0].joints[j1].position;
+    jointPreviousPositions[j1] = carBody->joints[j1].position;
   }
+
+  return 1;
 }
 
 TPE_Vec3 ballRot, ballPreviousPos;
 
 TPE_Vec3 directionVec;
 
-TPE_Body *carBody;
 
 TPE_Vec3 carForw, carSide, carUp, carPos;
 TPE_Vec3 carVelocity;
@@ -100,30 +104,38 @@ helper_debugDrawOn = 1;
 
 tpe_world.collisionCallback = collisionCallback;
 
+helper_addRect(600,600,600,300);
+TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(2000,1000,3000));
+helper_lastBody.friction = 100;
+
 
   helper_addCenterRectFull(1000,1800,400,2000);
 
-tpe_world.bodies[0].joints[4].position.y += 600;
-tpe_world.bodies[0].joints[4].sizeDivided *= 3;
-tpe_world.bodies[0].joints[4].sizeDivided /= 2;
 
-carBody = &tpe_world.bodies[0];
+carBody = &helper_lastBody;
 
-TPE_bodyInit(&tpe_world.bodies[0],
+carBody->joints[4].position.y += 600;
+carBody->joints[4].sizeDivided *= 3;
+carBody->joints[4].sizeDivided /= 2;
 
-tpe_world.bodies[0].joints,
-tpe_world.bodies[0].jointCount,
-tpe_world.bodies[0].connections,
-tpe_world.bodies[0].connectionCount,
+
+TPE_bodyInit(carBody,
+carBody->joints,
+carBody->jointCount,
+carBody->connections,
+carBody->connectionCount,
 300
 );
 
-wheelSize = TPE_JOINT_SIZE(tpe_world.bodies[0].joints[0]) + 30;
+//helper_addRect(1000,1000,600,300);
+
+
+wheelSize = TPE_JOINT_SIZE(carBody->joints[0]) + 30;
   
 TPE_bodyMoveBy(carBody,TPE_vec3(3000,1000,0));
 
-tpe_world.bodies[0].elasticity = 64; 
-tpe_world.bodies[0].friction = 64; 
+carBody->elasticity = 64; 
+carBody->friction = 64; 
 
   while (helper_running)
   {
@@ -320,7 +332,7 @@ else if (sdl_keyboard[SDL_SCANCODE_S])
 
 #undef AAA
 
-    helper_set3dColor(180,180,180);
+    helper_set3DColor(180,180,180);
 //    helper_draw3dBoxInside(TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE),TPE_vec3(0,0,0));
 
 /*
@@ -336,7 +348,7 @@ TPE_vec3(10000,512,4000),
 TPE_vec3(-64,0,0));
 */
 
-helper_set3dColor(20,150,150);
+helper_set3DColor(20,150,150);
 
 helper_drawModel(&arenaModel,TPE_vec3(0,0,0),TPE_vec3(512 * 32,512 * 32,512 * 32), 
   TPE_vec3(0,0,0));
@@ -345,12 +357,19 @@ helper_drawModel(&arenaModel,TPE_vec3(0,0,0),TPE_vec3(512 * 32,512 * 32,512 * 32
 helper_draw3dSphereInside(
 TPE_vec3(0,20000,0),TPE_vec3(30000,30000,30000),TPE_vec3(0,0,0));
 */
+
+helper_set3DColor(20,50,250);
+
+helper_draw3DBox(TPE_bodyGetCenterOfMass(&tpe_world.bodies[0]),
+      TPE_vec3(1000,800,1000),
+TPE_bodyGetRotation(&tpe_world.bodies[1],0,2,1));
+
 S3L_zBufferClear();
   
-helper_set3dColor(200,200,200);
+helper_set3DColor(200,200,200);
 
 TPE_Vec3 newRot = 
-TPE_bodyGetRotation(&tpe_world.bodies[0],0,2,1);
+TPE_bodyGetRotation(carBody,0,2,1);
 
 carRot.x = (TPE_abs(carRot.x - newRot.x) < 50) ?
 (carRot.x + newRot.x) / 2 : newRot.x;
@@ -363,6 +382,7 @@ carRot.z = averageRot(carRot.z,newRot.z);
 helper_drawModel(&carModel,
 TPE_vec3Minus(carPos,TPE_vec3Times(carUp,400)),
 TPE_vec3(600,600,600), 
+    
 
 carRot
 );
@@ -391,7 +411,7 @@ printf("car geometry flipped over, fixing...\n");
   
 
 
-    helper_set3dColor(200,10,10);
+    helper_set3DColor(200,10,10);
 
 for (int i = 0; i < tpe_world.bodyCount; ++i)
     TPE_bodyApplyGravity(&tpe_world.bodies[i],5);
