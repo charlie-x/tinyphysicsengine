@@ -7,8 +7,8 @@
 #include "carArenaModel.h"
 #include "carModel.h"
 
-#define ACCELERATION 40
-#define TURN_RADIUS 5000
+#define ACCELERATION 35
+#define TURN_RATE 400
 
 TPE_Unit rampPoits[6] =
 {
@@ -56,7 +56,7 @@ TPE_Body *carBody;
 uint8_t collisionCallback(uint16_t b1, uint16_t j1, uint16_t b2, uint16_t j2,
   TPE_Vec3 p)
 {
-  if (b1 == 0 && b1 == b2 && j1 < 4)
+  if (b1 == 1 && b1 == b2 && j1 < 4)
   {
     jointCollisions |= 0x01 << j1;
     jointPreviousPositions[j1] = carBody->joints[j1].position;
@@ -135,7 +135,7 @@ wheelSize = TPE_JOINT_SIZE(carBody->joints[0]) + 30;
 TPE_bodyMoveBy(carBody,TPE_vec3(3000,1000,0));
 
 carBody->elasticity = 64; 
-carBody->friction = 64; 
+carBody->friction = 32;//64; 
 
   while (helper_running)
   {
@@ -272,36 +272,73 @@ else if (sdl_keyboard[SDL_SCANCODE_A])
 else
   steering = 0;
 
-TPE_Unit speed = TPE_vec3Dot(carVelocity,carForw);
 
-if (speed > CCC)
-  speed = CCC;
-else if (speed < -1 * CCC)
-  speed = -1 * CCC;
+for (int i = 0; i < 4; ++i)
+  if (jointCollisions & (0x01 << i))
+  {
+TPE_Vec3 jv = 
+  TPE_vec3(  
+    carBody->joints[i].velocity[0],   
+    carBody->joints[i].velocity[1],   
+    carBody->joints[i].velocity[2]);   
 
-speed /= 4;
+TPE_Vec3 ja;
 
-if (frontOnGround && steering)
+
+if (i >= 2 && steering)
 {
+  if (steering == 2)
+    ja =  TPE_vec3Plus( TPE_vec3Times(carForw,TURN_RATE)  ,carSide);
+  else
+    ja = TPE_vec3Minus(  TPE_vec3Times(carForw,TURN_RATE) ,carSide);
 
-TPE_Vec3 ccc = TPE_vec3Minus(
-carBody->joints[4].position,
-TPE_vec3Times(carForw,TURN_RADIUS)
-);
-
-TPE_bodySpinWithCenter(carBody,TPE_vec3Times(carUp,
-(AAA * speed * (steering == 1 ? -1 : 1)  ) / CCC),ccc);
- 
+  ja = TPE_vec3Normalized(ja);
 }
+else
+  ja = carSide;
+
+TPE_Vec3 diff =
+TPE_vec3Times(ja,  (TPE_vec3Dot(ja,jv) * 2) / 3     );
+
+
+jv = TPE_vec3Minus(jv,diff);
+
+carBody->joints[i].velocity[0] = jv.x;
+carBody->joints[i].velocity[1] = jv.y;
+carBody->joints[i].velocity[2] = jv.z;
+
+
+  }
+
   
 TPE_bodyActivate(carBody);
 
+
+
 if (backOnGround)
 {
+if (sdl_keyboard[SDL_SCANCODE_W])
+{
+  carBody->joints[0].velocity[0] += (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[1] += (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[2] += (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[0] += (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[1] += (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[2] += (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+}
+else if (sdl_keyboard[SDL_SCANCODE_S])
+{
+  carBody->joints[0].velocity[0] -= (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[1] -= (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[2] -= (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[0] -= (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[1] -= (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[1].velocity[2] -= (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+}
 
+/*
 TPE_Unit acc = ACCELERATION + speed;
 
-#define AAAA 16
 if (sdl_keyboard[SDL_SCANCODE_W])
 {
   carBody->joints[0].velocity[0] += (carForw.x * acc) / TPE_FRACTIONS_PER_UNIT;
@@ -320,6 +357,7 @@ else if (sdl_keyboard[SDL_SCANCODE_S])
   carBody->joints[1].velocity[1] -= (carForw.y * acc) / TPE_FRACTIONS_PER_UNIT;
   carBody->joints[1].velocity[2] -= (carForw.z * acc) / TPE_FRACTIONS_PER_UNIT;
 }
+*/
 
 //TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3Times(carForw,BBB) );
 //      else if (sdl_keyboard[SDL_SCANCODE_S])
@@ -362,7 +400,7 @@ helper_set3DColor(20,50,250);
 
 helper_draw3DBox(TPE_bodyGetCenterOfMass(&tpe_world.bodies[0]),
       TPE_vec3(1000,800,1000),
-TPE_bodyGetRotation(&tpe_world.bodies[1],0,2,1));
+TPE_bodyGetRotation(&tpe_world.bodies[0],0,2,1));
 
 S3L_zBufferClear();
   
