@@ -190,6 +190,7 @@ typedef struct
 
 static inline TPE_Unit TPE_abs(TPE_Unit x);
 static inline TPE_Unit TPE_max(TPE_Unit a, TPE_Unit b);
+static inline TPE_Unit TPE_min(TPE_Unit a, TPE_Unit b);
 
 /** Function used for defining static environment, working similarly to an SDF
   (signed distance function). The parameters are: 3D point P, max distance D.
@@ -448,6 +449,11 @@ TPE_Vec3 TPE_envInfiniteCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
   direction, TPE_Unit radius);
 TPE_Vec3 TPE_envCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 direction,
   TPE_Unit radius);
+
+TPE_Vec3 TPE_envLineSegment(TPE_Vec3 point, TPE_Vec3 a, TPE_Vec3 b);
+
+TPE_Vec3 TPE_envHeightmap(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit gridSize,
+  TPE_Unit (*heightFunction)(int32_t x, int32_t y), TPE_Unit maxDist);
 
 /** Environment function for triagnular prism, e.g. for ramps. The sides array
   contains three 2D coordinates of points of the triangle in given plane with
@@ -2760,6 +2766,11 @@ TPE_Unit TPE_max(TPE_Unit a, TPE_Unit b)
   return (a > b) ? a : b;
 }
 
+TPE_Unit TPE_min(TPE_Unit a, TPE_Unit b)
+{
+  return (a < b) ? a : b;
+}
+
 TPE_Vec3 TPE_envAATriPrism(TPE_Vec3 point, TPE_Vec3 center,
   const TPE_Unit sides[6], TPE_Unit depth, uint8_t direction)
 {
@@ -2999,6 +3010,148 @@ uint8_t TPE_testClosestPointFunction(TPE_ClosestPointFunction f,
   }
 
   return 1;
+}
+
+TPE_Vec3 TPE_envLineSegment(TPE_Vec3 point, TPE_Vec3 a, TPE_Vec3 b)
+{
+  point = TPE_vec3Minus(point,a);
+
+  b = TPE_vec3Minus(b,a);
+
+  point = TPE_vec3Project(point,b);
+
+  if (TPE_vec3Dot(point,b) < 0)
+    point = TPE_vec3(0,0,0);
+  else if (TPE_abs(point.x) + TPE_abs(point.y) + TPE_abs(point.z) >
+    TPE_abs(b.x) + TPE_abs(b.y) + TPE_abs(b.z))
+    point = b;
+
+  point = TPE_vec3Plus(point,a);
+
+  return point;
+}
+
+TPE_Vec3 TPE_envHeightmap(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit gridSize,
+  TPE_Unit (*heightFunction)(int32_t x, int32_t y), TPE_Unit maxDist)
+{
+  point = TPE_vec3Minus(point,center);
+
+  TPE_Vec3 closestP = TPE_vec3(TPE_INFINITY,TPE_INFINITY,TPE_INFINITY);
+  TPE_Unit closestD = TPE_INFINITY;
+
+  int16_t startSquareX = point.x / gridSize - (point.x < 0),
+          startSquareY = point.z / gridSize - (point.z < 0);
+
+  int16_t squareX = startSquareX,
+          squareY = startSquareY;
+
+  uint8_t spiralDir = 1;
+  uint16_t spiralStep = 1, spiralStepsLeft = 1;
+
+  TPE_Vec3 // 4 corners of the current square
+    bl = TPE_vec3(squareX * gridSize,heightFunction(squareX,squareY),squareY * gridSize),
+    br = TPE_vec3(bl.x + gridSize,heightFunction(squareX + 1,squareY),bl.z),
+    tl = TPE_vec3(bl.x,heightFunction(squareX,squareY + 1),bl.z + gridSize),
+    tr = TPE_vec3(br.x,heightFunction(squareX + 1,squareY + 1),tl.z);
+
+  for (uint16_t i = 0; i < 1024; ++i) // while (1) should work in theory but...
+  {
+    if ((TPE_min(TPE_abs(squareX - startSquareX),
+      TPE_abs(squareY - startSquareY)) - 1) * gridSize
+      > TPE_min(maxDist,closestD))
+      break; // here we can no longer find the dist we're looking for => end
+
+    for (uint8_t j = 0; j < 2; ++j) // check the two triangles of the segment
+    {
+      TPE_Vec3 testP = TPE_envHalfPlane(point,j == 0 ? bl : tr,
+        TPE_vec3Normalized(j == 0 ?
+          TPE_vec3Cross(TPE_vec3Minus(tl,bl),TPE_vec3Minus(br,bl)) :
+          TPE_vec3Cross(TPE_vec3Minus(br,tr),TPE_vec3Minus(tl,tr))));
+
+      TPE_Unit testD = TPE_DISTANCE(testP,point);
+
+      if (testD < closestD)
+      {
+        if (j == 0 ? // point is inside the triangle?
+          (testP.x >= bl.x && testP.z >= bl.z && (testP.x - bl.x <= tl.z - testP.z)) :
+          (testP.x <= tr.x && testP.z <= tr.z && (testP.x - bl.x >= tl.z - testP.z)))
+        {
+          closestP = testP;
+          closestD = testD;
+        }
+        else
+        {
+          // point outside the triangle, check individual boundary sides
+#define testEdge(a,b) \
+  testP = TPE_envLineSegment(point,a,b); testD = TPE_DISTANCE(testP,point); \
+  if (testD < closestD) { closestP = testP; closestD = testD; }
+
+          testEdge(j == 0 ? bl : tr,br)
+          testEdge(j == 0 ? bl : tr,tl)
+          testEdge(br,tl)
+
+#undef testEdge
+        }
+      }
+    }
+
+    // now step to another square, in spiralling way:
+
+    switch (spiralDir)
+    {
+      case 0: // moving up
+        squareY++; 
+
+        bl = tl; br = tr;
+        tl = TPE_vec3(tl.x,heightFunction(squareX,squareY + 1),tl.z + gridSize);
+        tr = TPE_vec3(tr.x,heightFunction(squareX + 1,squareY + 1),tl.z + gridSize);
+
+        break;
+
+      case 1: // moving right
+        squareX++;
+
+        bl = br; tl = tr;
+        tr = TPE_vec3(tr.x + gridSize,heightFunction(squareX + 1,squareY + 1),tr.z);
+        br = TPE_vec3(br.x + gridSize,heightFunction(squareX + 1,squareY),br.z);
+
+        break;
+
+      case 2: // moving down
+        squareY--;
+
+        tl = bl; tr = br;
+        bl = TPE_vec3(bl.x,heightFunction(squareX,squareY),bl.z - gridSize);
+        br = TPE_vec3(br.x,heightFunction(squareX + 1,squareY),br.z - gridSize);
+
+        break;
+
+      case 3: // moving left
+        squareX--;
+
+        br = bl; tr = tl;
+        tl = TPE_vec3(tl.x - gridSize,heightFunction(squareX,squareY + 1),tl.z);
+        bl = TPE_vec3(bl.x - gridSize,heightFunction(squareX,squareY),bl.z);
+
+        break;
+
+      default: break;
+    }
+
+    spiralStepsLeft--;
+
+    if (spiralStepsLeft == 0)
+    {
+      spiralDir = spiralDir != 0 ? spiralDir - 1 : 3;
+
+      if (spiralDir == 3 || spiralDir == 1)
+        spiralStep++;
+
+      spiralStepsLeft = spiralStep;
+    }
+  }
+
+  return TPE_vec3Plus(closestP,center);
 }
 
 #endif // guard

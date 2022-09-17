@@ -8,7 +8,9 @@
 #include "carModel.h"
 
 #define ACCELERATION 35
-#define TURN_RATE 400
+#define TURN_RATE 300
+#define TURN_FRICTION 300
+#define FORW_FRICTION 32
 
 TPE_Unit rampPoits[6] =
 {
@@ -135,7 +137,7 @@ wheelSize = TPE_JOINT_SIZE(carBody->joints[0]) + 30;
 TPE_bodyMoveBy(carBody,TPE_vec3(3000,1000,0));
 
 carBody->elasticity = 64; 
-carBody->friction = 32;//64; 
+carBody->friction = FORW_FRICTION;//64; 
 
   while (helper_running)
   {
@@ -298,7 +300,7 @@ else
   ja = carSide;
 
 TPE_Vec3 diff =
-TPE_vec3Times(ja,  (TPE_vec3Dot(ja,jv) * 2) / 3     );
+TPE_vec3Times(ja,  (TPE_vec3Dot(ja,jv) * TURN_FRICTION) / TPE_FRACTIONS_PER_UNIT     );
 
 
 jv = TPE_vec3Minus(jv,diff);
