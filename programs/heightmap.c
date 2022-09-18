@@ -6,10 +6,12 @@
 
 TPE_Unit height(int32_t x, int32_t y)
 {
-  //return x * 20;
-  //return 2000 + 100 * x + y;
+  x *= 64;
+  y *= 64;
 
-  return _TPE_hash(x / 3 + y) % 8000;
+  return 
+   TPE_sin(x + TPE_cos(y * 2)) * TPE_sin(y * 2 + TPE_cos(x * 4)) /
+    (TPE_FRACTIONS_PER_UNIT / 4);
 }
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
@@ -23,7 +25,8 @@ return TPE_envLineSegment(p,
     TPE_vec3(XX * 4000,height(XX,YY),YY * 4000),
     TPE_vec3(XX2 * 4000,height(XX2,YY2),YY2 * 4000));
 */
-  return TPE_envHeightmap(p,TPE_vec3(0,0,0),GRID_SIZE,height,maxD);
+  return TPE_envHeightmap(p,
+TPE_vec3(0,0,0),GRID_SIZE,height,maxD);
 
 //return TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(2,-512,0));
 }
@@ -31,7 +34,20 @@ return TPE_envLineSegment(p,
 int main(void)
 {
 
+/*
+printf("%d\n",
+ TPE_testClosestPointFunction(
+environmentDistance,
+  TPE_vec3(-10000,-4000,-10000),
+  TPE_vec3(10000,4000,10000), 
+  10,
+  30,
+  0)
+);
 
+
+return 0;
+*/
 
   helper_init();
 

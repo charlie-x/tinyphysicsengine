@@ -2,15 +2,19 @@ TODO:
 - demo: angry-birds-like game
 - add/remove log with TPE_LOG so that its nice, useful and not spammy
 - env function: heightmap
+- update the player demo (new 3D environment)
+- demo: heightmap
+- demo: ragdoll
+- FOR GODS SAKE clean the code
 - bounding box/sphere test functions/macros for optimization of environment
   building, plus a demo that tests if it actually accelerates it
-- try to make better car physics
 - fast and accurate distance computation as a compile time option, dist comp is
   prolly a bottleneck
 
 DONE:
 - demo: car
 - zero weight joints should behave how? <-- disallowed 0 mass
+- try to make better car physics
 - demo: testing different frictions on skewed plane, also different elasticities
 - test env functions with a single distinct point near camera
 - function that tests validity of an environemnt function, i.e. if it behaves
