@@ -3101,8 +3101,8 @@ TPE_Vec3 TPE_envHeightmap(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit gridSize,
         squareY++; 
 
         bl = tl; br = tr;
-        tl = TPE_vec3(tl.x,heightFunction(squareX,squareY + 1),tl.z + gridSize);
-        tr = TPE_vec3(tr.x,heightFunction(squareX + 1,squareY + 1),tl.z + gridSize);
+        tl = TPE_vec3(bl.x,heightFunction(squareX,squareY + 1),bl.z + gridSize);
+        tr = TPE_vec3(br.x,heightFunction(squareX + 1,squareY + 1),bl.z + gridSize);
 
         break;
 
@@ -3110,8 +3110,8 @@ TPE_Vec3 TPE_envHeightmap(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit gridSize,
         squareX++;
 
         bl = br; tl = tr;
-        tr = TPE_vec3(tr.x + gridSize,heightFunction(squareX + 1,squareY + 1),tr.z);
-        br = TPE_vec3(br.x + gridSize,heightFunction(squareX + 1,squareY),br.z);
+        tr = TPE_vec3(tl.x + gridSize,heightFunction(squareX + 1,squareY + 1),tl.z);
+        br = TPE_vec3(bl.x + gridSize,heightFunction(squareX + 1,squareY),bl.z);
 
         break;
 
@@ -3119,8 +3119,8 @@ TPE_Vec3 TPE_envHeightmap(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit gridSize,
         squareY--;
 
         tl = bl; tr = br;
-        bl = TPE_vec3(bl.x,heightFunction(squareX,squareY),bl.z - gridSize);
-        br = TPE_vec3(br.x,heightFunction(squareX + 1,squareY),br.z - gridSize);
+        bl = TPE_vec3(tl.x,heightFunction(squareX,squareY),tl.z - gridSize);
+        br = TPE_vec3(tr.x,heightFunction(squareX + 1,squareY),tr.z - gridSize);
 
         break;
 
@@ -3128,8 +3128,8 @@ TPE_Vec3 TPE_envHeightmap(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit gridSize,
         squareX--;
 
         br = bl; tr = tl;
-        tl = TPE_vec3(tl.x - gridSize,heightFunction(squareX,squareY + 1),tl.z);
-        bl = TPE_vec3(bl.x - gridSize,heightFunction(squareX,squareY),bl.z);
+        tl = TPE_vec3(tr.x - gridSize,heightFunction(squareX,squareY + 1),tr.z);
+        bl = TPE_vec3(br.x - gridSize,heightFunction(squareX,squareY),br.z);
 
         break;
 

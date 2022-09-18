@@ -59,6 +59,17 @@
   #define S3L_NEAR_CROSS_STRATEGY 1
 #endif
 
+#ifndef HEIGHTMAP_3D_RESOLUTION
+  #define HEIGHTMAP_3D_RESOLUTION 8
+#endif
+
+#ifndef HEIGHTMAP_3D_STEP
+  #define HEIGHTMAP_3D_STEP 512
+#endif
+
+#define HEIGHTMAP_3D_POINTS (HEIGHTMAP_3D_RESOLUTION * HEIGHTMAP_3D_RESOLUTION)
+#define HEIGHTMAP_3D_TRIANGLES (((HEIGHTMAP_3D_RESOLUTION - 1) * (HEIGHTMAP_3D_RESOLUTION - 1) * 2) * 3)
+
 #define S3L_USE_WIDER_TYPES 1
 
 #include "small3dlib.h"
@@ -66,6 +77,10 @@
 #define PIXELS_SIZE (S3L_RESOLUTION_X * S3L_RESOLUTION_Y * 4)
 
 #define helper_lastBody tpe_world.bodies[tpe_world.bodyCount - 1]
+
+S3L_Unit heightmapVertices[HEIGHTMAP_3D_POINTS * 3];
+S3L_Index heightmapTriangles[HEIGHTMAP_3D_TRIANGLES];
+S3L_Model3D heightmapModel;
 
 S3L_Unit cubeVertices[] = { S3L_CUBE_VERTICES(TPE_FRACTIONS_PER_UNIT) };  
 S3L_Index cubeTriangles[] = { S3L_CUBE_TRIANGLES };
@@ -582,7 +597,7 @@ void s3l_drawPixel(S3L_PixelInfo *p)
 {
   if (p->triangleIndex != s3l_previousTriangleID)
   {
-    S3L_Index *v = _helper_drawnModel->triangles 
+    const S3L_Index *v = _helper_drawnModel->triangles 
       + 3 * p->triangleIndex;
 
     TPE_Vec3 a = TPE_vec3(
@@ -730,6 +745,21 @@ void helper_draw3DSphereInside(TPE_Vec3 pos, TPE_Vec3 scale, TPE_Vec3 rot)
   helper_drawModel(&sphereModel,pos,scale,rot);
 }
 
+TPE_Vec3 helper_heightmapPointLocation(int index)
+{
+  return TPE_vec3(
+    (-1 * HEIGHTMAP_3D_RESOLUTION * HEIGHTMAP_3D_STEP) / 2 + (index % HEIGHTMAP_3D_RESOLUTION) * HEIGHTMAP_3D_STEP + HEIGHTMAP_3D_STEP / 2,0,
+    (-1 * HEIGHTMAP_3D_RESOLUTION * HEIGHTMAP_3D_STEP) / 2 + (index / HEIGHTMAP_3D_RESOLUTION) * HEIGHTMAP_3D_STEP + HEIGHTMAP_3D_STEP / 2);
+}
+
+void helper_setHeightmapPoint(uint16_t x, uint16_t y, TPE_Unit height)
+{
+  x = x % HEIGHTMAP_3D_RESOLUTION;
+  y = y % HEIGHTMAP_3D_RESOLUTION;
+
+  heightmapVertices[(y * HEIGHTMAP_3D_RESOLUTION + x) * 3 + 1] = height;
+}
+
 void helper_init(void)
 {
   helper_lightDir = TPE_vec3Normalized(TPE_vec3(300,200,100));
@@ -758,6 +788,48 @@ void helper_init(void)
     cylinderTriangleIndices,CYLINDER_TRIANGLE_COUNT,&cylinderModel);
 
   S3L_model3DInit(triangleVertices,3,triangleTriangles,2,&triangleModel);
+
+  // build the heightmap 3D model:
+
+  for (int i = 0; i < HEIGHTMAP_3D_POINTS; ++i)
+  {
+    TPE_Vec3 pos = helper_heightmapPointLocation(i);
+
+    heightmapVertices[i * 3] = pos.x;
+    heightmapVertices[i * 3 + 1] = pos.y;
+    heightmapVertices[i * 3 + 2] = pos.z;
+  }
+
+  int index = 0;
+
+  for (int j = 0; j < HEIGHTMAP_3D_RESOLUTION - 1; ++j)
+    for (int i = 0; i < HEIGHTMAP_3D_RESOLUTION - 1; ++i)
+    {
+      heightmapTriangles[index] = j * HEIGHTMAP_3D_RESOLUTION + i;
+      heightmapTriangles[index + 1] = heightmapTriangles[index] + 1;
+      heightmapTriangles[index + 2] = heightmapTriangles[index] + HEIGHTMAP_3D_RESOLUTION;
+
+      heightmapTriangles[index + 3] = heightmapTriangles[index + 1];
+      heightmapTriangles[index + 4] = heightmapTriangles[index + 1] + HEIGHTMAP_3D_RESOLUTION;
+      heightmapTriangles[index + 5] = heightmapTriangles[index + 4] - 1;
+/*
+      heightmapTriangles[index] = j * HEIGHTMAP_3D_RESOLUTION + i;
+      heightmapTriangles[index + 1] = heightmapTriangles[index] + 1;
+      heightmapTriangles[index + 2] = heightmapTriangles[index + 1] + HEIGHTMAP_3D_RESOLUTION;
+
+      heightmapTriangles[index + 3] = heightmapTriangles[index];
+      heightmapTriangles[index + 4] = heightmapTriangles[index + 1] + HEIGHTMAP_3D_RESOLUTION;
+      heightmapTriangles[index + 5] = heightmapTriangles[index] + HEIGHTMAP_3D_RESOLUTION;
+*/
+      index += 6;
+    }
+
+  S3L_model3DInit(
+    heightmapVertices,
+    HEIGHTMAP_3D_POINTS * 3,
+    heightmapTriangles,
+    ((HEIGHTMAP_3D_RESOLUTION - 1) * (HEIGHTMAP_3D_RESOLUTION - 1) * 2),
+    &heightmapModel);
 
   S3L_sceneInit(0,1,&s3l_scene);
 

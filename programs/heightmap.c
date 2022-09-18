@@ -1,17 +1,19 @@
 #define CAMERA_STEP 200
+#define GRID_SIZE 1000
+
+#define HEIGHTMAP_3D_RESOLUTION 32
+#define HEIGHTMAP_3D_STEP GRID_SIZE
 
 #include "helper.h"
 
-#define GRID_SIZE 3000
-
 TPE_Unit height(int32_t x, int32_t y)
 {
-  x *= 64;
-  y *= 64;
+  x *= 8;
+  y *= 8;
 
   return 
    TPE_sin(x + TPE_cos(y * 2)) * TPE_sin(y * 2 + TPE_cos(x * 4)) /
-    (TPE_FRACTIONS_PER_UNIT / 4);
+    (TPE_FRACTIONS_PER_UNIT / 2);
 }
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
@@ -34,6 +36,13 @@ TPE_vec3(0,0,0),GRID_SIZE,height,maxD);
 int main(void)
 {
 
+#if 0
+
+  TPE_Vec3 aaa = TPE_envHeightmap(TPE_vec3(-4759,5492,1120 ),
+TPE_vec3(0,0,0),GRID_SIZE,height,50000);
+
+// WHY Z 1000 ???? SHOULD BE 0
+
 /*
 printf("%d\n",
  TPE_testClosestPointFunction(
@@ -44,12 +53,19 @@ environmentDistance,
   30,
   0)
 );
-
-
-return 0;
 */
 
+TPE_PRINTF_VEC3(aaa);
+printf("\n");
+
+return 0;
+#endif
+
   helper_init();
+
+for (int y = 0; y < HEIGHTMAP_3D_RESOLUTION; ++y)
+  for (int x = 0; x < HEIGHTMAP_3D_RESOLUTION; ++x)
+    helper_setHeightmapPoint(x,y,height(x - HEIGHTMAP_3D_RESOLUTION / 2,y - HEIGHTMAP_3D_RESOLUTION / 2));
 
   helper_debugDrawOn = 1;
 
@@ -77,21 +93,11 @@ helper_printCamera();
     (s3l_scene.camera.transform.translation.z < 0));
 }
 
+helper_drawModel(&heightmapModel,
+TPE_vec3(-GRID_SIZE / 2,0,-GRID_SIZE / 2),TPE_vec3(512,512,512),TPE_vec3(0,0,0));
+
     if (helper_debugDrawOn)
       helper_debugDraw(1);
-
-TPE_Vec3 ppp =
-  TPE_envHeightmap(
-TPE_vec3(
-s3l_scene.camera.transform.translation.x,
-s3l_scene.camera.transform.translation.y,
-s3l_scene.camera.transform.translation.z
-)
-,TPE_vec3(0,0,0),GRID_SIZE,height,50000);
-    
-helper_drawPoint3D(ppp,0,255,0);
-
-
 
 for (int yy = -5; yy <= 5; ++yy)
   for (int xx = -5; xx <= 5; ++xx)
@@ -100,6 +106,11 @@ for (int yy = -5; yy <= 5; ++yy)
     helper_drawPoint3D(aaa,255,0,0);
 
   } 
+
+
+
+
+
 
     helper_frameEnd();
   }
