@@ -4,6 +4,8 @@
 #define HEIGHTMAP_3D_RESOLUTION 32
 #define HEIGHTMAP_3D_STEP GRID_SIZE
 
+#define MAP_LIMIT ((HEIGHTMAP_3D_RESOLUTION * HEIGHTMAP_3D_STEP) / 2)
+
 #include "helper.h"
 
 TPE_Unit height(int32_t x, int32_t y)
@@ -18,99 +20,79 @@ TPE_Unit height(int32_t x, int32_t y)
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
-/*
-#define XX 1
-#define YY 0
-#define XX2 0
-#define YY2 1
-return TPE_envLineSegment(p,
-    TPE_vec3(XX * 4000,height(XX,YY),YY * 4000),
-    TPE_vec3(XX2 * 4000,height(XX2,YY2),YY2 * 4000));
-*/
-  return TPE_envHeightmap(p,
-TPE_vec3(0,0,0),GRID_SIZE,height,maxD);
-
-//return TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(2,-512,0));
+  return TPE_envHeightmap(p,TPE_vec3(0,0,0),GRID_SIZE,height,maxD);
 }
 
 int main(void)
 {
-
-#if 0
-
-  TPE_Vec3 aaa = TPE_envHeightmap(TPE_vec3(-4759,5492,1120 ),
-TPE_vec3(0,0,0),GRID_SIZE,height,50000);
-
-// WHY Z 1000 ???? SHOULD BE 0
-
-/*
-printf("%d\n",
- TPE_testClosestPointFunction(
-environmentDistance,
-  TPE_vec3(-10000,-4000,-10000),
-  TPE_vec3(10000,4000,10000), 
-  10,
-  30,
-  0)
-);
-*/
-
-TPE_PRINTF_VEC3(aaa);
-printf("\n");
-
-return 0;
-#endif
-
   helper_init();
 
-for (int y = 0; y < HEIGHTMAP_3D_RESOLUTION; ++y)
-  for (int x = 0; x < HEIGHTMAP_3D_RESOLUTION; ++x)
-    helper_setHeightmapPoint(x,y,height(x - HEIGHTMAP_3D_RESOLUTION / 2,y - HEIGHTMAP_3D_RESOLUTION / 2));
+  helper_debugDrawOn = 0;
 
-  helper_debugDrawOn = 1;
+  for (int y = 0; y < HEIGHTMAP_3D_RESOLUTION; ++y)
+    for (int x = 0; x < HEIGHTMAP_3D_RESOLUTION; ++x)
+      helper_setHeightmapPoint(x,y,height(x - HEIGHTMAP_3D_RESOLUTION / 2,y - HEIGHTMAP_3D_RESOLUTION / 2));
 
   tpe_world.environmentFunction = environmentDistance;
 
-  s3l_scene.camera.transform.translation.z = -3000;
-  s3l_scene.camera.transform.translation.y = 2000;
-  s3l_scene.camera.transform.translation.x = 0;
-  s3l_scene.camera.transform.rotation.y = TPE_FRACTIONS_PER_UNIT / 16;
+  helper_addBox(700,700,700,300,1000);
+
+  TPE_bodyMoveTo(&helper_lastBody,TPE_vec3(0,5000,0));
+
+  s3l_scene.camera.transform.rotation.x = -50;
 
   while (helper_running)
   {
     helper_frameStart();
 
-    helper_cameraFreeMovement();
+    //helper_cameraFreeMovement();
 
-if (helper_frame % 32 == 0)
-{
-helper_printCamera();
+    TPE_Vec3 bodyCenter = TPE_bodyGetCenterOfMass(&tpe_world.bodies[0]);
 
-  printf("cam square: %d %d\n",
-    s3l_scene.camera.transform.translation.x / GRID_SIZE -
-    (s3l_scene.camera.transform.translation.x < 0),
-    s3l_scene.camera.transform.translation.z / GRID_SIZE -
-    (s3l_scene.camera.transform.translation.z < 0));
-}
+    s3l_scene.camera.transform.translation.x = bodyCenter.x;
+    s3l_scene.camera.transform.translation.y = bodyCenter.y + 3000;
+    s3l_scene.camera.transform.translation.z = bodyCenter.z - 3000;
 
-helper_drawModel(&heightmapModel,
-TPE_vec3(-GRID_SIZE / 2,0,-GRID_SIZE / 2),TPE_vec3(512,512,512),TPE_vec3(0,0,0));
+    if (bodyCenter.x < -1 * MAP_LIMIT)
+      TPE_bodyMoveBy(&tpe_world.bodies[0],TPE_vec3(2 * MAP_LIMIT,0,0));
+    else if (bodyCenter.x > MAP_LIMIT)
+      TPE_bodyMoveBy(&tpe_world.bodies[0],TPE_vec3(-2 * MAP_LIMIT,0,0));
+
+    if (bodyCenter.z < -1 * MAP_LIMIT)
+      TPE_bodyMoveBy(&tpe_world.bodies[0],TPE_vec3(0,0,2 * MAP_LIMIT));
+    else if (bodyCenter.z > MAP_LIMIT)
+      TPE_bodyMoveBy(&tpe_world.bodies[0],TPE_vec3(0,0,-2 * MAP_LIMIT));
+
+    if (helper_frame % 32 == 0)
+      helper_printCPU();
+
+    helper_set3DColor(0,200,100);
+    helper_drawModel(&heightmapModel,TPE_vec3(-GRID_SIZE / 2,0,-GRID_SIZE / 2),TPE_vec3(512,512,512),TPE_vec3(0,0,0));
+
+    helper_set3DColor(100,100,200);
+
+    helper_draw3DBox(bodyCenter,TPE_vec3(1200,1200,1200),
+      TPE_bodyGetRotation(&tpe_world.bodies[0],0,1,2));
+
+    for (int i = 0; i < tpe_world.bodyCount; ++i)
+      TPE_bodyApplyGravity(&tpe_world.bodies[i],7);
+
+    TPE_worldStep(&tpe_world);
+
+#define ACC 10
+
+    if (sdl_keyboard[SDL_SCANCODE_W])
+      TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3(0,0,ACC));
+    else if (sdl_keyboard[SDL_SCANCODE_S])
+      TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3(0,0,-1 * ACC));
+
+    if (sdl_keyboard[SDL_SCANCODE_A])
+      TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3(-1 * ACC,0,0));
+    else if (sdl_keyboard[SDL_SCANCODE_D])
+      TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3(ACC,0,0));
 
     if (helper_debugDrawOn)
       helper_debugDraw(1);
-
-for (int yy = -5; yy <= 5; ++yy)
-  for (int xx = -5; xx <= 5; ++xx)
-  {
-    TPE_Vec3 aaa = TPE_vec3(xx * GRID_SIZE,height(xx,yy),yy * GRID_SIZE);
-    helper_drawPoint3D(aaa,255,0,0);
-
-  } 
-
-
-
-
-
 
     helper_frameEnd();
   }
