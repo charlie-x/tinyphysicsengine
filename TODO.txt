@@ -1,17 +1,19 @@
 TODO:
 - demo: angry-birds-like game
 - add/remove log with TPE_LOG so that its nice, useful and not spammy
-- env function: heightmap
 - update the player demo (new 3D environment)
-- demo: heightmap
 - demo: ragdoll
 - FOR GODS SAKE clean the code
+- current dist approx fails e.g. with heightmaps -- maybe just use the
+  non-approx version at all times in places where the approx fails?
 - bounding box/sphere test functions/macros for optimization of environment
   building, plus a demo that tests if it actually accelerates it
 - fast and accurate distance computation as a compile time option, dist comp is
   prolly a bottleneck
 
 DONE:
+- env function: heightmap
+- demo: heightmap
 - demo: car
 - zero weight joints should behave how? <-- disallowed 0 mass
 - try to make better car physics

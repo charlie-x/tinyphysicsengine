@@ -3,6 +3,13 @@
 #define ROOM_SIZE 7000
 #define CUBE_SIZE 800
 
+TPE_Unit sides[6] =
+{
+  0,0,
+  1000,1000,
+  -1000,2000
+};
+
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
   return TPE_envAABoxInside(p,TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE));
@@ -33,18 +40,18 @@ int main(void)
 
   for (int i = 0; i < 6; ++i)
 {
-    //helper_addBox(CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 4,100);
-helper_addCenterBox(CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 4,100);
+    helper_addBox(CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 4,10);
+//helper_addCenterBox(CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 4,50);
 
-tpe_world.bodies[tpe_world.bodyCount - 1].elasticity = 256;
-tpe_world.bodies[tpe_world.bodyCount - 1].friction = 256;
+tpe_world.bodies[tpe_world.bodyCount - 1].elasticity = 200;
+tpe_world.bodies[tpe_world.bodyCount - 1].friction = 0;
 
 //if (i % 2)
 //tpe_world.bodies[tpe_world.bodyCount - 1].flags |= TPE_BODY_FLAG_NONROTATING;
 }
 
 #define move(i,x,y) \
-  TPE_bodyMove(&tpe_world.bodies[i],TPE_vec3((CUBE_SIZE / 2 + 10) * x,10 + CUBE_SIZE / 2 + y * (CUBE_SIZE + 10),0));
+  TPE_bodyMoveBy(&tpe_world.bodies[i],TPE_vec3((CUBE_SIZE / 2 + 10) * x,10 + CUBE_SIZE / 2 + y * (CUBE_SIZE + 10),0));
 
   move(0,0,0)
   move(1,-2,0)
@@ -62,16 +69,21 @@ tpe_world.bodies[tpe_world.bodyCount - 1].friction = 256;
   }
 
   ballJoints[0] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2,0),0);
-  ballJoints[1] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - 100,-600),0);
-  ballJoints[2] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - 200,-1200),0);
-  ballJoints[3] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - 300,-1800),400);
+  ballJoints[1] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - 100,-650),0);
+  ballJoints[2] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - 300,-1300),0);
+  ballJoints[3] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - 500,-1950),400);
+  ballJoints[3].velocity[0] = 4;
   ballJoints[3].velocity[1] = -200;
+  ballJoints[3].velocity[2] = -200;
 
   ballConnections[0].joint1 = 0; ballConnections[0].joint2 = 1;
   ballConnections[1].joint1 = 1; ballConnections[1].joint2 = 2;
   ballConnections[2].joint1 = 2; ballConnections[2].joint2 = 3;
 
-  TPE_bodyInit(&tpe_world.bodies[6],ballJoints,4,ballConnections,3,10000);
+  TPE_bodyInit(&tpe_world.bodies[6],ballJoints,4,ballConnections,3,1000);
+
+tpe_world.bodies[6].friction = 0;
+tpe_world.bodies[6].elasticity = 512;
 
   tpe_world.bodyCount++;
     
@@ -100,24 +112,24 @@ tpe_world.bodies[tpe_world.bodyCount - 1].friction = 256;
 
     TPE_worldStep(&tpe_world);
 
-    helper_set3dColor(100,100,100);
-    helper_draw3dBoxInside(TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE),TPE_vec3(0,0,0));
+    helper_set3DColor(170,170,170);
+    helper_draw3DBoxInside(TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE),TPE_vec3(0,0,0));
 
-    helper_set3dColor(200,10,10);
+    helper_set3DColor(200,10,10);
 
     for (int i = 0; i < 6; ++i)
     {
-      TPE_bodyApplyGravity(&tpe_world.bodies[i],5);
+      TPE_bodyApplyGravity(&tpe_world.bodies[i],7);
 
       if (!(tpe_world.bodies[i].flags & TPE_BODY_FLAG_DEACTIVATED))
         updateOrientPos(i);
 
-      helper_draw3dBox(cubePositions[i],TPE_vec3(CUBE_SIZE,CUBE_SIZE,CUBE_SIZE),cubeOrientations[i]);
+      helper_draw3DBox(cubePositions[i],TPE_vec3(CUBE_SIZE,CUBE_SIZE,CUBE_SIZE),cubeOrientations[i]);
     }
 
     tpe_world.bodies[6].joints[3].velocity[1] -= 5;
 
-    helper_draw3dSphere(tpe_world.bodies[6].joints[3].position,TPE_vec3(400,400,400),TPE_vec3(0,0,0)  );
+    helper_draw3DSphere(tpe_world.bodies[6].joints[3].position,TPE_vec3(400,400,400),TPE_vec3(0,0,0)  );
 
     for (int i = 0; i < 3; ++i)
       helper_drawLine3D(
@@ -126,7 +138,7 @@ tpe_world.bodies[tpe_world.bodyCount - 1].friction = 256;
         255,0,0);
 
     if (helper_debugDrawOn)
-      helper_debugDraw();
+      helper_debugDraw(1);
 
     helper_frameEnd();
   }

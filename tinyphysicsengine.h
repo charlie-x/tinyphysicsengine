@@ -59,11 +59,12 @@ typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
 
 #define TPE_JOINT_SIZE(joint) ((joint).sizeDivided * TPE_JOINT_SIZE_MULTIPLIER)
 
-#ifndef TPE_APPROXIMATE_LENGTH
+#ifndef TPE_APPROXIMATE_LENGT
   #define TPE_APPROXIMATE_LENGTH 0      /**< whether or not use length/distance 
                                            approximation rather than exact 
                                            calculation (1 is faster but less
-                                           accurate) */
+                                           accurate), beware of possible lower
+                                           stability */
 #endif
 
 #if !TPE_APPROXIMATE_LENGTH
@@ -686,22 +687,48 @@ TPE_Unit TPE_vec3Len(TPE_Vec3 v)
 
 TPE_Unit TPE_vec3LenApprox(TPE_Vec3 v)
 {
-  if (v.x < 0)
-    v.x *= -1;
+  // 48 sided polyhedron approximation
 
-  if (v.y < 0)
-    v.y *= -1;
-
-  if (v.z < 0)
-    v.z *= -1;
-
-  TPE_Unit sum = v.x + v.y + v.z;
-
-  v.x = (v.x > v.y) ? 
-    (v.x > v.z ? v.x : v.z) : 
-    (v.y > v.z ? v.y : v.z);
-
-  return (v.x + sum) / 2;
+  if (v.x < 0) v.x *= -1;
+  if (v.y < 0) v.y *= -1;
+  if (v.z < 0) v.z *= -1;
+ 
+  if (v.x < v.y) // order the coordinates
+  {
+    if (v.x < v.z)
+    {
+      if (v.y < v.z)
+      { // v.x < v.y < v.z
+        int32_t t = v.x; v.x = v.z; v.z = t;
+      }
+      else
+      { // v.x < v.z < v.y
+        int32_t t = v.x; v.x = v.y; v.y = t;
+        t = v.z; v.z = v.y; v.y = t;
+      }
+    }
+    else
+    { // v.z < v.x < v.y
+      int32_t t = v.x; v.x = v.y; v.y = t;
+    }
+  }
+  else
+  {
+    if (v.y < v.z)
+    {
+      if (v.x < v.z)
+      { // v.y < v.x < v.z
+        int32_t t = v.y; v.y = v.z; v.z = t;
+        t = v.x; v.x = v.y; v.y = t;  
+      }
+      else
+      { // v.y < v.z < v.x
+        int32_t t = v.y; v.y = v.z; v.z = t;
+      }
+    }
+  }
+    
+  return (893 * v.x + 446 * v.y + 223 * v.z) / 1024;
 }
 
 TPE_Unit TPE_dist(TPE_Vec3 p1, TPE_Vec3 p2)
