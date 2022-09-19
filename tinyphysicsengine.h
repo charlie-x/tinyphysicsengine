@@ -75,8 +75,6 @@ typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
   #define TPE_LENGTH TPE_vec3LenApprox
 #endif
 
-// TODO: faster and more accurate distance approx function based on regions/LUT
-
 #ifndef TPE_LOG
   #define TPE_LOG(s) ;
 #endif

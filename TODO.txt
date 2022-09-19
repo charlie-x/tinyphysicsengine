@@ -5,11 +5,10 @@ TODO:
 - demo: ragdoll
 - FOR GODS SAKE clean the code
 - current dist approx fails e.g. with heightmaps -- maybe just use the
-  non-approx version at all times in places where the approx fails?
+  non-approx version at all times in places where the approx fails? Also
+  TEST THE APPROX DIST with different env functions
 - bounding box/sphere test functions/macros for optimization of environment
   building, plus a demo that tests if it actually accelerates it
-- fast and accurate distance computation as a compile time option, dist comp is
-  prolly a bottleneck
 
 DONE:
 - env function: heightmap
@@ -19,6 +18,8 @@ DONE:
 - try to make better car physics
 - demo: testing different frictions on skewed plane, also different elasticities
 - test env functions with a single distinct point near camera
+- fast and accurate distance computation as a compile time option, dist comp is
+  prolly a bottleneck
 - function that tests validity of an environemnt function, i.e. if it behaves
   mathematically correct + test built in env functions with it
 - bug? bodies stuck inside each other resist falling down by gravity (stack.c)

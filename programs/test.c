@@ -55,6 +55,21 @@ TPE_Vec3 envSimple(TPE_Vec3 p, TPE_Unit maxD)
   TPE_ENV_END
 }
 
+TPE_Unit heightMap(int32_t x, int32_t y)
+{
+  x *= 16;
+  y *= 16;
+
+  return 
+    TPE_sin(x + TPE_cos(y * 2)) * TPE_sin(y * 2 + TPE_cos(x * 4)) /
+     (TPE_FRACTIONS_PER_UNIT / 2);
+}
+
+TPE_Vec3 envFuncHeightmap(TPE_Vec3 p, TPE_Unit maxD)
+{
+  return TPE_envHeightmap(p,TPE_vec3(10,20,30),500,heightMap,maxD);
+}
+
 int main(void)
 {
   puts("== testing tinyphysicsengine ==");
@@ -147,6 +162,10 @@ int main(void)
 
     ass(TPE_testClosestPointFunction(envFunc2,TPE_vec3(-2000,-1000,-5000),
       TPE_vec3(5000,6000,7000),32,30,0),"env function");
+    
+    ass(TPE_testClosestPointFunction(envFuncHeightmap,
+      TPE_vec3(-2000,-1000,-5000),TPE_vec3(4000,6000,7000),6,50,0),
+      "env function (heightmap)");
 
     ass(!TPE_testClosestPointFunction(envFuncBad,TPE_vec3(-1000,-1000,-1000),
       TPE_vec3(2000,3000,100),32,40,0),"env function bad");
