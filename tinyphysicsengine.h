@@ -478,7 +478,7 @@ TPE_Vec3 TPE_envAATriPrism(TPE_Vec3 point, TPE_Vec3 center,
   (TPE_abs(envBCubeC.z - bodyBCubeC.z) <= ((bodyBCubeR) + (envBCubeR))))
 
 #define TPE_ENV_BSPHERE_TEST(bodyBSphereC,bodyBSphereR,envBSphereC,envBSphereR)\
-  (TPE_DISTANCE(bodyBCubeC,envBSphereC) <= ((bodyBSphereR) + (envBSphereR)))
+  (TPE_DISTANCE(bodyBSphereC,envBSphereC) <= ((bodyBSphereR) + (envBSphereR)))
 
 //---------------------------
 

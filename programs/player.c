@@ -6,9 +6,6 @@
 #include "helper.h"
 #include "levelModel.h"
 
-#define ROOM_SIZE 10000
-#define CUBE_SIZE 800
-
 TPE_Unit elevatorHeight;
 
 TPE_Unit ramp[6] = { 1600,0, -500,1400, -700,0 };
@@ -17,38 +14,13 @@ TPE_Unit ramp2[6] = { 2000,-5000, 1500,1700, -5000,-500 };
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
   TPE_ENV_START( TPE_envAABoxInside(p,TPE_vec3(0,2450,-2100),TPE_vec3(12600,5000,10800)),p )
-//  TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(-10000,-10000,-10000),TPE_vec3(-1386,10000,-3160)),p )
   TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(-5693,0,-6580),TPE_vec3(4307,20000,3420)),p )
   TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(-10000,-1000,-10000),TPE_vec3(11085,2500,9295)),p )
-
-
   TPE_ENV_NEXT ( TPE_envAATriPrism(p,TPE_vec3(-5400,0,0),ramp,3000,2), p)
-  
-
-TPE_ENV_NEXT ( 
-TPE_envAATriPrism(p,
-TPE_vec3(2076,651,-6780),ramp2,3000,0), p)
-
-  
-TPE_ENV_NEXT( TPE_envAABox(p,
-TPE_vec3(7000,0,-8500),
-TPE_vec3(3405,2400,3183)),p )
-
-
-TPE_ENV_NEXT( TPE_envSphere(p,TPE_vec3(2521,-100,-3799),
-1200),p )
-
-// 2521 650 -3799
-
-//  TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(4000,80,2500),TPE_vec3(1000,80,500)),p )
-//  TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(-1000,270,4500),TPE_vec3(4000,270,250)),p )
-// 5298 651 -4432
-
-TPE_ENV_NEXT( 
-TPE_envAABox(p,TPE_vec3(5300,elevatorHeight,-4400),
-TPE_vec3(1000,elevatorHeight,1000)),p )
-
-
+  TPE_ENV_NEXT ( TPE_envAATriPrism(p,TPE_vec3(2076,651,-6780),ramp2,3000,0), p)
+  TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(7000,0,-8500),TPE_vec3(3405,2400,3183)),p )
+  TPE_ENV_NEXT( TPE_envSphere(p,TPE_vec3(2521,-100,-3799),1200),p )
+  TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(5300,elevatorHeight,-4400),TPE_vec3(1000,elevatorHeight,1000)),p )
   TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(5051,0,1802),TPE_vec3(-255,0,-255)),p )
   TPE_ENV_NEXT( TPE_envInfiniteCylinder(p,TPE_vec3(320,0,170),TPE_vec3(0,255,0),530),p )
   TPE_ENV_END
@@ -109,27 +81,23 @@ int main(void)
     if (jumpCountdown > 0)
       jumpCountdown--;
 
+    TPE_Vec3 groundPoint = environmentDistance(playerBody->joints[0].position,groundDist);
 
+    onGround = (playerBody->flags & TPE_BODY_FLAG_DEACTIVATED) ||
+     (TPE_DISTANCE(playerBody->joints[0].position,groundPoint)
+     <= groundDist && groundPoint.y < playerBody->joints[0].position.y - groundDist / 2 
+      );
 
-TPE_Vec3 groundPoint = environmentDistance(playerBody->joints[0].position,groundDist);
+    if (!onGround)
+    {
+      /* it's possible that the closest point is e.g. was a perpend wall so also
+         additionally check directly below */
 
-onGround = (playerBody->flags & TPE_BODY_FLAG_DEACTIVATED) ||
- (TPE_DISTANCE(playerBody->joints[0].position,groundPoint)
- <= groundDist && groundPoint.y < playerBody->joints[0].position.y - groundDist / 2 
-  );
-
-if (!onGround)
-{
-  /* it's possible that the closest point is e.g. was a perpend wall so also
-     additionally check directly below */
-
-  onGround = TPE_DISTANCE( playerBody->joints[0].position,
-      TPE_castEnvironmentRay(playerBody->joints[0].position,
-      TPE_vec3(0,-1 * TPE_FRACTIONS_PER_UNIT,0),tpe_world.environmentFunction, 
-      128,512,512)) <= groundDist;
-}
-
-
+      onGround = TPE_DISTANCE( playerBody->joints[0].position,
+        TPE_castEnvironmentRay(playerBody->joints[0].position,
+        TPE_vec3(0,-1 * TPE_FRACTIONS_PER_UNIT,0),tpe_world.environmentFunction, 
+        128,512,512)) <= groundDist;
+    }
 
     elevatorHeight =
 (1250 * (TPE_sin(helper_frame * 4) + TPE_FRACTIONS_PER_UNIT)) /

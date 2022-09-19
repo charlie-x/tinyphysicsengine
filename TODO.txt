@@ -1,16 +1,17 @@
 TODO:
 - demo: angry-birds-like game
 - add/remove log with TPE_LOG so that its nice, useful and not spammy
-- update the player demo (new 3D environment)
 - demo: ragdoll
 - FOR GODS SAKE clean the code
 - current dist approx fails e.g. with heightmaps -- maybe just use the
   non-approx version at all times in places where the approx fails? Also
   TEST THE APPROX DIST with different env functions
-- bounding box/sphere test functions/macros for optimization of environment
-  building, plus a demo that tests if it actually accelerates it
+- env function: cone
 
 DONE:
+- update the player demo (new 3D environment)
+- bounding box/sphere test functions/macros for optimization of environment
+  building, plus a demo that tests if it actually accelerates it
 - env function: heightmap
 - demo: heightmap
 - demo: car
