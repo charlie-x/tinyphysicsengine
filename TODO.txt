@@ -1,5 +1,4 @@
 TODO:
-- demo: angry-birds-like game
 - add/remove log with TPE_LOG so that its nice, useful and not spammy
 - demo: ragdoll
 - demos for showing basic use (without using helper.h)
@@ -10,10 +9,13 @@ TODO:
 
 DONE:
 - update the player demo (new 3D environment)
+- bug: catapult demo doesn't work as expected with soft body velocity
+  cancelling
 - bounding box/sphere test functions/macros for optimization of environment
   building, plus a demo that tests if it actually accelerates it
 - env function: heightmap
 - demo: heightmap
+- demo: angry-birds-like game
 - demo: car
 - env function: cone
 - zero weight joints should behave how? <-- disallowed 0 mass

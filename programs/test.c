@@ -28,8 +28,10 @@ TPE_Vec3 envFunc2(TPE_Vec3 p, TPE_Unit maxD)
 
   if (TPE_ENV_BCUBE_TEST(p,maxD,TPE_vec3(300,-40,50),1100) )
   {
-    TPE_ENV_NEXT( TPE_envCylinder(p, TPE_vec3(300,-40,50), TPE_vec3(-400,-200,-50), 751), p)
+    TPE_ENV_NEXT( TPE_envCylinder(p,TPE_vec3(300,-40,50), TPE_vec3(-400,-200,-50), 751), p)
   }
+
+  TPE_ENV_NEXT( TPE_envCylinder(p,TPE_vec3(-500,500,-20),TPE_vec3(-400,600,700),500), p)
 
   TPE_ENV_END
 }

@@ -300,7 +300,7 @@ else
   ja = carSide;
 
 TPE_Vec3 diff =
-TPE_vec3Times(ja,  (TPE_vec3Dot(ja,jv) * TURN_FRICTION) / TPE_FRACTIONS_PER_UNIT     );
+TPE_vec3Times(ja,  (TPE_vec3Dot(ja,jv) * TURN_FRICTION) / TPE_F     );
 
 
 jv = TPE_vec3Minus(jv,diff);
@@ -321,21 +321,21 @@ if (backOnGround)
 {
 if (sdl_keyboard[SDL_SCANCODE_W])
 {
-  carBody->joints[0].velocity[0] += (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[0].velocity[1] += (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[0].velocity[2] += (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[0] += (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[1] += (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[2] += (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[0] += (carForw.x * ACCELERATION) / TPE_F;
+  carBody->joints[0].velocity[1] += (carForw.y * ACCELERATION) / TPE_F;
+  carBody->joints[0].velocity[2] += (carForw.z * ACCELERATION) / TPE_F;
+  carBody->joints[1].velocity[0] += (carForw.x * ACCELERATION) / TPE_F;
+  carBody->joints[1].velocity[1] += (carForw.y * ACCELERATION) / TPE_F;
+  carBody->joints[1].velocity[2] += (carForw.z * ACCELERATION) / TPE_F;
 }
 else if (sdl_keyboard[SDL_SCANCODE_S])
 {
-  carBody->joints[0].velocity[0] -= (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[0].velocity[1] -= (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[0].velocity[2] -= (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[0] -= (carForw.x * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[1] -= (carForw.y * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[2] -= (carForw.z * ACCELERATION) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[0] -= (carForw.x * ACCELERATION) / TPE_F;
+  carBody->joints[0].velocity[1] -= (carForw.y * ACCELERATION) / TPE_F;
+  carBody->joints[0].velocity[2] -= (carForw.z * ACCELERATION) / TPE_F;
+  carBody->joints[1].velocity[0] -= (carForw.x * ACCELERATION) / TPE_F;
+  carBody->joints[1].velocity[1] -= (carForw.y * ACCELERATION) / TPE_F;
+  carBody->joints[1].velocity[2] -= (carForw.z * ACCELERATION) / TPE_F;
 }
 
 /*
@@ -343,21 +343,21 @@ TPE_Unit acc = ACCELERATION + speed;
 
 if (sdl_keyboard[SDL_SCANCODE_W])
 {
-  carBody->joints[0].velocity[0] += (carForw.x * acc) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[0].velocity[1] += (carForw.y * acc) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[0].velocity[2] += (carForw.z * acc) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[0] += (carForw.x * acc) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[1] += (carForw.y * acc) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[2] += (carForw.z * acc) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[0] += (carForw.x * acc) / TPE_F;
+  carBody->joints[0].velocity[1] += (carForw.y * acc) / TPE_F;
+  carBody->joints[0].velocity[2] += (carForw.z * acc) / TPE_F;
+  carBody->joints[1].velocity[0] += (carForw.x * acc) / TPE_F;
+  carBody->joints[1].velocity[1] += (carForw.y * acc) / TPE_F;
+  carBody->joints[1].velocity[2] += (carForw.z * acc) / TPE_F;
 }
 else if (sdl_keyboard[SDL_SCANCODE_S])
 {
-  carBody->joints[0].velocity[0] -= (carForw.x * acc) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[0].velocity[1] -= (carForw.y * acc) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[0].velocity[2] -= (carForw.z * acc) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[0] -= (carForw.x * acc) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[1] -= (carForw.y * acc) / TPE_FRACTIONS_PER_UNIT;
-  carBody->joints[1].velocity[2] -= (carForw.z * acc) / TPE_FRACTIONS_PER_UNIT;
+  carBody->joints[0].velocity[0] -= (carForw.x * acc) / TPE_F;
+  carBody->joints[0].velocity[1] -= (carForw.y * acc) / TPE_F;
+  carBody->joints[0].velocity[2] -= (carForw.z * acc) / TPE_F;
+  carBody->joints[1].velocity[0] -= (carForw.x * acc) / TPE_F;
+  carBody->joints[1].velocity[1] -= (carForw.y * acc) / TPE_F;
+  carBody->joints[1].velocity[2] -= (carForw.z * acc) / TPE_F;
 }
 */
 

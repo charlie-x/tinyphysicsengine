@@ -54,7 +54,7 @@ int main(void)
   playerBody = &(tpe_world.bodies[0]);
 
   TPE_bodyMoveBy(&tpe_world.bodies[0],TPE_vec3(1000,1000,1500));
-  TPE_bodyRotateByAxis(&tpe_world.bodies[0],TPE_vec3(0,0,TPE_FRACTIONS_PER_UNIT / 4));
+  TPE_bodyRotateByAxis(&tpe_world.bodies[0],TPE_vec3(0,0,TPE_F / 4));
   playerBody->elasticity = 0;
   playerBody->friction = 0;   
   playerBody->flags |= TPE_BODY_FLAG_NONROTATING;
@@ -95,13 +95,13 @@ int main(void)
 
       onGround = TPE_DISTANCE( playerBody->joints[0].position,
         TPE_castEnvironmentRay(playerBody->joints[0].position,
-        TPE_vec3(0,-1 * TPE_FRACTIONS_PER_UNIT,0),tpe_world.environmentFunction, 
+        TPE_vec3(0,-1 * TPE_F,0),tpe_world.environmentFunction, 
         128,512,512)) <= groundDist;
     }
 
     elevatorHeight =
-(1250 * (TPE_sin(helper_frame * 4) + TPE_FRACTIONS_PER_UNIT)) /
-(2 * TPE_FRACTIONS_PER_UNIT);
+(1250 * (TPE_sin(helper_frame * 4) + TPE_F)) /
+(2 * TPE_F);
 
     s3l_scene.camera.transform.translation.x = playerBody->joints[0].position.x;
     s3l_scene.camera.transform.translation.z = playerBody->joints[0].position.z;

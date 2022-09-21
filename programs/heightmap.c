@@ -15,7 +15,7 @@ TPE_Unit height(int32_t x, int32_t y)
 
   return 
     TPE_sin(x + TPE_cos(y * 2)) * TPE_sin(y * 2 + TPE_cos(x * 4)) /
-     (TPE_FRACTIONS_PER_UNIT / 2);
+     (TPE_F / 2);
 }
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)

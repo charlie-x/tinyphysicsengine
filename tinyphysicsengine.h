@@ -18,7 +18,7 @@
 
   Orientations/rotations are in extrinsic Euler angles in the ZXY order (by Z,
   then by X, then by Y), if not mentioned otherwise. Angles are in TPE_Units,
-  TPE_FRACTIONS_PER_UNIT is full angle (2 PI). Sometimes rotations can also be
+  TPE_F is full angle (2 PI). Sometimes rotations can also be
   specified in the "about axis" format: here the object is rotated CW by given
   axis by an angle that's specified by the magnitude of the vector.
 
@@ -53,6 +53,7 @@ typedef int32_t TPE_Unit;
 typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
 
 #define TPE_FRACTIONS_PER_UNIT 512      ///< one fixed point unit, don't change
+#define TPE_F TPE_FRACTIONS_PER_UNIT    ///< short for TPE_FRACTIONS_PER_UNIT
 #define TPE_JOINT_SIZE_MULTIPLIER 32    ///< joint size is scaled (size saving)
 
 #define TPE_INFINITY 2147483647
@@ -115,7 +116,7 @@ typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
 #endif
 
 #ifndef TPE_TENSION_ACCELERATION_DIVIDER
-/** Number by which the base acceleration (TPE_FRACTIONS_PER_UNIT per tick
+/** Number by which the base acceleration (TPE_F per tick
   squared) caused by the connection tension will be divided. This should be
   power of 2. */
   #define TPE_TENSION_ACCELERATION_DIVIDER 32
@@ -143,7 +144,7 @@ typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
 #ifndef TPE_COLLISION_RESOLUTION_MARGIN
 /** Margin, in TPE_Units, by which a body will be shifted back to get out of
   collision. */
-  #define TPE_COLLISION_RESOLUTION_MARGIN (TPE_FRACTIONS_PER_UNIT / 64)
+  #define TPE_COLLISION_RESOLUTION_MARGIN (TPE_F / 64)
 #endif
 
 #ifndef TPE_NONROTATING_COLLISION_RESOLVE_ATTEMPTS
@@ -186,6 +187,9 @@ typedef struct
                                           simulation. */
 #define TPE_BODY_FLAG_SOFT 8         /**< Soft connections, effort won't be made
                                           to keep the body's shape. */
+#define TPE_BODY_FLAG_SIMPLE_CONN 16 /**< Simple connections, don't zero out
+                                          antagonist forces or apply connection
+                                          friction, can increase performance. */
 
 static inline TPE_Unit TPE_abs(TPE_Unit x);
 static inline TPE_Unit TPE_max(TPE_Unit a, TPE_Unit b);
@@ -282,7 +286,7 @@ TPE_Vec3 TPE_pointRotate(TPE_Vec3 point, TPE_Vec3 rotation);
 TPE_Vec3 TPE_rotationInverse(TPE_Vec3 rotation);
 
 /** Returns a connection tension, i.e. a signed percentage difference against
-  desired length (TPE_FRACTIONS_PER_UNIT means 100%). */
+  desired length (TPE_F means 100%). */
 static inline TPE_Unit TPE_connectionTension(TPE_Unit length,
   TPE_Unit desiredLength);
 
@@ -530,8 +534,8 @@ void TPE_bodyApplyGravity(TPE_Body *body, TPE_Unit downwardsAccel);
 
 /** Adds angular velocity to a soft body. The rotation vector specifies the axis
   of rotation by its direction and angular velocity by its magnitude (magnitude
-  of TPE_FRACTIONS_PER_UNIT will add linear velocity of TPE_FRACTIONS_PER_UNIT
-  per tick to a point in the distance of TPE_FRACTIONS_PER_UNIT from the
+  of TPE_F will add linear velocity of TPE_F
+  per tick to a point in the distance of TPE_F from the
   rotation axis). */
 void TPE_bodySpin(TPE_Body *body, TPE_Vec3 rotation);
 
@@ -547,9 +551,9 @@ void TPE_bodyRotateByAxis(TPE_Body *body, TPE_Vec3 rotation);
   extreme points. */ 
 TPE_Vec3 TPE_bodyGetCenterOfMass(const TPE_Body *body);
 
-/** Compute sine, TPE_FRACTIONS_PER_UNIT as argument corresponds to 2 * PI
-  radians. Returns a number from -TPE_FRACTIONS_PER_UNIT to
-  TPE_FRACTIONS_PER_UNIT. */
+/** Compute sine, TPE_F as argument corresponds to 2 * PI
+  radians. Returns a number from -TPE_F to
+  TPE_F. */
 TPE_Unit TPE_sin(TPE_Unit x);
 
 TPE_Unit TPE_cos(TPE_Unit x);
@@ -601,8 +605,8 @@ static inline TPE_Unit TPE_nonZero(TPE_Unit x)
 static inline TPE_Unit TPE_connectionTension(TPE_Unit length,
   TPE_Unit desiredLength)
 {
-  return (length * TPE_FRACTIONS_PER_UNIT) / desiredLength
-    - TPE_FRACTIONS_PER_UNIT;
+  return (length * TPE_F) / desiredLength
+    - TPE_F;
 }
 
 TPE_Joint TPE_joint(TPE_Vec3 position, TPE_Unit size)
@@ -755,8 +759,8 @@ void TPE_bodyInit(TPE_Body *body,
   body->connections = connections;
   body->connectionCount = connectionCount;
   body->deactivateCount = 0;
-  body->friction = TPE_FRACTIONS_PER_UNIT / 2;
-  body->elasticity = TPE_FRACTIONS_PER_UNIT / 2;
+  body->friction = TPE_F / 2;
+  body->elasticity = TPE_F / 2;
 
   body->flags = 0;
 
@@ -1015,8 +1019,9 @@ void TPE_worldStep(TPE_World *world)
             for (uint8_t k = 0; k < TPE_RESHAPE_ITERATIONS; ++k)
               TPE_bodyReshape(body,world->environmentFunction);
         }
-          
-        TPE_bodyCancelOutVelocities(body,hard);
+        
+        if (!(body->flags & TPE_BODY_FLAG_SIMPLE_CONN))  
+          TPE_bodyCancelOutVelocities(body,hard);
       }
     }
 
@@ -1099,7 +1104,7 @@ void TPE_bodyMultiplyNetSpeed(TPE_Body *body, TPE_Unit factor)
     for (uint8_t k = 0; k < 3; ++k)
       joint->velocity[k] = 
         (((TPE_Unit) joint->velocity[k]) * factor) /
-        TPE_FRACTIONS_PER_UNIT;
+        TPE_F;
 
     joint++;
   }
@@ -1116,7 +1121,7 @@ void TPE_bodyLimitAverageSpeed(TPE_Body *body, TPE_Unit speedMin,
       return;
 
     TPE_Unit fraction =
-      (((speedMax + speedMin) / 2) * TPE_FRACTIONS_PER_UNIT) /
+      (((speedMax + speedMin) / 2) * TPE_F) /
       TPE_nonZero(speed);
     
     TPE_bodyMultiplyNetSpeed(body,fraction);
@@ -1152,9 +1157,9 @@ void TPE_bodyCancelOutVelocities(TPE_Body *body, uint8_t strong)
         v1 = TPE_vec3(j1->velocity[0],j1->velocity[1],j1->velocity[2]),
         v2 = TPE_vec3(j2->velocity[0],j2->velocity[1],j2->velocity[2]);
 
-      dir.x = (dir.x * TPE_FRACTIONS_PER_UNIT) / len; // normalize
-      dir.y = (dir.y * TPE_FRACTIONS_PER_UNIT) / len;
-      dir.z = (dir.z * TPE_FRACTIONS_PER_UNIT) / len;
+      dir.x = (dir.x * TPE_F) / len; // normalize
+      dir.y = (dir.y * TPE_F) / len;
+      dir.z = (dir.z * TPE_F) / len;
 
       v1 = TPE_vec3ProjectNormalized(v1,dir);
       v2 = TPE_vec3ProjectNormalized(v2,dir);
@@ -1210,9 +1215,9 @@ void TPE_bodyReshape(TPE_Body *body,
 
     TPE_vec3Normalize(&dir);
 
-    dir.x = (dir.x * c->length) / TPE_FRACTIONS_PER_UNIT;
-    dir.y = (dir.y * c->length) / TPE_FRACTIONS_PER_UNIT;
-    dir.z = (dir.z * c->length) / TPE_FRACTIONS_PER_UNIT;
+    dir.x = (dir.x * c->length) / TPE_F;
+    dir.y = (dir.y * c->length) / TPE_F;
+    dir.z = (dir.z * c->length) / TPE_F;
 
     TPE_Vec3 positionBackup = j1->position;
 
@@ -1261,7 +1266,7 @@ void TPE_vec3Normalize(TPE_Vec3 *v)
   TPE_Unit l = TPE_LENGTH(*v);
 
   if (l == 0)
-    *v = TPE_vec3(TPE_FRACTIONS_PER_UNIT,0,0);
+    *v = TPE_vec3(TPE_F,0,0);
   else
   {
     if (l < 16) // too short vec would cause inacurracte normalization
@@ -1272,9 +1277,9 @@ void TPE_vec3Normalize(TPE_Vec3 *v)
       l = TPE_LENGTH(*v);
     }
 
-    v->x = (v->x * TPE_FRACTIONS_PER_UNIT) / l;
-    v->y = (v->y * TPE_FRACTIONS_PER_UNIT) / l;
-    v->z = (v->z * TPE_FRACTIONS_PER_UNIT) / l;
+    v->x = (v->x * TPE_F) / l;
+    v->y = (v->y * TPE_F) / l;
+    v->z = (v->z * TPE_F) / l;
   }
 }
 
@@ -1370,9 +1375,9 @@ TPE_Vec3 TPE_vec3Cross(TPE_Vec3 v1, TPE_Vec3 v2)
 {
   TPE_Vec3 r;
 
-  r.x = (v1.y * v2.z - v1.z * v2.y) / TPE_FRACTIONS_PER_UNIT;
-  r.y = (v1.z * v2.x - v1.x * v2.z) / TPE_FRACTIONS_PER_UNIT;
-  r.z = (v1.x * v2.y - v1.y * v2.x) / TPE_FRACTIONS_PER_UNIT;
+  r.x = (v1.y * v2.z - v1.z * v2.y) / TPE_F;
+  r.y = (v1.z * v2.x - v1.x * v2.z) / TPE_F;
+  r.z = (v1.x * v2.y - v1.y * v2.x) / TPE_F;
 
   return r;
 }
@@ -1383,9 +1388,9 @@ TPE_Vec3 TPE_vec3ProjectNormalized(TPE_Vec3 v, TPE_Vec3 baseNormalized)
 
   TPE_Unit p = TPE_vec3Dot(v,baseNormalized);
 
-  r.x = (p * baseNormalized.x) / TPE_FRACTIONS_PER_UNIT;
-  r.y = (p * baseNormalized.y) / TPE_FRACTIONS_PER_UNIT;
-  r.z = (p * baseNormalized.z) / TPE_FRACTIONS_PER_UNIT;
+  r.x = (p * baseNormalized.x) / TPE_F;
+  r.y = (p * baseNormalized.y) / TPE_F;
+  r.z = (p * baseNormalized.z) / TPE_F;
   
   return r;
 }
@@ -1454,12 +1459,12 @@ void _TPE_bodyNonrotatingJointCollided(TPE_Body *b, int16_t jointIndex,
 
 TPE_Unit TPE_vec3Dot(TPE_Vec3 v1, TPE_Vec3 v2)
 {
-  return (v1.x * v2.x + v1.y * v2.y + v1.z * v2.z) / TPE_FRACTIONS_PER_UNIT;
+  return (v1.x * v2.x + v1.y * v2.y + v1.z * v2.z) / TPE_F;
 }
 
 TPE_Unit TPE_cos(TPE_Unit x)  
 {
-  return TPE_sin(x + TPE_FRACTIONS_PER_UNIT / 4);
+  return TPE_sin(x + TPE_F / 4);
 }
 
 TPE_Unit TPE_sin(TPE_Unit x)  
@@ -1472,21 +1477,21 @@ TPE_Unit TPE_sin(TPE_Unit x)
     sign = -1;
   }
     
-  x %= TPE_FRACTIONS_PER_UNIT;
+  x %= TPE_F;
   
-  if (x > TPE_FRACTIONS_PER_UNIT / 2)
+  if (x > TPE_F / 2)
   {
-    x -= TPE_FRACTIONS_PER_UNIT / 2;
+    x -= TPE_F / 2;
     sign *= -1;
   }
 
-  TPE_Unit tmp = TPE_FRACTIONS_PER_UNIT - 2 * x;
+  TPE_Unit tmp = TPE_F - 2 * x;
  
-  #define _PI2 ((TPE_Unit) (9.8696044 * TPE_FRACTIONS_PER_UNIT))
+  #define _PI2 ((TPE_Unit) (9.8696044 * TPE_F))
   return sign * // Bhaskara's approximation
-    (((32 * x * _PI2) / TPE_FRACTIONS_PER_UNIT) * tmp) / 
-    ((_PI2 * (5 * TPE_FRACTIONS_PER_UNIT - (8 * x * tmp) / 
-      TPE_FRACTIONS_PER_UNIT)) / TPE_FRACTIONS_PER_UNIT);
+    (((32 * x * _PI2) / TPE_F) * tmp) / 
+    ((_PI2 * (5 * TPE_F - (8 * x * tmp) / 
+      TPE_F)) / TPE_F);
   #undef _PI2
 }
 
@@ -1546,10 +1551,10 @@ uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
 
     TPE_vec3Normalize(&dir);
 
-    TPE_Unit ratio = (mass2 * TPE_FRACTIONS_PER_UNIT) / 
+    TPE_Unit ratio = (mass2 * TPE_F) / 
       TPE_nonZero(mass1 + mass2);
 
-    TPE_Unit shiftDistance = (ratio * d) / TPE_FRACTIONS_PER_UNIT;
+    TPE_Unit shiftDistance = (ratio * d) / TPE_F;
 
     TPE_Vec3 shift = TPE_vec3Times(dir,shiftDistance);
 
@@ -1604,7 +1609,7 @@ uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
 
 #define assignVec(j,i,d,o) \
   j->velocity[i] = j->velocity[i] + vel.d o (((frictionVec.d * ratio) / \
-    TPE_FRACTIONS_PER_UNIT) * friction) / TPE_FRACTIONS_PER_UNIT;
+    TPE_F) * friction) / TPE_F;
 
     assignVec(j1,0,x,+)
     assignVec(j1,1,y,+)
@@ -1612,7 +1617,7 @@ uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
 
     vel = TPE_vec3Times(dir,v2);
 
-    ratio = TPE_FRACTIONS_PER_UNIT - ratio;
+    ratio = TPE_F - ratio;
 
     assignVec(j2,0,x,-)
     assignVec(j2,1,y,-)
@@ -1639,9 +1644,9 @@ uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
 
 TPE_Vec3 TPE_vec3Times(TPE_Vec3 v, TPE_Unit units)
 {
-  v.x = (v.x * units) / TPE_FRACTIONS_PER_UNIT;
-  v.y = (v.y * units) / TPE_FRACTIONS_PER_UNIT;
-  v.z = (v.z * units) / TPE_FRACTIONS_PER_UNIT;
+  v.x = (v.x * units) / TPE_F;
+  v.y = (v.y * units) / TPE_F;
+  v.z = (v.z * units) / TPE_F;
 
   return v;
 }
@@ -1663,7 +1668,7 @@ void TPE_getVelocitiesAfterCollision(
   TPE_Unit elasticity
 )
 {
-  /* In the following a lot of TPE_FRACTIONS_PER_UNIT cancel out, feel free to
+  /* In the following a lot of TPE_F cancel out, feel free to
      check if confused. */
 
   TPE_Unit m1Pm2 = TPE_nonZero(m1 + m2);
@@ -1671,10 +1676,10 @@ void TPE_getVelocitiesAfterCollision(
 
   TPE_Unit m1v1Pm2v2 = ((m1 * *v1) + (m2 * *v2));
 
-  *v1 = (((elasticity * m2 / TPE_FRACTIONS_PER_UNIT) * v2Mv1)
+  *v1 = (((elasticity * m2 / TPE_F) * v2Mv1)
     + m1v1Pm2v2) / m1Pm2;
 
-  *v2 = (((elasticity * m1 / TPE_FRACTIONS_PER_UNIT) * -1 * v2Mv1)
+  *v2 = (((elasticity * m1 / TPE_F) * -1 * v2Mv1)
     + m1v1Pm2v2) / m1Pm2;
 }
 
@@ -1769,7 +1774,7 @@ uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint,
 
       vel2 = TPE_vec3Times(vel2,friction);
 
-      vel = TPE_vec3Times(vel,TPE_FRACTIONS_PER_UNIT + elasticity);
+      vel = TPE_vec3Times(vel,TPE_F + elasticity);
 
       joint->velocity[0] -= vel.x + vel2.x;
       joint->velocity[1] -= vel.y + vel2.y;
@@ -1911,7 +1916,7 @@ TPE_Vec3 TPE_vec3Normalized(TPE_Vec3 v)
 TPE_Unit TPE_atan(TPE_Unit x)
 {
   /* atan approximation by polynomial 
-     WARNING: this will break with different value of TPE_FRACTIONS_PER_UNIT */
+     WARNING: this will break with different value of TPE_F */
 
   TPE_Unit sign = 1, x2 = x * x;
 
@@ -1922,7 +1927,7 @@ TPE_Unit TPE_atan(TPE_Unit x)
   }
 
   if (x > 30000) // anti overflow
-    return sign * (TPE_FRACTIONS_PER_UNIT / 4);
+    return sign * (TPE_F / 4);
 
   return sign *
     (307 * x + x2) / ((267026 + 633 * x + x2) / 128);
@@ -1935,8 +1940,8 @@ void _TPE_vec2Rotate(TPE_Unit *x, TPE_Unit *y, TPE_Unit angle)
   TPE_Unit s = TPE_sin(angle);
   TPE_Unit c = TPE_cos(angle);
 
-  *x = (c * *x - s * *y) / TPE_FRACTIONS_PER_UNIT;
-  *y = (s * tmp + c * *y) / TPE_FRACTIONS_PER_UNIT;
+  *x = (c * *x - s * *y) / TPE_F;
+  *y = (s * tmp + c * *y) / TPE_F;
 }
 
 TPE_Unit TPE_vec2Angle(TPE_Unit x, TPE_Unit y)
@@ -1945,19 +1950,19 @@ TPE_Unit TPE_vec2Angle(TPE_Unit x, TPE_Unit y)
 
   if (x != 0)
   {
-    r = TPE_atan((y * TPE_FRACTIONS_PER_UNIT) / x);
+    r = TPE_atan((y * TPE_F) / x);
 
     if (x < 0)
-      r += TPE_FRACTIONS_PER_UNIT / 2;
+      r += TPE_F / 2;
     else if (r < 0)
-      r += TPE_FRACTIONS_PER_UNIT;
+      r += TPE_F;
   }
   else
   {
     if (y < 0)
-      r = (3 * TPE_FRACTIONS_PER_UNIT) / 4;
+      r = (3 * TPE_F) / 4;
     else if (y > 0)
-      r = TPE_FRACTIONS_PER_UNIT / 4;
+      r = TPE_F / 4;
     // else (y == 0) r stays 0
   }
 
@@ -2010,8 +2015,8 @@ TPE_Vec3 _TPE_project3DPoint(TPE_Vec3 p, TPE_Vec3 camPos, TPE_Vec3 camRot,
     p.x = (p.x * camView.z) / p.z;
     p.y = (p.y * camView.z) / p.z;
 
-    p.x = camView.x / 2 + (p.x * camView.x) / (2 * TPE_FRACTIONS_PER_UNIT);
-    p.y = camView.y / 2 - (p.y * camView.x) / (2 * TPE_FRACTIONS_PER_UNIT);
+    p.x = camView.x / 2 + (p.x * camView.x) / (2 * TPE_F);
+    p.y = camView.y / 2 - (p.y * camView.x) / (2 * TPE_F);
                                       // ^ x here intentional
   }
   else
@@ -2147,7 +2152,7 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
         if (camView.z != 0) // not ortho?
         {
           size /= 2;
-          size = (size * camView.x) / TPE_FRACTIONS_PER_UNIT;
+          size = (size * camView.x) / TPE_F;
           size = (size * camView.z) / p.z;
         }
 
@@ -2155,10 +2160,10 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
         for (uint8_t k = 0; k < SEGS + 1; ++k)
         {
           TPE_Unit 
-            dx = (TPE_sin(TPE_FRACTIONS_PER_UNIT * k / (8 * SEGS)) * size)
-              / TPE_FRACTIONS_PER_UNIT,
-            dy = (TPE_cos(TPE_FRACTIONS_PER_UNIT * k / (8 * SEGS)) * size)
-              / TPE_FRACTIONS_PER_UNIT;
+            dx = (TPE_sin(TPE_F * k / (8 * SEGS)) * size)
+              / TPE_F,
+            dy = (TPE_cos(TPE_F * k / (8 * SEGS)) * size)
+              / TPE_F;
 
 #define dp(a,b,c,d) \
   _TPE_drawDebugPixel(p.x a b,p.y c d,camView.x,camView.y,color,drawFunc);
@@ -2332,9 +2337,9 @@ TPE_Vec3 TPE_envHalfPlane(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 normal)
 
   tmp /= l;
 
-  normal.x = (normal.x * TPE_FRACTIONS_PER_UNIT) / l;
-  normal.y = (normal.y * TPE_FRACTIONS_PER_UNIT) / l;
-  normal.z = (normal.z * TPE_FRACTIONS_PER_UNIT) / l;
+  normal.x = (normal.x * TPE_F) / l;
+  normal.y = (normal.y * TPE_F) / l;
+  normal.z = (normal.z * TPE_F) / l;
 
   return TPE_vec3Minus(point,
     TPE_vec3Times(normal,tmp));
@@ -2420,8 +2425,8 @@ TPE_Vec3 TPE_rotationInverse(TPE_Vec3 rotation)
      forward/right vectors in opposite axis order and then turn the result
      into normal rotation/orientation. */
 
-  TPE_Vec3 f = TPE_vec3(0,0,TPE_FRACTIONS_PER_UNIT);
-  TPE_Vec3 r = TPE_vec3(TPE_FRACTIONS_PER_UNIT,0,0);
+  TPE_Vec3 f = TPE_vec3(0,0,TPE_F);
+  TPE_Vec3 r = TPE_vec3(TPE_F,0,0);
 
   rotation.x *= -1;
   rotation.y *= -1;
@@ -2440,8 +2445,8 @@ TPE_Vec3 TPE_rotationInverse(TPE_Vec3 rotation)
 
 TPE_Vec3 TPE_rotationRotateByAxis(TPE_Vec3 rotation, TPE_Vec3 rotationByAxis)
 {
-  TPE_Vec3 f = TPE_pointRotate(TPE_vec3(0,0,TPE_FRACTIONS_PER_UNIT),rotation);
-  TPE_Vec3 r = TPE_pointRotate(TPE_vec3(TPE_FRACTIONS_PER_UNIT,0,0),rotation);
+  TPE_Vec3 f = TPE_pointRotate(TPE_vec3(0,0,TPE_F),rotation);
+  TPE_Vec3 r = TPE_pointRotate(TPE_vec3(TPE_F,0,0),rotation);
 
   TPE_Unit a = TPE_LENGTH(rotationByAxis);
   TPE_vec3Normalize(&rotationByAxis);
@@ -2554,7 +2559,7 @@ TPE_Vec3 TPE_fakeSphereRotation(TPE_Vec3 position1, TPE_Vec3 position2,
     return TPE_vec3(0,0,0);
 
   TPE_Unit d = (TPE_DISTANCE(position1,position2) * 
-    TPE_FRACTIONS_PER_UNIT) / (radius * 4);
+    TPE_F) / (radius * 4);
 
   m.x = (m.x * d) / l;
   m.z = (m.z * d) / l;

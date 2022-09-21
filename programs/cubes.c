@@ -59,7 +59,7 @@ return 0;
   s3l_scene.camera.transform.translation.z -= ROOM_SIZE / 2;
   s3l_scene.camera.transform.translation.y += ROOM_SIZE / 3;
   s3l_scene.camera.transform.translation.x -= ROOM_SIZE / 4;
-  s3l_scene.camera.transform.rotation.y = -1 * TPE_FRACTIONS_PER_UNIT / 16;
+  s3l_scene.camera.transform.rotation.y = -1 * TPE_F / 16;
 
   for (int i = 0; i < 6; ++i)
 {

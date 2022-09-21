@@ -82,7 +82,7 @@ S3L_Unit heightmapVertices[HEIGHTMAP_3D_POINTS * 3];
 S3L_Index heightmapTriangles[HEIGHTMAP_3D_TRIANGLES];
 S3L_Model3D heightmapModel;
 
-S3L_Unit cubeVertices[] = { S3L_CUBE_VERTICES(TPE_FRACTIONS_PER_UNIT) };  
+S3L_Unit cubeVertices[] = { S3L_CUBE_VERTICES(TPE_F) };  
 S3L_Index cubeTriangles[] = { S3L_CUBE_TRIANGLES };
 S3L_Model3D cubeModel;
 
