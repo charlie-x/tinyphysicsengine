@@ -2,11 +2,11 @@ TODO:
 - demo: angry-birds-like game
 - add/remove log with TPE_LOG so that its nice, useful and not spammy
 - demo: ragdoll
+- demos for showing basic use (without using helper.h)
 - FOR GODS SAKE clean the code
 - current dist approx fails e.g. with heightmaps -- maybe just use the
   non-approx version at all times in places where the approx fails? Also
   TEST THE APPROX DIST with different env functions
-- env function: cone
 
 DONE:
 - update the player demo (new 3D environment)
@@ -15,6 +15,7 @@ DONE:
 - env function: heightmap
 - demo: heightmap
 - demo: car
+- env function: cone
 - zero weight joints should behave how? <-- disallowed 0 mass
 - try to make better car physics
 - demo: testing different frictions on skewed plane, also different elasticities

@@ -448,6 +448,8 @@ TPE_Vec3 TPE_envInfiniteCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
   direction, TPE_Unit radius);
 TPE_Vec3 TPE_envCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 direction,
   TPE_Unit radius);
+TPE_Vec3 TPE_envCone(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 direction,
+  TPE_Unit radius);
 TPE_Vec3 TPE_envLineSegment(TPE_Vec3 point, TPE_Vec3 a, TPE_Vec3 b);
 TPE_Vec3 TPE_envHeightmap(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit gridSize,
   TPE_Unit (*heightFunction)(int32_t x, int32_t y), TPE_Unit maxDist);
@@ -492,6 +494,8 @@ TPE_Unit TPE_bodyGetNetSpeed(const TPE_Body *body);
 TPE_Unit TPE_bodyGetAverageSpeed(const TPE_Body *body);
 
 void TPE_bodyDeactivate(TPE_Body *body);
+
+static inline uint8_t TPE_bodyIsActive(const TPE_Body *body);
 
 void TPE_bodyLimitAverageSpeed(TPE_Body *body, TPE_Unit speedMin,
   TPE_Unit speedMax);
@@ -2075,6 +2079,7 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
           if ((r.x != testPoint.x || r.y != testPoint.y || r.z != testPoint.z))
           {
 // TODO: accel. by testing cheb dist first?
+
             r = _TPE_project3DPoint(r,camPos,camRot,camView);
  
             if (r.z > Z_LIMIT)
@@ -3175,6 +3180,73 @@ TPE_Vec3 TPE_envHeightmap(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit gridSize,
   }
 
   return TPE_vec3Plus(closestP,center);
+}
+
+TPE_Vec3 TPE_envCone(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 direction,
+  TPE_Unit radius)
+{
+  point = TPE_vec3Minus(point,center);
+
+  if (TPE_vec3Dot(point,direction) <= 0)
+  {
+    // underneath the cone
+
+    direction.x *= -1;
+    direction.y *= -1;
+    direction.z *= -1;
+
+    point = TPE_envHalfPlane(point,TPE_vec3(0,0,0),direction);
+
+    TPE_Unit dist = TPE_LENGTH(point);
+
+    if (dist > radius)
+    {
+      point.x = (point.x * radius) / dist;
+      point.y = (point.y * radius) / dist;
+      point.z = (point.z * radius) / dist;
+    }
+  }
+  else
+  {
+    TPE_Unit height = TPE_LENGTH(direction);
+
+    TPE_Vec3 helper = TPE_vec3Project(point,direction);
+    TPE_Unit y = TPE_LENGTH(helper);
+
+    helper = TPE_vec3Minus(point,helper);
+
+    TPE_Unit x = TPE_LENGTH(helper);
+
+    if (x < 20)
+    {
+      // for such small distance big numeric errors occur in the other branch
+      if (y >= height)
+        point = direction;
+    }
+    else
+    {
+      TPE_Unit scaledRadius = radius - ((y * radius) / height);
+
+      if (y > height || x > scaledRadius) // outside?
+      {
+        if (x <= 0)
+          x = 1; // shouldn't happen but just in case, to prevent div by zero
+
+        helper.x = (helper.x * radius) / x;
+        helper.y = (helper.y * radius) / x;
+        helper.z = (helper.z * radius) / x;
+
+        point = TPE_envLineSegment(point,helper,direction); 
+      }
+    }
+  }
+
+  return TPE_vec3Plus(point,center);
+}
+
+static inline uint8_t TPE_bodyIsActive(const TPE_Body *body)
+{
+  return !(body->flags & TPE_BODY_FLAG_DEACTIVATED);
 }
 
 #endif // guard

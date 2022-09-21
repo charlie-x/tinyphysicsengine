@@ -29,6 +29,29 @@ void updateOrientPos(int i)
 
 int main(void)
 {
+/*
+
+TPE_Vec3 bbb = TPE_envLineSegment(
+  TPE_vec3(1304,280,0),
+  TPE_vec3(714,714,0),
+  TPE_vec3(500,106,0)
+);
+
+TPE_PRINTF_VEC3(bbb)
+
+printf("\n");
+return 0;
+*/
+
+/*
+
+   
+   
+
+ [1304 280 0][714 714 0][500 106 0][644 514 0]
+*/
+
+
   helper_init();
 
   tpe_world.environmentFunction = environmentDistance;
