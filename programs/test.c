@@ -230,10 +230,11 @@ int main(void)
 
     uint32_t hash = TPE_worldHash(&w);
 
-    printf("world hash: %du\n",hash);
+    printf("world hash: %lu\n",hash);
  
     // change the hash if functionality changes:
-    ass(hash == 3862131191,"world hash");
+
+    ass(hash == 3411004027,"world hash");
 
     for (int i = 0; i < w.bodyCount; ++i)
     {

@@ -1568,9 +1568,9 @@ uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
 
   if (d < 0) // collision?
   {
-    if (_TPE_collisionCallback != 0) // TODO: unnest if
-      if (!_TPE_collisionCallback(_TPE_body1Index,_TPE_joint1Index,
-        _TPE_body2Index,_TPE_joint2Index,TPE_vec3Plus(j1->position,dir)))
+    if (_TPE_collisionCallback != 0 && !_TPE_collisionCallback(
+        _TPE_body1Index,_TPE_joint1Index,_TPE_body2Index,_TPE_joint2Index,
+        TPE_vec3Plus(j1->position,dir)))
         return 0;
 
     TPE_Vec3
@@ -1833,8 +1833,6 @@ uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint,
 uint8_t TPE_bodyEnvironmentCollide(const TPE_Body *body,
   TPE_ClosestPointFunction env)
 {
-  // TODO: should bounding vol check be here? maybe in param?
-
   for (uint16_t i = 0; i < body->jointCount; ++i)
   {
     const TPE_Joint *joint = body->joints + i;
@@ -1846,7 +1844,6 @@ uint8_t TPE_bodyEnvironmentCollide(const TPE_Body *body,
   }
 
   return 0;
- 
 }
 
 void TPE_bodyGetFastBSphere(const TPE_Body *body, TPE_Vec3 *center,
@@ -2113,10 +2110,8 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
         {
           TPE_Vec3 r = world->environmentFunction(testPoint,envGridSize);
 
-          if ((r.x != testPoint.x || r.y != testPoint.y || r.z != testPoint.z))
+          if (r.x != testPoint.x || r.y != testPoint.y || r.z != testPoint.z)
           {
-// TODO: accel. by testing cheb dist first?
-
             r = _TPE_project3DPoint(r,camPos,camRot,camView);
  
             if (r.z > Z_LIMIT)
@@ -2340,8 +2335,6 @@ TPE_Vec3 TPE_envSphereInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius)
 
 TPE_Vec3 TPE_envSphere(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius)
 {
-  // TODO: optim?
-
   TPE_Vec3 dir = TPE_vec3Minus(point,center);
 
   TPE_Unit l = TPE_LENGTH(dir);
