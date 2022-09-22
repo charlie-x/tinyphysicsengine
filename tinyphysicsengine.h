@@ -154,6 +154,12 @@ typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
   #define TPE_NONROTATING_COLLISION_RESOLVE_ATTEMPTS 3
 #endif
 
+#ifndef TPE_APPROXIMATE_NET_SPEED
+/** Whether to use a fast approximation for calculating net speed of bodies
+  which increases performance a bit. */
+  #define TPE_APPROXIMATE_NET_SPEED 1
+#endif
+
 #define TPE_PRINTF_VEC3(v) printf("[%d %d %d]",(v).x,(v).y,(v).z);
 
 typedef struct
@@ -488,6 +494,11 @@ TPE_Vec3 TPE_envAATriPrism(TPE_Vec3 point, TPE_Vec3 center,
 
 //---------------------------
 
+/** Performs one step (tick, frame, ...) of the physics world simulation
+  including updating positions and velocities of bodies, collision detection and
+  resolution, possible reshaping or deactivation of inactive bodies etc. The
+  time length of the step is relative to all other units but it's ideal if it is
+  1/30th of a second. */
 void TPE_worldStep(TPE_World *world);
 
 void TPE_worldDeactivateAll(TPE_World *world);
@@ -497,6 +508,8 @@ TPE_Unit TPE_worldGetNetSpeed(const TPE_World *world);
 TPE_Unit TPE_bodyGetNetSpeed(const TPE_Body *body);
 TPE_Unit TPE_bodyGetAverageSpeed(const TPE_Body *body);
 
+/** Deactivates a body (puts it to sleep until another collision or force wake
+  up). */
 void TPE_bodyDeactivate(TPE_Body *body);
 
 static inline uint8_t TPE_bodyIsActive(const TPE_Body *body);
@@ -976,7 +989,9 @@ void TPE_worldStep(TPE_World *world)
 
           if (tension > TPE_TENSION_GREATER_ACCELERATION_THRESHOLD ||
             tension < -1 * TPE_TENSION_GREATER_ACCELERATION_THRESHOLD)
-          { // TODO: not so elegant :)
+          { 
+            /* apply twice the acceleration after a second threshold, not so
+               elegant but seems to work :) */
             dir.x *= 2;
             dir.y *= 2;
             dir.z *= 2;
@@ -1054,7 +1069,7 @@ void TPE_worldStep(TPE_World *world)
       body->deactivateCount = 0;
       body->flags |= TPE_BODY_FLAG_DEACTIVATED;
     }
-    else if (TPE_bodyGetAverageSpeed(body) <= TPE_LOW_SPEED) // TODO: optimize
+    else if (TPE_bodyGetAverageSpeed(body) <= TPE_LOW_SPEED)
       body->deactivateCount++;
     else
       body->deactivateCount = 0;
@@ -1075,6 +1090,22 @@ void TPE_bodyActivate(TPE_Body *body)
 
 TPE_Unit TPE_bodyGetNetSpeed(const TPE_Body *body)
 {
+#if TPE_APPROXIMATE_NET_SPEED
+  TPE_Vec3 netV = TPE_vec3(0,0,0);
+    
+  const TPE_Joint *joint = body->joints;
+
+  for (uint16_t i = 0; i < body->jointCount; ++i)
+  {
+    netV.x += TPE_abs(joint->velocity[0]);
+    netV.y += TPE_abs(joint->velocity[1]);
+    netV.z += TPE_abs(joint->velocity[2]);
+
+    joint++;
+  }
+
+  return TPE_vec3LenApprox(netV);
+#else
   TPE_Unit velocity = 0;
 
   const TPE_Joint *joint = body->joints;
@@ -1082,12 +1113,13 @@ TPE_Unit TPE_bodyGetNetSpeed(const TPE_Body *body)
   for (uint16_t i = 0; i < body->jointCount; ++i)
   {
     velocity += TPE_LENGTH(
-     TPE_vec3(joint->velocity[0],joint->velocity[1],joint->velocity[2]));
+      TPE_vec3(joint->velocity[0],joint->velocity[1],joint->velocity[2]));
 
     joint++;
   }
 
   return velocity;
+#endif
 }
 
 TPE_Unit TPE_bodyGetAverageSpeed(const TPE_Body *body)
