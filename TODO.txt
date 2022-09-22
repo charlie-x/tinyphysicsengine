@@ -1,11 +1,8 @@
 TODO:
+- demo: ragdoll <--- maybe later
 - add/remove log with TPE_LOG so that its nice, useful and not spammy
-- demo: ragdoll
 - demos for showing basic use (without using helper.h)
 - FOR GODS SAKE clean the code
-- current dist approx fails e.g. with heightmaps -- maybe just use the
-  non-approx version at all times in places where the approx fails? Also
-  TEST THE APPROX DIST with different env functions
 
 DONE:
 - update the player demo (new 3D environment)
@@ -32,6 +29,10 @@ DONE:
 - test ray casting (e.g. the hit of an outside ray should always be outside)
 - BUG: envBox function doesn't pass the env function test! <-- just needed a
   bigger epsilon
+- current dist approx fails e.g. with heightmaps -- maybe just use the
+  non-approx version at all times in places where the approx fails? Also
+  TEST THE APPROX DIST with different env functions <--- the improved version
+  works alright, leave the rest for the decision of the library user
 - ray casting against bodies
 - world state hash? for testing determinism etc.
 - check if using fastBSphere vs normal BSphere doesn't affect the simulation

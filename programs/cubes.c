@@ -1,26 +1,26 @@
+/** Demo showing a wrecking ball hitting a few boxes. */
+
 #include "helper.h"
 
 #define ROOM_SIZE 7000
 #define CUBE_SIZE 800
-
-TPE_Unit sides[6] =
-{
-  0,0,
-  1000,1000,
-  -1000,2000
-};
+#define GRAVITY (TPE_F / 100)
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
-  return TPE_envAABoxInside(p,TPE_vec3(0,ROOM_SIZE / 4,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE));
+  return TPE_envAABoxInside(p,TPE_vec3(0,ROOM_SIZE / 4,0),
+    TPE_vec3(ROOM_SIZE,ROOM_SIZE / 2,ROOM_SIZE));
 }
 
 TPE_Vec3 cubeOrientations[6];
 TPE_Vec3 cubePositions[6];
 
-TPE_Joint ballJoints[4];
+TPE_Joint ballJoints[4];  // for the wrecking ball body
 TPE_Connection ballConnections[3];
 
+/** Updates the orientation and position of the ith cube's 3D model accordint to
+  the physics model. This will only be done for active bodies to help
+  performance a bit. */
 void updateOrientPos(int i)
 {
   cubeOrientations[i] = TPE_bodyGetRotation(&tpe_world.bodies[i],0,2,1);
@@ -29,29 +29,6 @@ void updateOrientPos(int i)
 
 int main(void)
 {
-/*
-
-TPE_Vec3 bbb = TPE_envLineSegment(
-  TPE_vec3(1304,280,0),
-  TPE_vec3(714,714,0),
-  TPE_vec3(500,106,0)
-);
-
-TPE_PRINTF_VEC3(bbb)
-
-printf("\n");
-return 0;
-*/
-
-/*
-
-   
-   
-
- [1304 280 0][714 714 0][500 106 0][644 514 0]
-*/
-
-
   helper_init();
 
   tpe_world.environmentFunction = environmentDistance;
@@ -61,17 +38,11 @@ return 0;
   s3l_scene.camera.transform.translation.x -= ROOM_SIZE / 4;
   s3l_scene.camera.transform.rotation.y = -1 * TPE_F / 16;
 
-  for (int i = 0; i < 6; ++i)
-{
-    helper_addBox(CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 4,10);
-//helper_addCenterBox(CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 4,50);
-
-tpe_world.bodies[tpe_world.bodyCount - 1].elasticity = 200;
-tpe_world.bodies[tpe_world.bodyCount - 1].friction = 0;
-
-//if (i % 2)
-//tpe_world.bodies[tpe_world.bodyCount - 1].flags |= TPE_BODY_FLAG_NONROTATING;
-}
+  for (int i = 0; i < 6; ++i) // add 6 cubes
+  {
+    helper_addBox(CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 2,CUBE_SIZE / 4,TPE_F / 5);
+    helper_lastBody.friction = TPE_F / 20; // decrease friction for fun
+  }
 
 #define move(i,x,y) \
   TPE_bodyMoveBy(&tpe_world.bodies[i],TPE_vec3((CUBE_SIZE / 2 + 10) * x,10 + CUBE_SIZE / 2 + y * (CUBE_SIZE + 10),0));
@@ -88,25 +59,33 @@ tpe_world.bodies[tpe_world.bodyCount - 1].friction = 0;
   for (int i = 0; i < 6; ++i)
   {
     updateOrientPos(i);
+
+    /* normally the cubes wouldn't stand on each other as they're really made of
+       spheres, so we deactivate them to keep them in place until the wrecking
+       ball hits them: */
     TPE_bodyDeactivate(&tpe_bodies[i]);
   }
 
+  // now create the wrecking ball body:
+
   ballJoints[0] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2,0),0);
-  ballJoints[1] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - 100,-650),0);
-  ballJoints[2] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - 300,-1300),0);
-  ballJoints[3] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - 500,-1950),400);
-  ballJoints[3].velocity[0] = 4;
-  ballJoints[3].velocity[1] = -200;
-  ballJoints[3].velocity[2] = -200;
+  ballJoints[1] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - TPE_F / 5,-1 * TPE_F),0);
+  ballJoints[2] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - TPE_F / 2,-2 * TPE_F),0);
+  ballJoints[3] = TPE_joint(TPE_vec3(0,ROOM_SIZE / 2 - TPE_F,-4 * TPE_F),TPE_F);
+  ballJoints[3].velocity[1] = -1 * TPE_F / 2;
+  ballJoints[3].velocity[2] = -1 * TPE_F / 2;
 
   ballConnections[0].joint1 = 0; ballConnections[0].joint2 = 1;
   ballConnections[1].joint1 = 1; ballConnections[1].joint2 = 2;
   ballConnections[2].joint1 = 2; ballConnections[2].joint2 = 3;
 
-  TPE_bodyInit(&tpe_world.bodies[6],ballJoints,4,ballConnections,3,1000);
+  TPE_Body *ballBody = &tpe_world.bodies[6];
 
-tpe_world.bodies[6].friction = 0;
-tpe_world.bodies[6].elasticity = 512;
+  TPE_bodyInit(ballBody,ballJoints,4,ballConnections,3,2 * TPE_F);
+
+  ballBody->flags |= TPE_BODY_FLAG_SIMPLE_CONN;
+  ballBody->friction = 0;
+  ballBody->elasticity = TPE_F;
 
   tpe_world.bodyCount++;
     
@@ -120,18 +99,19 @@ tpe_world.bodies[6].elasticity = 512;
     {
       helper_printCPU();
 
-      if (sdl_keyboard[SDL_SCANCODE_L])
+      if (sdl_keyboard[SDL_SCANCODE_L]) // pressing L explodes the cubes :)
         for (int i = 0; i < 6; ++i)
         {
           TPE_bodyActivate(&tpe_world.bodies[i]);
           TPE_bodyAccelerate(&tpe_world.bodies[i],
-          TPE_vec3Plus(TPE_vec3(0,100,0),TPE_vec3Times(cubePositions[i],128)));
+          TPE_vec3Plus(TPE_vec3(0,TPE_F / 5,0),TPE_vec3Times(cubePositions[i],TPE_F / 4)));
         }
     }
 
-    TPE_jointPin(&tpe_world.bodies[6].joints[0],TPE_vec3(0,ROOM_SIZE / 2 - 10,0));
+    // pin the top point of the wrecking ball to the ceiling:
+    TPE_jointPin(&ballBody->joints[0],TPE_vec3(0,ROOM_SIZE / 2 - TPE_F / 100,0));
 
-    tpe_world.bodies[6].deactivateCount = 0;
+    TPE_bodyActivate(ballBody); // don't let the wrecking ball deactivate
 
     TPE_worldStep(&tpe_world);
 
@@ -142,22 +122,23 @@ tpe_world.bodies[6].elasticity = 512;
 
     for (int i = 0; i < 6; ++i)
     {
-      TPE_bodyApplyGravity(&tpe_world.bodies[i],7);
+      TPE_bodyApplyGravity(&tpe_world.bodies[i],GRAVITY);
 
-      if (!(tpe_world.bodies[i].flags & TPE_BODY_FLAG_DEACTIVATED))
+      if (TPE_bodyIsActive(&tpe_world.bodies[i]))
         updateOrientPos(i);
 
-      helper_draw3DBox(cubePositions[i],TPE_vec3(CUBE_SIZE,CUBE_SIZE,CUBE_SIZE),cubeOrientations[i]);
+      helper_draw3DBox(cubePositions[i],TPE_vec3(CUBE_SIZE,CUBE_SIZE,CUBE_SIZE),
+        cubeOrientations[i]);
     }
 
-    tpe_world.bodies[6].joints[3].velocity[1] -= 5;
+    ballBody->joints[3].velocity[1] -= GRAVITY; // apply gravity only to one joint
 
-    helper_draw3DSphere(tpe_world.bodies[6].joints[3].position,TPE_vec3(400,400,400),TPE_vec3(0,0,0)  );
+    helper_draw3DSphere(ballBody->joints[3].position,TPE_vec3(400,400,400),TPE_vec3(0,0,0));
 
     for (int i = 0; i < 3; ++i)
       helper_drawLine3D(
-        tpe_world.bodies[6].joints[tpe_world.bodies[6].connections[i].joint1].position,
-        tpe_world.bodies[6].joints[tpe_world.bodies[6].connections[i].joint2].position,
+        ballBody->joints[ballBody->connections[i].joint1].position,
+        ballBody->joints[ballBody->connections[i].joint2].position,
         255,0,0);
 
     if (helper_debugDrawOn)

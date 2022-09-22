@@ -1,4 +1,5 @@
-/** General automatic test for tinyphysicsengine, it should always pass. */
+/** General automatic test for tinyphysicsengine, this should always be run
+  and passed before publishing a new version of TPE. */
 
 #include "../tinyphysicsengine.h"
 #include <stdio.h>

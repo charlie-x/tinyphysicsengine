@@ -2,12 +2,15 @@
 
 #define CAMERA_STEP 200
 
-#include "helper.h"
-
 #define GRID_RESOLUTION 8
 #define GRID_STEP 1000
 #define JOINT_SIZE 100
 #define BALL_SIZE 700
+
+#define HEIGHTMAP_3D_RESOLUTION GRID_RESOLUTION
+#define HEIGHTMAP_3D_STEP GRID_STEP
+
+#include "helper.h"
 
 #define ROOM_SIZE (GRID_RESOLUTION * GRID_STEP + JOINT_SIZE)
 
@@ -21,10 +24,6 @@ TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 
 TPE_Joint joints[WATER_JOINTS + 1];
 TPE_Connection connections[WATER_CONNECTIONS];
-
-S3L_Unit vertices[WATER_JOINTS * 3];
-S3L_Index triangles[((GRID_RESOLUTION - 1) * (GRID_RESOLUTION - 1) * 2) * 3];
-S3L_Model3D model;
 
 TPE_Body bodies[2];
 
@@ -49,16 +48,10 @@ int main(void)
 
   // build the grid:
 
+  for (int i = 0; i < HEIGHTMAP_3D_POINTS; ++i)
+    joints[i] = TPE_joint(helper_heightmapPointLocation(i),JOINT_SIZE);
+
   int index = 0;
-
-  for (int j = 0; j < GRID_RESOLUTION; ++j)
-    for (int i = 0; i < GRID_RESOLUTION; ++i)
-    {
-      joints[j * GRID_RESOLUTION + i] = TPE_joint(jointPlace(index),JOINT_SIZE);
-      index++;
-    }
-
-  index = 0;
 
   for (int j = 0; j < GRID_RESOLUTION; ++j)
     for (int i = 0; i < GRID_RESOLUTION - 1; ++i)
@@ -73,30 +66,6 @@ int main(void)
 
       index++;
     }
-
-index = 0;
-
-for (int j = 0; j < GRID_RESOLUTION - 1; ++j)
-  for (int i = 0; i < GRID_RESOLUTION - 1; ++i)
-  {
-triangles[index] = j * GRID_RESOLUTION + i;
-triangles[index + 1] = triangles[index] + 1;
-triangles[index + 2] = triangles[index + 1] + GRID_RESOLUTION;
-
-triangles[index + 3] = triangles[index];
-triangles[index + 4] = triangles[index + 1] + GRID_RESOLUTION;
-triangles[index + 5] = triangles[index] + GRID_RESOLUTION;
-
-index += 6;
-  }
-
-S3L_model3DInit(
-  vertices,
-  WATER_JOINTS * 3,
-  triangles,
-  ((GRID_RESOLUTION - 1) * (GRID_RESOLUTION - 1) * 2),
-  &model);
-
 
   TPE_bodyInit(&bodies[0],joints,WATER_JOINTS,connections,WATER_CONNECTIONS,
     1000);
@@ -118,7 +87,7 @@ S3L_model3DInit(
 TPE_bodyActivate(&bodies[0]);
 TPE_bodyActivate(&bodies[1]);
 
-S3L_Unit *v = vertices;
+S3L_Unit *v = heightmapVertices;
 
 for (int i = 0; i < WATER_JOINTS; ++i)
 {
@@ -154,12 +123,12 @@ for (int index = 0; index < WATER_JOINTS; ++index)
     else if (sdl_keyboard[SDL_SCANCODE_X])
       TPE_bodyAccelerate(&bodies[1],TPE_vec3(0,-1 * ACC,0));
 
-helper_set3dColor(255,0,0);
+helper_set3DColor(255,0,0);
 
-helper_draw3dSphere(bodies[1].joints[0].position,TPE_vec3(BALL_SIZE,BALL_SIZE,BALL_SIZE),TPE_vec3(0,0,0));
+helper_draw3DSphere(bodies[1].joints[0].position,TPE_vec3(BALL_SIZE,BALL_SIZE,BALL_SIZE),TPE_vec3(0,0,0));
 
-helper_set3dColor(0,100,255);
-helper_drawModel(&model,TPE_vec3(0,0,0),TPE_vec3(512,512,512),TPE_vec3(0,0,0));
+helper_set3DColor(0,100,255);
+helper_drawModel(&heightmapModel,TPE_vec3(0,0,0),TPE_vec3(512,512,512),TPE_vec3(0,0,0));
 
     if (helper_debugDrawOn)
       helper_debugDraw(1);

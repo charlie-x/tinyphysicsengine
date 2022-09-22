@@ -1,4 +1,4 @@
-//#define SCALE_3D_RENDERING 1
+/** Demo showing a simple first person movement. */
 
 #define S3L_NEAR_CROSS_STRATEGY 2
 #define S3L_PERSPECTIVE_CORRECTION 2
@@ -7,17 +7,17 @@
 #include "levelModel.h"
 
 TPE_Unit elevatorHeight;
-
 TPE_Unit ramp[6] = { 1600,0, -500,1400, -700,0 };
 TPE_Unit ramp2[6] = { 2000,-5000, 1500,1700, -5000,-500 };
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
+  // manually created environment to match the 3D model of it
   TPE_ENV_START( TPE_envAABoxInside(p,TPE_vec3(0,2450,-2100),TPE_vec3(12600,5000,10800)),p )
   TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(-5693,0,-6580),TPE_vec3(4307,20000,3420)),p )
   TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(-10000,-1000,-10000),TPE_vec3(11085,2500,9295)),p )
-  TPE_ENV_NEXT ( TPE_envAATriPrism(p,TPE_vec3(-5400,0,0),ramp,3000,2), p)
-  TPE_ENV_NEXT ( TPE_envAATriPrism(p,TPE_vec3(2076,651,-6780),ramp2,3000,0), p)
+  TPE_ENV_NEXT( TPE_envAATriPrism(p,TPE_vec3(-5400,0,0),ramp,3000,2), p)
+  TPE_ENV_NEXT( TPE_envAATriPrism(p,TPE_vec3(2076,651,-6780),ramp2,3000,0), p)
   TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(7000,0,-8500),TPE_vec3(3405,2400,3183)),p )
   TPE_ENV_NEXT( TPE_envSphere(p,TPE_vec3(2521,-100,-3799),1200),p )
   TPE_ENV_NEXT( TPE_envAABox(p,TPE_vec3(5300,elevatorHeight,-4400),TPE_vec3(1000,elevatorHeight,1000)),p )
@@ -42,13 +42,14 @@ int main(void)
 {
   helper_init();
   levelModelInit();
-
   updateDirection();
 
   ballRot = TPE_vec3(0,0,0);
 
   tpe_world.environmentFunction = environmentDistance;
 
+  /* normally player bodies are approximated with capsules -- since we don't
+  have these, we'll use a body consisting of two spheres: */
   helper_add2Line(400,300,400);
 
   playerBody = &(tpe_world.bodies[0]);
@@ -57,14 +58,15 @@ int main(void)
   TPE_bodyRotateByAxis(&tpe_world.bodies[0],TPE_vec3(0,0,TPE_F / 4));
   playerBody->elasticity = 0;
   playerBody->friction = 0;   
-  playerBody->flags |= TPE_BODY_FLAG_NONROTATING;
+  playerBody->flags |= TPE_BODY_FLAG_NONROTATING; // make it always upright
   groundDist = TPE_JOINT_SIZE(playerBody->joints[0]) + 30;
+
+  // add two interactive bodies:
 
   helper_addBall(1000,100);
   TPE_bodyMoveBy(&tpe_world.bodies[1],TPE_vec3(-1000,1000,0));
   tpe_world.bodies[1].elasticity = 400;
   tpe_world.bodies[1].friction = 100;
-
   ballPreviousPos = tpe_world.bodies[1].joints[0].position;
 
   helper_addCenterRect(600,600,400,50);
@@ -81,12 +83,12 @@ int main(void)
     if (jumpCountdown > 0)
       jumpCountdown--;
 
-    TPE_Vec3 groundPoint = environmentDistance(playerBody->joints[0].position,groundDist);
+    TPE_Vec3 groundPoint =
+      environmentDistance(playerBody->joints[0].position,groundDist);
 
     onGround = (playerBody->flags & TPE_BODY_FLAG_DEACTIVATED) ||
      (TPE_DISTANCE(playerBody->joints[0].position,groundPoint)
-     <= groundDist && groundPoint.y < playerBody->joints[0].position.y - groundDist / 2 
-      );
+     <= groundDist && groundPoint.y < playerBody->joints[0].position.y - groundDist / 2);
 
     if (!onGround)
     {
@@ -99,9 +101,7 @@ int main(void)
         128,512,512)) <= groundDist;
     }
 
-    elevatorHeight =
-(1250 * (TPE_sin(helper_frame * 4) + TPE_F)) /
-(2 * TPE_F);
+    elevatorHeight = (1250 * (TPE_sin(helper_frame * 4) + TPE_F)) / (2 * TPE_F);
 
     s3l_scene.camera.transform.translation.x = playerBody->joints[0].position.x;
     s3l_scene.camera.transform.translation.z = playerBody->joints[0].position.z;
@@ -114,6 +114,7 @@ int main(void)
 
     s3l_scene.camera.transform.rotation.y = -1 * playerRotation;
 
+    // fake the sphere rotation (since a single joint doesn't rotate itself):
     TPE_Vec3 ballRoll = TPE_fakeSphereRotation(ballPreviousPos,
       tpe_world.bodies[1].joints[0].position,1000);
 
@@ -134,7 +135,7 @@ int main(void)
         jumpCountdown = 8;
       }
 
-#define D 16 // just some vector divisor to make the speed slower
+#define D 15 // just some vector divisor to make the speed slower
       if (sdl_keyboard[SDL_SCANCODE_UP] || sdl_keyboard[SDL_SCANCODE_W])
       {
         playerBody->joints[0].velocity[0] += playerDirectionVec.x / D;
@@ -179,9 +180,8 @@ int main(void)
     helper_drawModel(&levelModel,TPE_vec3(0,0,0),TPE_vec3(600,600,600), 
       TPE_vec3(0,0,0));
 
-helper_draw3DBox(
-TPE_vec3(5300,elevatorHeight,-4400),
-TPE_vec3(2000,2 * elevatorHeight,2000),TPE_vec3(0,0,0));
+    helper_draw3DBox(TPE_vec3(5300,elevatorHeight,-4400),
+      TPE_vec3(2000,2 * elevatorHeight,2000),TPE_vec3(0,0,0));
 
     helper_set3DColor(200,50,0);
 

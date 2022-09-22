@@ -35,7 +35,7 @@ int main(void)
   s3l_scene.camera.transform.translation.z = -3000;
   s3l_scene.camera.transform.translation.y = 2000;
   s3l_scene.camera.transform.translation.x = 0;
-  s3l_scene.camera.transform.rotation.y = TPE_FRACTIONS_PER_UNIT / 16;
+  s3l_scene.camera.transform.rotation.y = TPE_F / 16;
 
 #define addBody(x,y,z,f) \
   helper_addBox(700,700,700,300,500); \
