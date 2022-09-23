@@ -1,140 +1,100 @@
-#define TPE_RESHAPE_ITERATIONS 5
+/** Demo showing how 2D physics can be implemented. */
 
 #define DEBUG_DRAW_DIVIDE 8
 
 #include "helper.h"
 
-#define ROOM_W 5100
+#define ROOM_W (TPE_F * 10)
 #define ROOM_H ((RES_Y * ROOM_W) / RES_X)
-#define SQUARE_SIZE 500
-
-TPE_Unit sss[6] =
-{
-  500,0,
-  0,2000,
-  -500,0
-};
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
-/*
-TPE_ENV_START( TPE_envAABoxInside(p,TPE_vec3(0,0,0),TPE_vec3(ROOM_W,ROOM_H,ROOM_W)), p )
-TPE_ENV_NEXT(TPE_envAATriPrism(p,TPE_vec3(-ROOM_W / 4,-ROOM_H / 2,0),sss,1000,0),p)
-
-TPE_ENV_END
-*/
   return TPE_envAABoxInside(p,TPE_vec3(0,0,0),TPE_vec3(ROOM_W,ROOM_H,ROOM_W));
 }
 
-inactiveCount = 0;
+int inactiveCount = 0;
 
 int main(void)
 {
   helper_init();
 
-helper_debugDrawOn = 1;
-
   tpe_world.environmentFunction = environmentDistance;
 
   s3l_scene.camera.transform.translation.z -= ROOM_W / 2;
 
-s3l_scene.camera.focalLength = 0; // set orthographic projection
+  s3l_scene.camera.focalLength = 0; // set orthographic projection
 
-  for (int i = 0; i < 4; ++i)
+  for (int i = 0; i < 4; ++i) // add bodies
   {
+    if (i != 2)
+    {
+      helper_addCenterRectFull(TPE_F,TPE_F,TPE_F / 5,TPE_F / 5);
+      TPE_bodyRotateByAxis(&helper_lastBody,TPE_vec3(TPE_F / 4,0,0));
+      helper_lastBody.joints[4].sizeDivided *= 3; // make center point bigger
+    }
+    else
+      helper_addBall(6 * TPE_F / 5,TPE_F / 5);
 
-if (i != 2)
-{
-    helper_addCenterRectFull(SQUARE_SIZE,SQUARE_SIZE,100,100);
-    TPE_bodyRotateByAxis(&tpe_world.bodies[i],TPE_vec3(TPE_FRACTIONS_PER_UNIT / 4,0,0));
-    tpe_world.bodies[i].joints[4].sizeDivided = 300 / TPE_JOINT_SIZE_MULTIPLIER;
-/*
-helper_addRect(SQUARE_SIZE,SQUARE_SIZE,100,100);
-TPE_bodyRotateByAxis(&tpe_world.bodies[i],TPE_vec3(TPE_FRACTIONS_PER_UNIT / 4,0,0));
-*/
-}
-else
-    helper_addBall(600,100);
+    helper_lastBody.friction = 4 * TPE_F / 5;
+    helper_lastBody.elasticity = TPE_F / 5;
 
-
-    tpe_world.bodies[i].friction = 400;
-//tpe_world.bodies[i].friction = 0;
-   
-
-
-//tpe_world.bodies[i].flags |= TPE_BODY_FLAG_SOFT; // comment or uncomment
- 
-tpe_world.bodies[i].elasticity = 100;
-
-    TPE_bodyMoveBy(&tpe_world.bodies[i],TPE_vec3(-1000 + i * 800,0,0));
+    TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(-2 * TPE_F + i * 2 * TPE_F,0,0));
   }
-
-
     
   while (helper_running)
   {
     helper_frameStart();
 
+#define ACCELERATION (TPE_F / 25)
     if (sdl_keyboard[SDL_SCANCODE_LEFT])
-      TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3(-10,0,0));
+      TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3(-1 * ACCELERATION,0,0));
     else if (sdl_keyboard[SDL_SCANCODE_RIGHT])
-      TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3(10,0,0));
+      TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3(ACCELERATION,0,0));
     
     if (sdl_keyboard[SDL_SCANCODE_UP])
-      TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3(0,10,0));
+      TPE_bodyAccelerate(&tpe_world.bodies[0],TPE_vec3(0,ACCELERATION,0));
+#undef ACCELERATION
 
     TPE_worldStep(&tpe_world);
 
-    helper_set3dColor(100,100,100);
+    for (int i = 0; i < tpe_world.bodyCount; ++i)
+      TPE_bodyApplyGravity(&tpe_world.bodies[i],TPE_F / 100);
 
-    helper_set3dColor(200,10,10);
+    /* Here we implement our own improvement of deactivation; after some time of
+       all bodies having low speed we disable them all at once. */
+    TPE_Unit speed, speedMax = 0;
+    int anyActive = 0;
 
     for (int i = 0; i < tpe_world.bodyCount; ++i)
-      TPE_bodyApplyGravity(&tpe_world.bodies[i],5);
+    {
+      // as we're in 2D we'll keep all joint Z positions and velocities at 0
+      for (int j = 0; j < tpe_world.bodies[i].jointCount; ++j)
+      {
+        tpe_world.bodies[i].joints[j].position.z = 0;
+        tpe_world.bodies[i].joints[j].velocity[2] = 0;
+      }
 
+      if (!(tpe_world.bodies[i].flags & TPE_BODY_FLAG_DEACTIVATED))
+        anyActive = 1;
 
-TPE_Unit speed, speedMax = 0;
+      speed = TPE_bodyGetAverageSpeed(&tpe_world.bodies[i]);
 
-int anyActive = 0;
+      if (speed > speedMax)
+        speedMax = speed;
+    }
 
-for (int i = 0; i < tpe_world.bodyCount; ++i)
-{
-  for (int j = 0; j < tpe_world.bodies[i].jointCount; ++j)
-  {
-    tpe_world.bodies[i].joints[j].position.z = 0;
-    tpe_world.bodies[i].joints[j].velocity[2] = 0;
-  }
+    if (anyActive && speedMax < TPE_F / 10)
+      inactiveCount++;
+    else
+      inactiveCount = 0;
 
-if (!(tpe_world.bodies[i].flags & TPE_BODY_FLAG_DEACTIVATED))
-  anyActive = 1;
+    if (inactiveCount > 100)
+    {
+      TPE_worldDeactivateAll(&tpe_world);
+      inactiveCount = 0;
+    }
 
-
-speed = TPE_bodyGetAverageSpeed(&tpe_world.bodies[i]);
-
-if (speed > speedMax)
-  speedMax = speed;
-
-
-
-}
-
-
-if (anyActive && speedMax < 50)
-  inactiveCount++;
-else
-  inactiveCount = 0;
-
-if (inactiveCount > 100)
-{
-  TPE_worldDeactivateAll(&tpe_world);
-  inactiveCount = 0;
-}
-
-
-
-
-  //  if (helper_debugDrawOn)
-      helper_debugDraw(0);
+    helper_debugDraw(0);
 
     helper_frameEnd();
   }

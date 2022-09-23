@@ -2,8 +2,8 @@
 
 #include "helper.h"
 
-#define ROOM_SIZE 7000
-#define CUBE_SIZE 800
+#define ROOM_SIZE (14 * TPE_F)
+#define CUBE_SIZE (3 * TPE_F / 2)
 #define GRAVITY (TPE_F / 100)
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
@@ -84,6 +84,7 @@ int main(void)
   TPE_bodyInit(ballBody,ballJoints,4,ballConnections,3,2 * TPE_F);
 
   ballBody->flags |= TPE_BODY_FLAG_SIMPLE_CONN;
+  ballBody->flags |= TPE_BODY_FLAG_ALWAYS_ACTIVE;
   ballBody->friction = 0;
   ballBody->elasticity = TPE_F;
 
@@ -110,8 +111,6 @@ int main(void)
 
     // pin the top point of the wrecking ball to the ceiling:
     TPE_jointPin(&ballBody->joints[0],TPE_vec3(0,ROOM_SIZE / 2 - TPE_F / 100,0));
-
-    TPE_bodyActivate(ballBody); // don't let the wrecking ball deactivate
 
     TPE_worldStep(&tpe_world);
 

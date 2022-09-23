@@ -59,6 +59,7 @@ int main(void)
   playerBody->elasticity = 0;
   playerBody->friction = 0;   
   playerBody->flags |= TPE_BODY_FLAG_NONROTATING; // make it always upright
+  playerBody->flags |= TPE_BODY_FLAG_ALWAYS_ACTIVE;
   groundDist = TPE_JOINT_SIZE(playerBody->joints[0]) + 30;
 
   // add two interactive bodies:
@@ -127,8 +128,6 @@ int main(void)
 
     if (onGround)
     {
-      TPE_bodyActivate(&tpe_world.bodies[0]);
-
       if (sdl_keyboard[SDL_SCANCODE_SPACE] && jumpCountdown == 0)
       {
         playerBody->joints[0].velocity[1] = 90;

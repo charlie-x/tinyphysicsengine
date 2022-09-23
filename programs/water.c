@@ -1,37 +1,25 @@
-//#define FPS 60
+#define CAMERA_STEP (TPE_F / 2)
+#define JOINT_SIZE (TPE_F / 4)
+#define BALL_SIZE (5 * TPE_F / 4)
 
-#define CAMERA_STEP 200
-
-#define GRID_RESOLUTION 8
-#define GRID_STEP 1000
-#define JOINT_SIZE 100
-#define BALL_SIZE 700
-
-#define HEIGHTMAP_3D_RESOLUTION GRID_RESOLUTION
-#define HEIGHTMAP_3D_STEP GRID_STEP
+#define HEIGHTMAP_3D_RESOLUTION 8
+#define HEIGHTMAP_3D_STEP (TPE_F * 2)
 
 #include "helper.h"
 
-#define ROOM_SIZE (GRID_RESOLUTION * GRID_STEP + JOINT_SIZE)
+#define ROOM_SIZE (HEIGHTMAP_3D_RESOLUTION * HEIGHTMAP_3D_STEP + JOINT_SIZE)
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
   return TPE_envAABoxInside(p,TPE_vec3(0,0,0),TPE_vec3(ROOM_SIZE,ROOM_SIZE,ROOM_SIZE));
 }
 
-#define WATER_JOINTS (GRID_RESOLUTION * GRID_RESOLUTION)
-#define WATER_CONNECTIONS (2 * ((GRID_RESOLUTION - 1) * GRID_RESOLUTION))
+#define WATER_JOINTS (HEIGHTMAP_3D_RESOLUTION * HEIGHTMAP_3D_RESOLUTION)
+#define WATER_CONNECTIONS (2 * ((HEIGHTMAP_3D_RESOLUTION - 1) * HEIGHTMAP_3D_RESOLUTION))
 
 TPE_Joint joints[WATER_JOINTS + 1];
 TPE_Connection connections[WATER_CONNECTIONS];
-
 TPE_Body bodies[2];
-
-TPE_Vec3 jointPlace(int index)
-{
-  return TPE_vec3((-1 * GRID_RESOLUTION * GRID_STEP) / 2 + (index % GRID_RESOLUTION) * GRID_STEP + GRID_STEP / 2,0,
-    (-1 * GRID_RESOLUTION * GRID_STEP) / 2 + (index / GRID_RESOLUTION) * GRID_STEP + GRID_STEP / 2);
-}
 
 int main(void)
 {
@@ -39,42 +27,43 @@ int main(void)
 
   puts("WSAD, XC: move the ball");
 
-  helper_debugDrawOn = 1;
-
-  s3l_scene.camera.transform.translation.z = -3000;
-  s3l_scene.camera.transform.translation.y = 2000;
+  s3l_scene.camera.transform.translation.z = -6 * TPE_F;
+  s3l_scene.camera.transform.translation.y = 4 * TPE_F;
   s3l_scene.camera.transform.translation.x = 0;
-  s3l_scene.camera.transform.rotation.y = TPE_FRACTIONS_PER_UNIT / 16;
+  s3l_scene.camera.transform.rotation.y = TPE_F / 16;
 
-  // build the grid:
+  // build the water body:
 
   for (int i = 0; i < HEIGHTMAP_3D_POINTS; ++i)
     joints[i] = TPE_joint(helper_heightmapPointLocation(i),JOINT_SIZE);
 
   int index = 0;
 
-  for (int j = 0; j < GRID_RESOLUTION; ++j)
-    for (int i = 0; i < GRID_RESOLUTION - 1; ++i)
+  for (int j = 0; j < HEIGHTMAP_3D_RESOLUTION; ++j)
+    for (int i = 0; i < HEIGHTMAP_3D_RESOLUTION - 1; ++i)
     {
-      connections[index].joint1 = j * GRID_RESOLUTION + i;
+      connections[index].joint1 = j * HEIGHTMAP_3D_RESOLUTION + i;
       connections[index].joint2 = connections[index].joint1 + 1;
 
       index++;
 
-      connections[index].joint1 = i * GRID_RESOLUTION + j;
-      connections[index].joint2 = connections[index].joint1 + GRID_RESOLUTION;
+      connections[index].joint1 = i * HEIGHTMAP_3D_RESOLUTION + j;
+      connections[index].joint2 = connections[index].joint1 + HEIGHTMAP_3D_RESOLUTION;
 
       index++;
     }
 
   TPE_bodyInit(&bodies[0],joints,WATER_JOINTS,connections,WATER_CONNECTIONS,
-    1000);
+    2 * TPE_F);
 
   bodies[0].flags |= TPE_BODY_FLAG_SOFT;
+  bodies[0].flags |= TPE_BODY_FLAG_ALWAYS_ACTIVE;
 
+  // create the ball body:
   joints[WATER_JOINTS] = TPE_joint(TPE_vec3(0,0,ROOM_SIZE / 4),BALL_SIZE);
-
   TPE_bodyInit(&bodies[1],joints + WATER_JOINTS,1,connections,0,200);
+
+  bodies[1].flags |= TPE_BODY_FLAG_ALWAYS_ACTIVE;
 
   TPE_worldInit(&tpe_world,bodies,2,environmentDistance);
 
@@ -84,32 +73,34 @@ int main(void)
 
     helper_cameraFreeMovement();
 
-TPE_bodyActivate(&bodies[0]);
-TPE_bodyActivate(&bodies[1]);
+    // update the 3D model vertex positions:
 
-S3L_Unit *v = heightmapVertices;
+    S3L_Unit *v = heightmapVertices;
 
-for (int i = 0; i < WATER_JOINTS; ++i)
-{
-  *v = joints[i].position.x;
-  v++;
-  *v = joints[i].position.y;
-  v++;
-  *v = joints[i].position.z;
-  v++;
-}
+    for (int i = 0; i < WATER_JOINTS; ++i)
+    {
+      *v = joints[i].position.x;
+      v++;
+      *v = joints[i].position.y;
+      v++;
+      *v = joints[i].position.z;
+      v++;
+    }
 
-for (int index = 0; index < WATER_JOINTS; ++index)
-  if (index % GRID_RESOLUTION == 0 || index % GRID_RESOLUTION == GRID_RESOLUTION - 1 ||
-      index / GRID_RESOLUTION == 0 || index / GRID_RESOLUTION == GRID_RESOLUTION - 1)
-    TPE_jointPin(&joints[index],jointPlace(index));
+    // pin the joints at the edges of the grid:
+
+    for (int index = 0; index < WATER_JOINTS; ++index)
+      if (index % HEIGHTMAP_3D_RESOLUTION == 0 || index % HEIGHTMAP_3D_RESOLUTION == HEIGHTMAP_3D_RESOLUTION - 1 ||
+        index / HEIGHTMAP_3D_RESOLUTION == 0 || index / HEIGHTMAP_3D_RESOLUTION == HEIGHTMAP_3D_RESOLUTION - 1)
+        TPE_jointPin(&joints[index],helper_heightmapPointLocation(index));
 
     TPE_worldStep(&tpe_world);
 
-    #define G ((5 * 30) / FPS)
-    TPE_bodyApplyGravity(&tpe_world.bodies[1], bodies[1].joints[0].position.y > 0 ? G : (-2 * G));
+#define G ((5 * 30) / FPS)
+    TPE_bodyApplyGravity(&tpe_world.bodies[1],
+      bodies[1].joints[0].position.y > 0 ? G : (-2 * G));
 
-    #define ACC ((25 * 30) / FPS )
+#define ACC ((25 * 30) / FPS )
     if (sdl_keyboard[SDL_SCANCODE_W])
       TPE_bodyAccelerate(&bodies[1],TPE_vec3(0,0,ACC));
     else if (sdl_keyboard[SDL_SCANCODE_S])
@@ -123,12 +114,10 @@ for (int index = 0; index < WATER_JOINTS; ++index)
     else if (sdl_keyboard[SDL_SCANCODE_X])
       TPE_bodyAccelerate(&bodies[1],TPE_vec3(0,-1 * ACC,0));
 
-helper_set3DColor(255,0,0);
-
-helper_draw3DSphere(bodies[1].joints[0].position,TPE_vec3(BALL_SIZE,BALL_SIZE,BALL_SIZE),TPE_vec3(0,0,0));
-
-helper_set3DColor(0,100,255);
-helper_drawModel(&heightmapModel,TPE_vec3(0,0,0),TPE_vec3(512,512,512),TPE_vec3(0,0,0));
+    helper_set3DColor(255,0,0);
+    helper_draw3DSphere(bodies[1].joints[0].position,TPE_vec3(BALL_SIZE,BALL_SIZE,BALL_SIZE),TPE_vec3(0,0,0));
+    helper_set3DColor(0,100,255);
+    helper_drawModel(&heightmapModel,TPE_vec3(0,0,0),TPE_vec3(TPE_F,TPE_F,TPE_F),TPE_vec3(0,0,0));
 
     if (helper_debugDrawOn)
       helper_debugDraw(1);
