@@ -241,7 +241,7 @@ const S3L_Index levelTriangleIndices[LEVEL_TRIANGLE_COUNT * 3] = {
 
 S3L_Model3D levelModel;
 
-void levelModelInit()
+void levelModelInit(void)
 {
   S3L_model3DInit(
     levelVertices,

@@ -3,6 +3,7 @@ TODO:
 - add/remove log with TPE_LOG so that its nice, useful and not spammy
 - demos for showing basic use (without using helper.h)
 - FOR GODS SAKE clean the code
+- valgrind, cppcheck, read the whole code, refactor, test on embedded, ...
 
 DONE:
 - update the player demo (new 3D environment)

@@ -456,6 +456,7 @@ TPE_Vec3 TPE_castBodyRay(TPE_Vec3 rayPos, TPE_Vec3 rayDir, int16_t excludeBody,
 void TPE_worldStep(TPE_World *world);
 
 void TPE_worldDeactivateAll(TPE_World *world);
+void TPE_worldActivateAll(TPE_World *world);
 
 TPE_Unit TPE_worldGetNetSpeed(const TPE_World *world);
 TPE_Unit TPE_bodyGetNetSpeed(const TPE_Body *body);
@@ -2821,6 +2822,12 @@ void TPE_worldDeactivateAll(TPE_World *world)
 {
   for (uint16_t i = 0; i < world->bodyCount; ++i)
     TPE_bodyDeactivate(&world->bodies[i]);
+}
+
+void TPE_worldActivateAll(TPE_World *world)
+{
+  for (uint16_t i = 0; i < world->bodyCount; ++i)
+    TPE_bodyActivate(&world->bodies[i]);
 }
 
 TPE_Unit TPE_worldGetNetSpeed(const TPE_World *world)

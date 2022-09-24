@@ -1,3 +1,6 @@
+/** A bigger testing playground, just to see that everyhing works OK. The code
+  is not very nice :) */
+
 #define CAMERA_STEP 200
 
 #include "helper.h"
@@ -110,37 +113,36 @@ int main(void)
 
     helper_cameraFreeMovement();
 
-if (simulating)
-{
-    TPE_worldStep(&tpe_world);
+    if (simulating)
+    {
+      TPE_worldStep(&tpe_world);
 
-for (int i = 0; i < 12; ++i)
-  TPE_bodyApplyGravity(&tpe_world.bodies[i],5);
-}
+      for (int i = 0; i < 12; ++i)
+        TPE_bodyApplyGravity(&tpe_world.bodies[i],5);
+    }
 
     if (helper_debugDrawOn)
       helper_debugDraw(1);
 
-if (sdl_keyboard[SDL_SCANCODE_P])
-  simulating = 1;
+    if (sdl_keyboard[SDL_SCANCODE_P])
+      simulating = 1;
 
-
-TPE_bodyMultiplyNetSpeed(controlledBody,255);
+    TPE_bodyMultiplyNetSpeed(controlledBody,255);
 
 #define ACC 100
-if (sdl_keyboard[SDL_SCANCODE_W])
-  TPE_bodyAccelerate(controlledBody,TPE_vec3(0,0,ACC));
-else if (sdl_keyboard[SDL_SCANCODE_S])
-  TPE_bodyAccelerate(controlledBody,TPE_vec3(0,0,-1 * ACC));
-else if (sdl_keyboard[SDL_SCANCODE_D])
-  TPE_bodyAccelerate(controlledBody,TPE_vec3(ACC,0,0));
-else if (sdl_keyboard[SDL_SCANCODE_A])
-  TPE_bodyAccelerate(controlledBody,TPE_vec3(-1 * ACC,0,0));
-else if (sdl_keyboard[SDL_SCANCODE_C])
-  TPE_bodyAccelerate(controlledBody,TPE_vec3(0,ACC,0));
-else if (sdl_keyboard[SDL_SCANCODE_X])
-  TPE_bodyAccelerate(controlledBody,TPE_vec3(0,-1 * ACC,0));
-
+    if (sdl_keyboard[SDL_SCANCODE_W])
+      TPE_bodyAccelerate(controlledBody,TPE_vec3(0,0,ACC));
+    else if (sdl_keyboard[SDL_SCANCODE_S])
+      TPE_bodyAccelerate(controlledBody,TPE_vec3(0,0,-1 * ACC));
+    else if (sdl_keyboard[SDL_SCANCODE_D])
+      TPE_bodyAccelerate(controlledBody,TPE_vec3(ACC,0,0));
+    else if (sdl_keyboard[SDL_SCANCODE_A])
+      TPE_bodyAccelerate(controlledBody,TPE_vec3(-1 * ACC,0,0));
+    else if (sdl_keyboard[SDL_SCANCODE_C])
+      TPE_bodyAccelerate(controlledBody,TPE_vec3(0,ACC,0));
+    else if (sdl_keyboard[SDL_SCANCODE_X])
+      TPE_bodyAccelerate(controlledBody,TPE_vec3(0,-1 * ACC,0));
+#undef ACC
 
     helper_frameEnd();
   }

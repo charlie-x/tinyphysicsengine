@@ -1,12 +1,16 @@
+/** Program that drops many bodies so that they stack onto each other to test
+  this kind of behavior as well as a performance during it, also applies some
+  basic smoothing of movement and rotation. */
+
 //#define FPS 10
 
 #include "helper.h"
 
 TPE_Vec3 environmentDistance(TPE_Vec3 p, TPE_Unit maxD)
 {
-  TPE_ENV_START( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(256,256,0)),p )
-  TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(-256,256,-256)),p )
-  TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(-256,256,256)),p )
+  TPE_ENV_START( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(TPE_F / 2,TPE_F / 2,0)),p )
+  TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(-1 * TPE_F / 2,TPE_F / 2,-1 * TPE_F / 2)),p )
+  TPE_ENV_NEXT( TPE_envHalfPlane(p,TPE_vec3(0,0,0),TPE_vec3(-1 * TPE_F / 2,TPE_F / 2,TPE_F / 2)),p )
   TPE_ENV_END
 }
 
@@ -14,6 +18,12 @@ unsigned long timeMeasure = 0;
 
 TPE_Vec3 bodyPositions[16];
 TPE_Vec3 bodyOrientations[16];
+
+// tries to smooth orientation by averaging it over 2 frames
+TPE_Unit updateOrientation(TPE_Unit new, TPE_Unit old)
+{
+  return TPE_abs(new - old) < 20 ? (new + old) / 2 : new;
+}
 
 int main(void)
 {
@@ -48,6 +58,8 @@ int main(void)
 
     if (helper_frame % 16 == 0)
     {
+      printf("frame %d:\n",helper_frame);
+
       helper_printCPU();
 
       if (sdl_keyboard[SDL_SCANCODE_L])
@@ -59,6 +71,7 @@ int main(void)
         }
 
       printf("world update (us): %lu\n",timeMeasure / 16);
+      printf("hash: %lu\n",TPE_worldHash(&tpe_world));
 
       timeMeasure = 0;
     }
@@ -68,14 +81,6 @@ int main(void)
     TPE_worldStep(&tpe_world);
 
     timeMeasure += helper_getMicroSecs() - t1;
-
-
-
-
-
-
-if (helper_frame == 200)
-  printf("hash: %lu\n",TPE_worldHash(&tpe_world));
 
     for (int i = 0; i < tpe_world.bodyCount; ++i)
     {
@@ -101,24 +106,13 @@ if (helper_frame == 200)
     
       helper_set3DColor(100 + i * 5,16 - i,100 - i * 5); 
 
-bodyPositions[i] =
-TPE_vec3KeepWithinBox(
-bodyPositions[i],
-TPE_bodyGetCenterOfMass(&tpe_world.bodies[i]),
-TPE_vec3(20,20,20)
-);
-
-bodyOrientations[i].x = 
-(TPE_abs(bodyOrientations[i].x - orient.x) < 20) ?
-((bodyOrientations[i].x + orient.x) / 2) : orient.x;
-
-bodyOrientations[i].y = 
-(TPE_abs(bodyOrientations[i].y - orient.y) < 20) ?
-((bodyOrientations[i].y + orient.y) / 2) : orient.y;
-
-bodyOrientations[i].z = 
-(TPE_abs(bodyOrientations[i].z - orient.z) < 20) ?
-((bodyOrientations[i].z + orient.z) / 2) : orient.z;
+      // this smoothes the movement a bit:
+      bodyPositions[i] = TPE_vec3KeepWithinBox(bodyPositions[i],
+        TPE_bodyGetCenterOfMass(&tpe_world.bodies[i]),TPE_vec3(20,20,20));
+      
+      bodyOrientations[i].x = updateOrientation(orient.x,bodyOrientations[i].x);
+      bodyOrientations[i].y = updateOrientation(orient.y,bodyOrientations[i].y);
+      bodyOrientations[i].z = updateOrientation(orient.z,bodyOrientations[i].z);
 
       switch (i % 5)
       {

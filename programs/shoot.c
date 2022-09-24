@@ -1,15 +1,10 @@
+/** Tiny catapult Angry Birds like shooter demo. */
+
 #include "helper.h"
 
-#define CATAPULT_HEIGHT 1300
-#define CATAPULT_WIDTH 700
-#define BALL_RADIUS 200
-
-TPE_Unit sides[6] =
-{
-  0,0,
-  1000,1000,
-  -1000,2000
-};
+#define CATAPULT_HEIGHT (TPE_F * 2)
+#define CATAPULT_WIDTH (3 * TPE_F / 2)
+#define BALL_RADIUS (2 * TPE_F / 5)
 
 uint8_t collisionCallback(uint16_t b1, uint16_t j1, uint16_t b2, uint16_t j2,
   TPE_Vec3 p)
@@ -28,6 +23,7 @@ TPE_Connection connections[2];
 TPE_Body catapult;
 
 uint8_t released = 0;
+uint8_t anythingHit = 0;
 
 int main(void)
 {
@@ -54,32 +50,36 @@ int main(void)
 
   TPE_bodyInit(&tpe_bodies[0],joints,3,connections,2,10);
 
-  joints[1].position.x -= 800;
-  joints[1].position.y -= 200;
+  joints[1].position.x -= 2 * TPE_F;
+  joints[1].position.y -= TPE_F / 2;
 
   tpe_bodies[0].flags |= TPE_BODY_FLAG_SOFT;
-  tpe_bodies[0].flags |= TPE_BODY_FLAG_SIMPLE_CONN; // this makes the spring faster
+  tpe_bodies[0].flags |= TPE_BODY_FLAG_SIMPLE_CONN; // this makes the string faster
 
   tpe_world.bodyCount++;
 
-  helper_addBall(BALL_RADIUS,1000);
+  helper_addBall(BALL_RADIUS,2 * TPE_F);
 
-helper_addCenterBox(500,500,800,200,300);
-TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(4000,600,-600));
-TPE_bodyDeactivate(&helper_lastBody);
+  helper_addCenterBox(TPE_F,TPE_F,3 * TPE_F / 2,2 * TPE_F / 5,TPE_F);
+  helper_lastBody.joints[8].sizeDivided *= 2;
+  TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(8 * TPE_F,6 * TPE_F / 5,-6 * TPE_F / 5));
+  TPE_bodyDeactivate(&helper_lastBody);
 
-helper_addCenterBox(500,500,800,200,300);
-TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(4000,600,600));
-TPE_bodyDeactivate(&helper_lastBody);
+  helper_addCenterBox(TPE_F,TPE_F,3 * TPE_F / 2,2 * TPE_F / 5,TPE_F);
+  helper_lastBody.joints[8].sizeDivided *= 2;
+  TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(8 * TPE_F,6 * TPE_F / 5,6 * TPE_F / 5));
+  TPE_bodyDeactivate(&helper_lastBody);
 
-helper_addCenterRect(500,1800,300,300);
-TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(4000,1400,0));
-TPE_bodyDeactivate(&helper_lastBody);
+  helper_addCenterRect(TPE_F,3 * TPE_F,TPE_F / 2,TPE_F);
+  helper_lastBody.joints[4].sizeDivided *= 3;
+  helper_lastBody.joints[4].sizeDivided /= 2;
+  TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(8 * TPE_F,3 * TPE_F - TPE_F / 4,0));
+  TPE_bodyDeactivate(&helper_lastBody);
 
-helper_addCenterBox(600,600,900,200,300);
-TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(4000,2200,0));
-TPE_bodyDeactivate(&helper_lastBody);
-
+  helper_addCenterBox(6 * TPE_F / 5,6 * TPE_F / 5,2 * TPE_F - TPE_F / 6,TPE_F / 3,TPE_F);
+  helper_lastBody.joints[8].sizeDivided *= 2;
+  TPE_bodyMoveBy(&helper_lastBody,TPE_vec3(8 * TPE_F,4 * TPE_F + TPE_F / 3,0));
+  TPE_bodyDeactivate(&helper_lastBody);
 
   while (helper_running)
   {
@@ -96,7 +96,8 @@ TPE_bodyDeactivate(&helper_lastBody);
       for (int i = 1; i < tpe_world.bodyCount; ++i)
         TPE_bodyApplyGravity(&tpe_world.bodies[i],6);
 
-      TPE_bodyMultiplyNetSpeed(&tpe_world.bodies[0],500);
+      // make the string lose energy over time:
+      TPE_bodyMultiplyNetSpeed(&tpe_world.bodies[0],(19 * TPE_F) / 20);
     }
 
     if (!released || tpe_world.bodies[1].joints[0].position.x < 0)
@@ -112,7 +113,7 @@ TPE_bodyDeactivate(&helper_lastBody);
 
     if (!released)
     {
-#define OFFSET 20
+#define OFFSET (TPE_F / 20)
       if (sdl_keyboard[SDL_SCANCODE_W])
         joints[1].position.y += OFFSET;
       else if (sdl_keyboard[SDL_SCANCODE_S] && joints[1].position.y > 0)
@@ -127,34 +128,51 @@ TPE_bodyDeactivate(&helper_lastBody);
         joints[1].position.z -= OFFSET;
       else if (sdl_keyboard[SDL_SCANCODE_A])
         joints[1].position.z += OFFSET;
+#undef OFFSET
     }
-
-    if (helper_debugDrawOn)
-      helper_debugDraw(1);
+    else if (!anythingHit)
+    {
+      /* here we check if any of the tower bodies is active which means it has
+         been hit in which case we activate all the bodies so that they do their
+         thing and none stays hanging in the air :) */
+      for (int i = 2; i < tpe_world.bodyCount; ++i)
+      {
+        if (TPE_bodyIsActive(&tpe_world.bodies[i]))
+        {
+          puts("someting was hit, activating all bodies");
+          TPE_worldActivateAll(&tpe_world);
+          anythingHit = 1;
+          break;
+        }
+      } 
+    }
 
     helper_set3DColor(200,200,255);
 
     helper_draw3DSphere(tpe_world.bodies[1].joints[0].position,TPE_vec3(BALL_RADIUS,BALL_RADIUS,BALL_RADIUS),TPE_vec3(0,0,0));
     
-helper_set3DColor(200,255,200);
+    helper_set3DColor(200,255,200);
 
-helper_draw3DBox(TPE_bodyGetCenterOfMass(&tpe_world.bodies[2]),TPE_vec3(700,1000,700),
-  TPE_bodyGetRotation(&tpe_world.bodies[2],0,1,2));
+    helper_draw3DBox(TPE_bodyGetCenterOfMass(&tpe_world.bodies[2]),TPE_vec3(700,1000,700),
+      TPE_bodyGetRotation(&tpe_world.bodies[2],0,1,2));
 
-helper_draw3DBox(TPE_bodyGetCenterOfMass(&tpe_world.bodies[3]),TPE_vec3(700,1000,700),
-  TPE_bodyGetRotation(&tpe_world.bodies[3],0,1,2));
+    helper_draw3DBox(TPE_bodyGetCenterOfMass(&tpe_world.bodies[3]),TPE_vec3(700,1000,700),
+      TPE_bodyGetRotation(&tpe_world.bodies[3],0,1,2));
 
-helper_draw3DBox(TPE_bodyGetCenterOfMass(&tpe_world.bodies[4]),TPE_vec3(2000,500,700),
-  TPE_bodyGetRotation(&tpe_world.bodies[4],0,1,2));
+    helper_draw3DBox(TPE_bodyGetCenterOfMass(&tpe_world.bodies[4]),TPE_vec3(2000,500,700),
+      TPE_bodyGetRotation(&tpe_world.bodies[4],0,1,2));
 
-helper_draw3DBox(TPE_bodyGetCenterOfMass(&tpe_world.bodies[5]),TPE_vec3(800,1100,800),
-  TPE_bodyGetRotation(&tpe_world.bodies[5],0,1,2));
+    helper_draw3DBox(TPE_bodyGetCenterOfMass(&tpe_world.bodies[5]),TPE_vec3(800,1100,800),
+      TPE_bodyGetRotation(&tpe_world.bodies[5],0,1,2));
 
     helper_drawLine3D(TPE_vec3(0,0,0),TPE_vec3(0,CATAPULT_HEIGHT / 2,0),255,0,0 );
     helper_drawLine3D(TPE_vec3(0,CATAPULT_HEIGHT / 2,0),TPE_vec3(0,CATAPULT_HEIGHT,-1 * CATAPULT_WIDTH / 2),255,0,0);
     helper_drawLine3D(TPE_vec3(0,CATAPULT_HEIGHT / 2,0),TPE_vec3(0,CATAPULT_HEIGHT,CATAPULT_WIDTH / 2),255,0,0);
     helper_drawLine3D(TPE_vec3(0,CATAPULT_HEIGHT,-1 * CATAPULT_WIDTH / 2),joints[1].position,0,255,0);
     helper_drawLine3D(TPE_vec3(0,CATAPULT_HEIGHT,CATAPULT_WIDTH / 2),joints[1].position,0,255,0);
+
+    if (helper_debugDrawOn)
+      helper_debugDraw(1);
 
     helper_frameEnd();
   }
