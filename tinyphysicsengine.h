@@ -154,7 +154,7 @@ typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
 /** Number of times a collision of nonrotating bodies with environment will be
   attempted to resolve. This probably won't have great performance implications
   as complex collisions of this kind should be relatively rare. */
-  #define TPE_NONROTATING_COLLISION_RESOLVE_ATTEMPTS 3
+  #define TPE_NONROTATING_COLLISION_RESOLVE_ATTEMPTS 8
 #endif
 
 #ifndef TPE_APPROXIMATE_NET_SPEED
@@ -172,13 +172,43 @@ typedef struct
   TPE_Unit z;
 } TPE_Vec3;
 
+/** Keeps given point within specified axis-aligned box. This can be used e.g.
+  to smooth rendered movement of jittering physics bodies. */
+TPE_Vec3 TPE_vec3KeepWithinBox(TPE_Vec3 point, TPE_Vec3 boxCenter,
+  TPE_Vec3 boxMaxVect);
+
+TPE_Vec3 TPE_vec3KeepWithinDistanceBand(TPE_Vec3 point, TPE_Vec3 center,
+  TPE_Unit minDistance, TPE_Unit maxDistance);
+
+TPE_Vec3 TPE_vec3(TPE_Unit x, TPE_Unit y, TPE_Unit z);
+TPE_Vec3 TPE_vec3Minus(TPE_Vec3 v1, TPE_Vec3 v2);
+TPE_Vec3 TPE_vec3Plus(TPE_Vec3 v1, TPE_Vec3 v2);
+TPE_Vec3 TPE_vec3Cross(TPE_Vec3 v1, TPE_Vec3 v2);
+TPE_Vec3 TPE_vec3Project(TPE_Vec3 v, TPE_Vec3 base);
+TPE_Vec3 TPE_vec3ProjectNormalized(TPE_Vec3 v, TPE_Vec3 baseNormalized);
+TPE_Vec3 TPE_vec3Times(TPE_Vec3 v, TPE_Unit units);
+TPE_Vec3 TPE_vec3TimesPlain(TPE_Vec3 v, TPE_Unit q);
+TPE_Vec3 TPE_vec3Normalized(TPE_Vec3 v);
+
+TPE_Unit TPE_vec3Dot(TPE_Vec3 v1, TPE_Vec3 v2);
+TPE_Unit TPE_vec3Len(TPE_Vec3 v);
+TPE_Unit TPE_vec3LenApprox(TPE_Vec3 v);
+
+/** Returns an angle in TPE_Units (see angle conventions) of a 2D vector with
+  the X axis, CCW. */
+TPE_Unit TPE_vec2Angle(TPE_Unit x, TPE_Unit y);
+
+/** Keeps given value within specified range. This can be used e.g. for movement
+  smoothing. */
+TPE_Unit TPE_keepInRange(TPE_Unit x, TPE_Unit xMin, TPE_Unit xMax);
+
 static inline TPE_Unit TPE_abs(TPE_Unit x);
 static inline TPE_Unit TPE_max(TPE_Unit a, TPE_Unit b);
 static inline TPE_Unit TPE_min(TPE_Unit a, TPE_Unit b);
 static inline TPE_Unit TPE_nonZero(TPE_Unit x);
 static inline TPE_Unit TPE_dist(TPE_Vec3 p1, TPE_Vec3 p2);
 static inline TPE_Unit TPE_distApprox(TPE_Vec3 p1, TPE_Vec3 p2);
-TPE_Unit TPE_sqrt(TPE_Unit value);
+TPE_Unit TPE_sqrt(TPE_Unit x);
 
 /** Compute sine, TPE_FRACTIONS_PER_UNIT as argument corresponds to 2 * PI
   radians. Returns a number from -TPE_FRACTIONS_PER_UNIT to
@@ -227,8 +257,7 @@ typedef struct
   volume, P will be returned; otherwise closest point (by Euclidean distance) to
   the solid environment volume from P will be returned, except for a case when
   this closest point would be further away than D, in which case any arbitrary
-  point further away than D may be returned (this allows for potentially 
-  potentially faster implementation). */
+  point further away than D may be returned (this allows for optimizations). */
 typedef TPE_Vec3 (*TPE_ClosestPointFunction)(TPE_Vec3, TPE_Unit);
 
 /** Function that can be used as a joint-joint or joint-environment collision
@@ -236,7 +265,8 @@ typedef TPE_Vec3 (*TPE_ClosestPointFunction)(TPE_Vec3, TPE_Unit);
   joint2 index, collision world position. If body1 index is the same as body1
   index, then collision type is body-environment, otherwise it is body-body
   type. The function has to return either 1 if the collision is to be allowed
-  or 0 if it is to be discarded. */
+  or 0 if it is to be discarded. This can besides others be used to disable
+  collisions between some bodies. */
 typedef uint8_t (*TPE_CollisionCallback)(uint16_t, uint16_t, uint16_t, uint16_t,
   TPE_Vec3);
 
@@ -323,36 +353,6 @@ TPE_Vec3 TPE_rotationRotateByAxis(TPE_Vec3 rotation, TPE_Vec3 rotationByAxis);
 /** Computes the formula of a 1D collision of rigid bodies. */
 void TPE_getVelocitiesAfterCollision(TPE_Unit *v1, TPE_Unit *v2, TPE_Unit m1,
   TPE_Unit m2, TPE_Unit elasticity);
-
-/** Returns an angle in TPE_Units (see angle conventions) of a 2D vector with
-  the X axis, CCW. */
-TPE_Unit TPE_vec2Angle(TPE_Unit x, TPE_Unit y);
-
-TPE_Vec3 TPE_vec3(TPE_Unit x, TPE_Unit y, TPE_Unit z);
-TPE_Vec3 TPE_vec3Minus(TPE_Vec3 v1, TPE_Vec3 v2);
-TPE_Vec3 TPE_vec3Plus(TPE_Vec3 v1, TPE_Vec3 v2);
-TPE_Vec3 TPE_vec3Cross(TPE_Vec3 v1, TPE_Vec3 v2);
-TPE_Vec3 TPE_vec3Project(TPE_Vec3 v, TPE_Vec3 base);
-TPE_Vec3 TPE_vec3ProjectNormalized(TPE_Vec3 v, TPE_Vec3 baseNormalized);
-TPE_Vec3 TPE_vec3Times(TPE_Vec3 v, TPE_Unit units);
-TPE_Vec3 TPE_vec3TimesPlain(TPE_Vec3 v, TPE_Unit q);
-TPE_Vec3 TPE_vec3Normalized(TPE_Vec3 v);
-
-TPE_Unit TPE_vec3Dot(TPE_Vec3 v1, TPE_Vec3 v2);
-TPE_Unit TPE_vec3Len(TPE_Vec3 v);
-TPE_Unit TPE_vec3LenApprox(TPE_Vec3 v);
-
-/** Keeps given value within specified range. This can be used e.g. for movement
-  smoothing. */
-TPE_Unit TPE_keepInRange(TPE_Unit x, TPE_Unit xMin, TPE_Unit xMax);
-
-/** Keeps given point within specified axis-aligned box. This can be used e.g.
-  to smooth rendered movement of jittering physics bodies. */
-TPE_Vec3 TPE_vec3KeepWithinBox(TPE_Vec3 point, TPE_Vec3 boxCenter,
-  TPE_Vec3 boxMaxVect);
-
-TPE_Vec3 TPE_vec3KeepWithinDistanceBand(TPE_Vec3 point, TPE_Vec3 center,
-  TPE_Unit minDistance, TPE_Unit maxDistance);
 
 /** Computes orientation/rotation (see docs for orientation format) from two
   vectors (which should be at least close to being perpendicular and do NOT
@@ -488,7 +488,7 @@ void TPE_bodyCancelOutVelocities(TPE_Body *body, uint8_t strong);
 /** Moves a body by certain offset. */
 void TPE_bodyMoveBy(TPE_Body *body, TPE_Vec3 offset);
 
-/** Moves a body (its center of mass) to given position). */
+/** Moves a body (its center of mass) to given position. */
 void TPE_bodyMoveTo(TPE_Body *body, TPE_Vec3 position);
 
 /** Zeros velocities of all soft body joints. */
@@ -557,53 +557,36 @@ uint32_t TPE_worldHash(const TPE_World *world);
 
 void TPE_makeBox(TPE_Joint joints[8], TPE_Connection connections[16],
   TPE_Unit width, TPE_Unit depth, TPE_Unit height, TPE_Unit jointSize);
-
 void TPE_makeCenterBox(TPE_Joint joints[9], TPE_Connection connections[18],
   TPE_Unit width, TPE_Unit depth, TPE_Unit height, TPE_Unit jointSize);
-
 void TPE_makeRect(TPE_Joint joints[4], TPE_Connection connections[6],
   TPE_Unit width, TPE_Unit depth, TPE_Unit jointSize);
-
 void TPE_makeTriangle(TPE_Joint joints[3], TPE_Connection connections[3],
   TPE_Unit sideLength, TPE_Unit jointSize);
-
 void TPE_makeCenterRect(TPE_Joint joints[5], TPE_Connection connections[8],
   TPE_Unit width, TPE_Unit depth, TPE_Unit jointSize);
-
 void TPE_makeCenterRectFull(TPE_Joint joints[5], TPE_Connection connections[10],
   TPE_Unit width, TPE_Unit depth, TPE_Unit jointSize);
-
 void TPE_make2Line(TPE_Joint joints[2], TPE_Connection connections[1],
   TPE_Unit length, TPE_Unit jointSize);
 
 // FUNCTIONS FOR BUILDING ENVIRONMENT
 
 TPE_Vec3 TPE_envAABoxInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 size);
-
 TPE_Vec3 TPE_envAABox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec);
-
 TPE_Vec3 TPE_envBox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec,
   TPE_Vec3 rotation);
-
 TPE_Vec3 TPE_envSphere(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
-
 TPE_Vec3 TPE_envSphereInside(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit radius);
-
 TPE_Vec3 TPE_envHalfPlane(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 normal);
-
 TPE_Vec3 TPE_envGround(TPE_Vec3 point, TPE_Unit height);
-
 TPE_Vec3 TPE_envInfiniteCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3
   direction, TPE_Unit radius);
-
 TPE_Vec3 TPE_envCylinder(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 direction,
   TPE_Unit radius);
-
 TPE_Vec3 TPE_envCone(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 direction,
   TPE_Unit radius);
-
 TPE_Vec3 TPE_envLineSegment(TPE_Vec3 point, TPE_Vec3 a, TPE_Vec3 b);
-
 TPE_Vec3 TPE_envHeightmap(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit gridSize,
   TPE_Unit (*heightFunction)(int32_t x, int32_t y), TPE_Unit maxDist);
 
@@ -689,18 +672,18 @@ TPE_Vec3 TPE_vec3(TPE_Unit x, TPE_Unit y, TPE_Unit z)
   return r;
 }
 
-TPE_Unit TPE_sqrt(TPE_Unit value)
+TPE_Unit TPE_sqrt(TPE_Unit x)
 {
   int8_t sign = 1;
 
-  if (value < 0)
+  if (x < 0)
   {
     sign = -1;
-    value *= -1;
+    x *= -1;
   }
 
   uint32_t result = 0;
-  uint32_t a = value;
+  uint32_t a = x;
   uint32_t b = 1u << 30;
 
   while (b > a)
@@ -808,9 +791,7 @@ void TPE_bodyInit(TPE_Body *body,
   body->deactivateCount = 0;
   body->friction = TPE_F / 2;
   body->elasticity = TPE_F / 2;
-
   body->flags = 0;
-
   body->jointMass = TPE_nonZero(mass / jointCount);
 
   for (uint32_t i = 0; i < connectionCount; ++i)
@@ -828,8 +809,7 @@ void TPE_bodyInit(TPE_Body *body,
   }
 }
 
-void TPE_worldInit(TPE_World *world,
-  TPE_Body *bodies, uint16_t bodyCount,
+void TPE_worldInit(TPE_World *world, TPE_Body *bodies, uint16_t bodyCount,
   TPE_ClosestPointFunction environmentFunction)
 {
   world->bodies = bodies;
@@ -845,7 +825,6 @@ void TPE_make2Line(TPE_Joint joints[2], TPE_Connection connections[1],
 {
   joints[0] = TPE_joint(TPE_vec3(length / 2,0,0),jointSize);
   joints[1] = TPE_joint(TPE_vec3(length / -2,0,0),jointSize);
-
   C(0, 0,1)
 }
 
@@ -856,10 +835,8 @@ void TPE_makeRect(TPE_Joint joints[4], TPE_Connection connections[6],
   depth /= 2;
 
   for (uint8_t i = 0; i < 4; ++i)
-    joints[i] = TPE_joint(
-      TPE_vec3((i % 2) ? -1 * width : width,
-      0,(i / 2) ? - 1 * depth : depth),
-      jointSize);
+    joints[i] = TPE_joint(TPE_vec3((i % 2) ? -1 * width : width,
+      0,(i / 2) ? - 1 * depth : depth),jointSize);
 
   C(0, 0,1) C(1, 0,2) C (2, 3,1) C(3, 3,2)
   C(4, 0,3) C(5, 1,2)
@@ -879,7 +856,6 @@ void TPE_makeCenterRectFull(TPE_Joint joints[5], TPE_Connection connections[10],
   TPE_Unit width, TPE_Unit depth, TPE_Unit jointSize)
 {
   TPE_makeCenterRect(joints,connections,width,depth,jointSize);
-
   C(8, 1,4) C(9, 2,4)
 }
 
@@ -887,12 +863,10 @@ void TPE_makeTriangle(TPE_Joint joints[3], TPE_Connection connections[3],
   TPE_Unit sideLength, TPE_Unit jointSize)
 {
   joints[0] = TPE_joint(TPE_vec3(sideLength / 2,0,
-    TPE_sqrt((sideLength * sideLength) / 2) / 2),
-    jointSize);
+    TPE_sqrt((sideLength * sideLength) / 2) / 2),jointSize);
 
   joints[1] = joints[0];
   joints[1].position.x *= -1;
-
   joints[2] = TPE_joint(TPE_vec3(0,0,-1 * joints[0].position.z),jointSize);
 
   C(0, 0,1) C(1, 1,2) C(2, 2,0)
@@ -1086,7 +1060,8 @@ void TPE_worldStep(TPE_World *world)
         _TPE_body2Index = j;
 
         if (TPE_checkOverlapAABB(aabbMin,aabbMax,aabbMin2,aabbMax2) &&
-          TPE_bodiesResolveCollision(body,world->bodies + j,world->environmentFunction))
+          TPE_bodiesResolveCollision(body,world->bodies + j,
+          world->environmentFunction))
         {
           TPE_bodyActivate(body);
           body->deactivateCount = TPE_LIGHT_DEACTIVATION; 
@@ -1261,7 +1236,6 @@ void TPE_bodyCancelOutVelocities(TPE_Body *body, uint8_t strong)
       }
     }
   }
-
 }
 
 void TPE_bodyReshape(TPE_Body *body, 
@@ -1657,9 +1631,7 @@ uint8_t TPE_jointsResolveCollision(TPE_Joint *j1, TPE_Joint *j2,
       TPE_vec3(j1->velocity[0],j1->velocity[1],j1->velocity[2]);
 
     v1 = TPE_vec3Dot(vel,dir);
-
     vel = TPE_vec3(j2->velocity[0],j2->velocity[1],j2->velocity[2]);
-
     vel = TPE_vec3Project(vel,dir);
 
     j2->velocity[0] = j2->velocity[0] - vel.x;
@@ -1815,7 +1787,8 @@ uint8_t TPE_jointEnvironmentResolveCollision(TPE_Joint *joint,
       {
         joint->position = TPE_vec3Plus(joint->position,shift);
 
-        toJoint = TPE_vec3Minus(joint->position,env(joint->position,TPE_JOINT_SIZE(*joint)));
+        toJoint = TPE_vec3Minus(joint->position,
+          env(joint->position,TPE_JOINT_SIZE(*joint)));
 
         len = TPE_LENGTH(toJoint); // still colliding?
 
@@ -2172,8 +2145,10 @@ void TPE_worldDebugDraw(TPE_World *world, TPE_DebugDrawFunction drawFunc,
     for (uint16_t j = 0; j < world->bodies[i].connectionCount; ++j)
     {
       TPE_Vec3
-        p1 = world->bodies[i].joints[world->bodies[i].connections[j].joint1].position,
-        p2 = world->bodies[i].joints[world->bodies[i].connections[j].joint2].position;
+        p1 = world->bodies[i].joints[
+          world->bodies[i].connections[j].joint1].position,
+        p2 = world->bodies[i].joints[
+          world->bodies[i].connections[j].joint2].position;
 
       p1 = _TPE_project3DPoint(p1,camPos,camRot,camView);
       p2 = _TPE_project3DPoint(p2,camPos,camRot,camView);
@@ -2255,7 +2230,6 @@ TPE_Vec3 TPE_envBox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec,
 TPE_Vec3 TPE_envAABox(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 maxCornerVec)
 {
   TPE_Vec3 shifted = TPE_vec3Minus(point,center);
- 
   int8_t sign[3] = {1, 1, 1};
 
   if (shifted.x < 0)
@@ -2390,7 +2364,8 @@ TPE_Vec3 TPE_envHalfPlane(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 normal)
 {
   TPE_Vec3 point2 = TPE_vec3Minus(point,center);
 
-  TPE_Unit tmp = point2.x * normal.x + point2.y * normal.y + point2.z * normal.z;
+  TPE_Unit tmp =
+    point2.x * normal.x + point2.y * normal.y + point2.z * normal.z;
 
   if (tmp < 0)
     return point;
@@ -3150,7 +3125,8 @@ TPE_Vec3 TPE_envHeightmap(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit gridSize,
   uint16_t spiralStep = 1, spiralStepsLeft = 1;
 
   TPE_Vec3 // 4 corners of the current square
-    bl = TPE_vec3(squareX * gridSize,heightFunction(squareX,squareY),squareY * gridSize),
+    bl = TPE_vec3(squareX * gridSize,heightFunction(squareX,squareY),
+      squareY * gridSize),
     br = TPE_vec3(bl.x + gridSize,heightFunction(squareX + 1,squareY),bl.z),
     tl = TPE_vec3(bl.x,heightFunction(squareX,squareY + 1),bl.z + gridSize),
     tr = TPE_vec3(br.x,heightFunction(squareX + 1,squareY + 1),tl.z);
@@ -3174,8 +3150,10 @@ TPE_Vec3 TPE_envHeightmap(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit gridSize,
       if (testD < closestD)
       {
         if (j == 0 ? // point is inside the triangle?
-          (testP.x >= bl.x && testP.z >= bl.z && (testP.x - bl.x <= tl.z - testP.z)) :
-          (testP.x <= tr.x && testP.z <= tr.z && (testP.x - bl.x >= tl.z - testP.z)))
+          (testP.x >= bl.x && testP.z >= bl.z &&
+            (testP.x - bl.x <= tl.z - testP.z)) :
+          (testP.x <= tr.x && testP.z <= tr.z &&
+            (testP.x - bl.x >= tl.z - testP.z)))
         {
           closestP = testP;
           closestD = testD;
@@ -3205,7 +3183,8 @@ TPE_Vec3 TPE_envHeightmap(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit gridSize,
 
         bl = tl; br = tr;
         tl = TPE_vec3(bl.x,heightFunction(squareX,squareY + 1),bl.z + gridSize);
-        tr = TPE_vec3(br.x,heightFunction(squareX + 1,squareY + 1),bl.z + gridSize);
+        tr = TPE_vec3(br.x,heightFunction(squareX + 1,squareY + 1),bl.z 
+          + gridSize);
 
         break;
 
@@ -3213,7 +3192,8 @@ TPE_Vec3 TPE_envHeightmap(TPE_Vec3 point, TPE_Vec3 center, TPE_Unit gridSize,
         squareX++;
 
         bl = br; tl = tr;
-        tr = TPE_vec3(tl.x + gridSize,heightFunction(squareX + 1,squareY + 1),tl.z);
+        tr = TPE_vec3(tl.x + gridSize,heightFunction(squareX + 1,squareY + 1),
+          tl.z);
         br = TPE_vec3(bl.x + gridSize,heightFunction(squareX + 1,squareY),bl.z);
 
         break;
