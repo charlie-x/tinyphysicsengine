@@ -1,5 +1,3 @@
-# THIS IS JUST A CONCEPT, NOT WORKING YET
-
 # tinyphysicsengine
 
 ![](tpe1.gif)![](tpe2.gif)![](tpe3.gif)![](tpe4.gif)![](tpe5.gif)![](tpe6.gif)
@@ -21,7 +19,7 @@ TPE is NOT a "robust framework" and it is **NOT physically accurate**; basic thi
 - **no dynamic allocation** (malloc), not using files etc.
 - completely **public domain** free software, no legal worries and burdens, do whatever you want
 - **no floating point**, only 32 bit integer (fixed point) math
-- **nice performance** for smaller simulations, runs even on embedded devices (TODO)
+- **nice performance** for smaller simulations, runs even on embedded devices such as Pokitto (32 kB RAM, 48 MHz CPU)
 - **discrete collision detection** with **simple acceleration** by bounding volumes that use **no precomputation**
 - **soft/stiff body** physics that can be used to also **fake rigid body** physics, built-in functions for constructing bodies
 - bodies are **spheres connected by springs** with simple attributes (mass, stiffness, elasticity, friction, ...), can be **soft or stiff**
@@ -83,7 +81,7 @@ You can probably use this to:
 
 For a basic use see the `hello.c` example program and `hello2.c` as the next, then take a look at the more complex ones. Also see the library file itself, it is highly commented and is supposed to serve as its own documentation.
 
-Very basic sum up: TODO
+Very basic sum up: TODO, coming soon :)
 
 ## usage rights
 
