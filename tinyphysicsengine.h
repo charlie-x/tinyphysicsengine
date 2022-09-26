@@ -3279,7 +3279,7 @@ TPE_Vec3 TPE_envCone(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 direction,
       {
         if (x <= 0)
         {
-          TPE_LOG("WARNING: arithmetic error in envCone (library bug)")
+          TPE_LOG("WARNING: arithmetic error in envCone (library bug)");
           x = 1; // shouldn't happen but just in case, to prevent div by zero
         }
 
