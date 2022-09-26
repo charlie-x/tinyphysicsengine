@@ -1,11 +1,12 @@
 TODO:
 - demo: ragdoll <--- maybe later
 - add/remove log with TPE_LOG so that its nice, useful and not spammy
-- demos for showing basic use (without using helper.h)
-- FOR GODS SAKE clean the code
-- valgrind, cppcheck, read the whole code, refactor, test on embedded, ...
 
 DONE:
+- FOR GODS SAKE clean the code
+- valgrind, cppcheck, read the whole code, refactor, test on embedded, ...
+- demos for showing basic use (without using helper.h)
+- expand basic tests a bit
 - update the player demo (new 3D environment)
 - bug: catapult demo doesn't work as expected with soft body velocity
   cancelling
