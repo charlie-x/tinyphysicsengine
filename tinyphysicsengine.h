@@ -63,7 +63,7 @@ typedef int16_t TPE_UnitReduced;        ///< Like TPE_Unit but saving space
 
 #define TPE_JOINT_SIZE(joint) ((joint).sizeDivided * TPE_JOINT_SIZE_MULTIPLIER)
 
-#ifndef TPE_APPROXIMATE_LENGT
+#ifndef TPE_APPROXIMATE_LENGTH
   #define TPE_APPROXIMATE_LENGTH 0      /**< whether or not use length/distance 
                                            approximation rather than exact 
                                            calculation (1 is faster but less
@@ -1701,13 +1701,8 @@ TPE_Vec3 TPE_vec3TimesPlain(TPE_Vec3 v, TPE_Unit q)
   return v;
 }
 
-void TPE_getVelocitiesAfterCollision(
-  TPE_Unit *v1,
-  TPE_Unit *v2,
-  TPE_Unit m1,
-  TPE_Unit m2,
-  TPE_Unit elasticity
-)
+void TPE_getVelocitiesAfterCollision(TPE_Unit *v1, TPE_Unit *v2,
+  TPE_Unit m1, TPE_Unit m2, TPE_Unit elasticity)
 {
   /* In the following a lot of TPE_F cancel out, feel free to
      check if confused. */
@@ -3283,7 +3278,10 @@ TPE_Vec3 TPE_envCone(TPE_Vec3 point, TPE_Vec3 center, TPE_Vec3 direction,
       if (y > height || x > scaledRadius) // outside?
       {
         if (x <= 0)
+        {
+          TPE_LOG("WARNING: arithmetic error in envCone (library bug)")
           x = 1; // shouldn't happen but just in case, to prevent div by zero
+        }
 
         helper.x = (helper.x * radius) / x;
         helper.y = (helper.y * radius) / x;
